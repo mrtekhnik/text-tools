@@ -216,6 +216,7 @@ body.modal-lock{overflow:hidden}
     <div class="phead"><span class="ptitle">Результат</span><span class="cnt" id="cntOut"></span>
       <button class="hb" id="acceptBtn2" type="button" title="Результат станет текстом, шаги сбросятся">↑ В текст</button></div>
     <textarea class="field area" id="out" readonly placeholder="Здесь будет результат" spellcheck="false"></textarea>
+    <div class="selhint" id="selhint2" hidden><span id="selText2"></span><button class="linkbtn" id="selClear2" type="button">Снять</button></div>
     <div class="pbtns wide-only">
       <button class="btn primary" id="copyBtn" type="button">Копировать результат</button>
       <button class="btn" id="acceptBtn" type="button" title="Результат станет текстом, шаги сбросятся">↑ В поле текста</button>
@@ -289,7 +290,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-11.5';
+const APP_VERSION = '2026-11-11.6';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -444,7 +445,15 @@ function countMatches(t, p) {
 }
 
 /* ---------- шаг цепочки ---------- */
+// s.r = [начало, конец] — шаг действует только на этот кусок текста (выделенный фрагмент)
 function applyStep(t, s, prot) {
+  if (Array.isArray(s.r)) {
+    const a = Math.max(0, Math.min(t.length, s.r[0] | 0)), b = Math.max(a, Math.min(t.length, s.r[1] | 0));
+    return t.slice(0, a) + applyWhole(t.slice(a, b), s, prot) + t.slice(b);
+  }
+  return applyWhole(t, s, prot);
+}
+function applyWhole(t, s, prot) {
   switch (s.type) {
     case 'layout': return convertLayout(t, s.p);
     case 'case': return caseTransform(t, s.p, prot);
@@ -542,8 +551,8 @@ const NAMES = {
 };
 const cut = (s, n) => { s = String(s).replace(/\n/g, '↵'); return s.length > n ? s.slice(0, n) + '…' : s; };
 function stepLabel(s) {
-  if (s.type === 'replace') return '«' + cut(s.p.find, 14) + '» → «' + cut(s.p.repl, 14) + '»';
-  return (NAMES[s.type] && NAMES[s.type][s.p]) || s.type;
+  const base = s.type === 'replace' ? '«' + cut(s.p.find, 14) + '» → «' + cut(s.p.repl, 14) + '»' : ((NAMES[s.type] && NAMES[s.type][s.p]) || s.type);
+  return Array.isArray(s.r) ? base + ' · кусок' : base;
 }
 
 /* ---------- расчёт результата: текст проходит шаги по очереди ---------- */
@@ -551,12 +560,12 @@ function recompute() {
   let t = state.text;
   for (const s of state.steps) t = applyStep(t, s, state.prot);
   lastOut = t;
-  out.value = state.steps.length ? t : '';
-  $('#cntOut').textContent = state.steps.length ? fmtCount(t) : '';
+  out.value = t;                               // без шагов результат совпадает с текстом — в нём тоже можно выделять
+  $('#cntOut').textContent = state.steps.length ? fmtCount(t) : (t ? 'без изменений' : '');
   $('#acceptBtn').disabled = $('#acceptBtn2').disabled = !state.steps.length;
   updFrInfo();
 }
-const currentOutput = () => (state.steps.length ? lastOut : state.text);
+const currentOutput = () => lastOut;
 function fmtCount(t) {
   const c = countText(t);
   if (!c.chars) return 'пусто';
@@ -580,12 +589,23 @@ function renderSteps() {
   stepsEl.scrollLeft = stepsEl.scrollWidth;
 }
 function updCounts() { $('#cntIn').textContent = state.text ? fmtCount(state.text) : ''; }
-// выделение считается, только пока курсор в поле текста (невидимое «старое» выделение не учитывается)
-const liveSel = () => document.activeElement === src && !composing && src.selectionEnd > src.selectionStart;
+// выделение считается, только пока оно «живое» — поле в фокусе (невидимое старое выделение не учитывается)
+function liveSel() {
+  const el = document.activeElement;
+  if (el === out && out.selectionEnd > out.selectionStart) return { f: 'out', a: out.selectionStart, b: out.selectionEnd };
+  if (el === src && !composing && src.selectionEnd > src.selectionStart) return { f: 'src', a: src.selectionStart, b: src.selectionEnd };
+  return null;
+}
 function updSel() {
-  const on = liveSel(), n = src.selectionEnd - src.selectionStart;
-  $('#selhint').hidden = !on;
-  if (on) $('#selText').textContent = 'Выделено ' + n + ' симв. — команда изменит только их';
+  const sel = liveSel();
+  $('#selhint').hidden = !(sel && sel.f === 'src');
+  $('#selhint2').hidden = !(sel && sel.f === 'out');
+  if (sel) {
+    const msg = sel.f === 'src' && state.steps.length
+      ? 'Шаги уже есть — выделите этот кусок в окне «Результат»'
+      : 'Выделено ' + (sel.b - sel.a) + ' симв. — команда изменит только их';
+    $(sel.f === 'src' ? '#selText' : '#selText2').textContent = msg;
+  }
   updFrInfo();
 }
 function after() { recompute(); renderSteps(); updCounts(); updSel(); updUndo(); save(); }
@@ -617,15 +637,24 @@ function doOp(type, p, sel) {
   if (state.text !== src.value) { state.text = src.value; }
   flushTyping();
   const step = { type, p: typeof p === 'object' ? { ...p } : p };
-  if (sel && sel.b > sel.a && sel.b <= src.value.length) {   // выделение — меняем только его, прямо в поле текста
-    const frag = src.value.slice(sel.a, sel.b), res = applyStep(frag, step, state.prot);
-    if (res === frag) { toast('В выделенном ничего не изменилось', 'warn'); return; }
-    src.setRangeText(res, sel.a, sel.b, 'select');
-    state.text = src.value; commit(); after();
-    toast('✓ ' + stepLabel(step) + ' — в выделенном (↶ отменит)');
+  if (!state.text) { toast('Сначала вставьте или введите текст', true); return; }
+  // выделенный кусок: шаг действует только на него, изменение видно в «Результате», исходный текст не меняется.
+  // Позиции считаются по тексту результата, поэтому при уже имеющихся шагах выделять нужно в «Результате».
+  if (sel) {
+    if (sel.f === 'src' && state.steps.length) { toast('Шаги уже есть — выделите этот кусок в окне «Результат»', 'warn'); return; }
+    if (sel.b > lastOut.length) sel = null;
+  }
+  if (sel) {
+    step.r = [sel.a, sel.b];
+    const before = lastOut, res = applyStep(before, step, state.prot);
+    if (res === before) { toast('В выделенном ничего не изменилось', 'warn'); return; }
+    state.steps.push(step); commit(); after();
+    const nb = sel.b + (res.length - before.length);
+    try { out.setSelectionRange(sel.a, nb); if (!touch) out.focus(); } catch (e) { /* ничего */ }
+    out.classList.add('flash'); setTimeout(() => out.classList.remove('flash'), 600);
+    toast('✓ ' + stepLabel(step));
     return;
   }
-  if (!state.text) { toast('Сначала вставьте или введите текст', true); return; }
   const before = currentOutput(), res = applyStep(before, step, state.prot);
   if (res === before) {
     const prot = type === 'case' && state.prot.on && applyStep(before, step, { on: false }) !== before;
@@ -640,7 +669,7 @@ function doOp(type, p, sel) {
 // Нажатие на команду: выделение запоминается в момент касания; на телефоне поле теряет фокус — клавиатура закрывается
 let pressSel = null;
 function bindCmd(b, run) {
-  b.addEventListener('pointerdown', () => { pressSel = liveSel() ? { a: src.selectionStart, b: src.selectionEnd } : null; });
+  b.addEventListener('pointerdown', () => { pressSel = liveSel(); });
   if (!touch) b.addEventListener('mousedown', e => e.preventDefault());   // на компьютере выделение в поле не пропадает
   b.addEventListener('click', () => {
     const sel = pressSel; pressSel = null;
@@ -748,6 +777,8 @@ $('#clearBtn').addEventListener('click', clearAll);
 $('#clearBtn2').addEventListener('click', clearAll);
 $('#selClear').addEventListener('pointerdown', e => e.preventDefault());
 $('#selClear').addEventListener('click', () => { const e = src.selectionEnd; src.setSelectionRange(e, e); updSel(); });
+$('#selClear2').addEventListener('pointerdown', e => e.preventDefault());
+$('#selClear2').addEventListener('click', () => { const e = out.selectionEnd; out.setSelectionRange(e, e); updSel(); });
 
 src.addEventListener('input', () => {
   state.text = src.value;
@@ -758,7 +789,8 @@ src.addEventListener('input', () => {
 // курсор, который поставил сам человек (касанием или клавишами); после замены всего текста он «сбрасывается»
 ['pointerup', 'keyup', 'select'].forEach(ev => src.addEventListener(ev, () => { caretKnown = true; }));
 if (!touch) src.addEventListener('blur', updSel);
-document.addEventListener('selectionchange', () => { if (document.activeElement === src) updSel(); });
+['select', 'keyup', 'mouseup', 'touchend', 'focus', 'blur'].forEach(ev => out.addEventListener(ev, updSel));
+document.addEventListener('selectionchange', () => { const el = document.activeElement; if (el === src || el === out) updSel(); });
 const isUndoKey = e => (e.ctrlKey || e.metaKey) && !e.altKey && ['z', 'я'].includes(e.key.toLowerCase()) && !e.shiftKey;
 const isRedoKey = e => (e.ctrlKey || e.metaKey) && !e.altKey && (['y', 'н'].includes(e.key.toLowerCase()) || (['z', 'я'].includes(e.key.toLowerCase()) && e.shiftKey));
 document.addEventListener('keydown', e => {
@@ -780,8 +812,8 @@ function updFrInfo() {
   const el = $('#frInfo'); if (!el) return;
   const p = frParams();
   if (!p.find) { el.textContent = ''; el.className = 'frinfo'; return; }
-  const inSel = liveSel();
-  const r = countMatches(inSel ? src.value.slice(src.selectionStart, src.selectionEnd) : currentOutput(), p);
+  const sl = liveSel(), inSel = !!sl && !(sl.f === 'src' && state.steps.length);
+  const r = countMatches(inSel ? lastOut.slice(sl.a, sl.b) : currentOutput(), p);
   el.className = 'frinfo' + (r.err ? ' bad' : '');
   el.textContent = r.err ? r.err : 'Найдено: ' + r.n + (inSel ? ' в выделенном' : state.steps.length ? ' (в результате)' : '');
 }
@@ -819,7 +851,8 @@ function helpSheet() {
         h('li', { text: '«Вставить» добавляет текст из буфера туда, где стоит курсор (если курсор не ставили — в конец, с новой строки). Чтобы заменить текст целиком, сначала нажмите ✕.' }),
         h('li', { text: '«↑ В текст» делает результат исходным текстом и сбрасывает шаги.' }),
         h('li', { text: 'На телефоне клавиатура появляется только по кнопке «✎ Править». Чтобы исправить место в тексте, сначала нажмите на него, потом «✎ Править» — курсор будет там. Нажатие на команду или «✓ Готово» закрывает клавиатуру.' }),
-        h('li', { text: 'Если выделить часть текста (долгое нажатие) и сразу нажать команду, изменится только выделенное, прямо в верхнем окне.' }),
+        h('li', { text: 'Чтобы изменить только кусок текста, выделите его долгим нажатием в окне «Результат» и нажмите команду. Изменится только этот кусок, шаг будет с пометкой «кусок», исходный текст не меняется. Пока шагов нет, кусок можно выделить и в верхнем окне.' }),
+        h('li', { text: 'Шаги «кусок» привязаны к месту в тексте. Если потом заменить исходный текст на другой, такие шаги лучше сбросить.' }),
         h('li', { text: '↶ и ↷ отменяют и повторяют всё: набор, вставку, шаги. На ПК — Ctrl+Z и Ctrl+Y.' }),
         h('li', { text: 'Раскладка меняет только слова, в которых есть буквы «не той» раскладки. Опечатки она не исправляет.' }),
         h('li', { text: '«Склеить строки» соединяет строки внутри абзаца (как после копирования из PDF); абзацы и пункты списков остаются.' }),
