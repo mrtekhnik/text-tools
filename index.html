@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+<meta name="theme-color" content="#0d6b5b">
+<title>Текстовые инструменты</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{
+  --bg:#eff2f0; --surface:#ffffff; --ink:#182022; --muted:#62706f; --line:#d9dfdc;
+  --accent:#0d6b5b; --accent-ink:#ffffff; --accent-soft:#d7eee8; --danger:#b3261e;
+  --shadow:0 6px 20px rgba(13,40,35,.22); color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#101416; --surface:#1a2124; --ink:#e6ecea; --muted:#93a29f; --line:#2b3538;
+    --accent:#5cc9b3; --accent-ink:#06251f; --accent-soft:#1c3a35; --danger:#ff8a80;
+    --shadow:0 6px 20px rgba(0,0,0,.5); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101416; --surface:#1a2124; --ink:#e6ecea; --muted:#93a29f; --line:#2b3538;
+  --accent:#5cc9b3; --accent-ink:#06251f; --accent-soft:#1c3a35; --danger:#ff8a80;
+  --shadow:0 6px 20px rgba(0,0,0,.5); color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);
+  font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;touch-action:manipulation}
+button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:1240px;margin:0 auto;padding:0 12px}
+
+/* --- шапка --- */
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:env(safe-area-inset-top,0px);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:8px;padding:8px 0}
+.bar h1{font-size:20px;margin:0;letter-spacing:-.01em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-btns{display:flex;gap:6px;flex:none}
+.iconbtn{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--surface);
+  font-size:22px;line-height:1;color:var(--muted);flex:none}
+.iconbtn:disabled{opacity:.35;cursor:default}
+
+/* --- поля и кнопки --- */
+.field{width:100%;font:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;
+  background:var(--surface);color:var(--ink)}
+.field:focus{outline:2px solid var(--accent);outline-offset:1px}
+.area{display:block;resize:vertical;line-height:1.45;min-height:30vh}
+.btn{min-height:48px;padding:0 16px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:active:not(:disabled),.tb:active{transform:scale(.98)}
+
+/* --- раскладка экрана: узкий — друг под другом, широкий — ввод и результат рядом --- */
+.app{display:grid;gap:14px;padding:12px 0 calc(92px + env(safe-area-inset-bottom,0px));
+  grid-template-columns:minmax(0,1fr);grid-template-areas:"in" "tools" "steps" "out"}
+.pane.in{grid-area:in}.tools{grid-area:tools}.steps{grid-area:steps}.pane.out{grid-area:out}
+@media (min-width:900px){
+  .app{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"tools tools" "steps steps" "in out";padding-bottom:24px}
+  .area{min-height:52vh}
+  #actbar{display:none!important}
+}
+.pane{display:flex;flex-direction:column;gap:8px;min-width:0}
+.phead{display:flex;align-items:baseline;gap:10px;justify-content:space-between}
+.ptitle{font-weight:800;font-size:15px}
+.cnt{color:var(--muted);font-size:13px;text-align:right}
+.pbtns{display:flex;gap:8px;flex-wrap:wrap}
+.pbtns .btn{flex:1 1 140px}
+#out{background:var(--bg)}
+#out.flash{outline:2px solid var(--accent);outline-offset:1px}
+.selhint{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:12px;background:var(--accent-soft);font-size:14px}
+.selhint span{flex:1}
+.linkbtn{background:none;border:0;padding:0 4px;min-height:32px;color:var(--muted);font-size:13px;text-decoration:underline}
+.selhint .linkbtn{color:var(--ink);font-size:14px}
+
+/* --- инструменты --- */
+.tools{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){.tools{grid-template-columns:repeat(3,minmax(0,1fr))}.tools .fr{grid-column:1/-1}}
+.tgroup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px}
+.tlbl{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;font-weight:800;font-size:14px;color:var(--muted);margin:0 2px 8px}
+.tlbl .sp{flex:1}
+.tbtns{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}
+.tb{min-height:48px;padding:4px 8px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-weight:600;font-size:15px;line-height:1.2}
+.tb.main{background:var(--accent-soft);border-color:var(--accent)}
+.mini{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);font-size:14px;min-height:32px;cursor:pointer}
+.mini input{width:20px;height:20px;accent-color:var(--accent);margin:0}
+details.fr>summary{list-style:none;cursor:pointer;font-weight:800;font-size:14px;color:var(--muted);min-height:36px;display:flex;align-items:center;gap:8px}
+details.fr>summary::-webkit-details-marker{display:none}
+details.fr>summary::before{content:'▸';width:14px}
+details.fr[open]>summary::before{content:'▾'}
+.frgrid{display:grid;gap:8px;margin-top:6px}
+@media (min-width:900px){.frgrid{grid-template-columns:1fr 1fr 200px;align-items:start}}
+.fropts{display:flex;gap:4px 16px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.frinfo{font-size:13px;color:var(--muted);min-height:18px;margin-top:4px}
+.frinfo.bad{color:var(--danger)}
+
+/* --- шаги --- */
+.steps{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;color:var(--muted);min-height:36px}
+.step{display:inline-flex;align-items:center;gap:2px;padding:0 0 0 12px;border-radius:999px;background:var(--accent-soft);color:var(--ink);font-weight:600;min-height:36px;max-width:100%}
+.step span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step button{flex:none;border:0;background:none;width:34px;height:34px;border-radius:999px;color:var(--muted);font-size:16px}
+.arrow{color:var(--muted)}
+
+/* --- нижняя панель на узком экране --- */
+#actbar{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;gap:8px;
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -4px 14px rgba(0,0,0,.12)}
+#actbar .btn{flex:1}
+#actbar .btn.primary{flex:2}
+
+/* --- окна --- */
+.overlay{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;overscroll-behavior:contain}
+.sheet{width:100%;max-width:560px;background:var(--surface);color:var(--ink);border-radius:20px 20px 0 0;
+  padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px));max-height:92vh;max-height:92svh;overflow:auto;overscroll-behavior:contain}
+.sheet h2{margin:0 0 12px;font-size:18px}
+.sheet .msg{margin:0 0 12px;color:var(--muted);white-space:pre-line}
+.sheet ul{margin:0 0 12px 18px;padding:0;color:var(--muted)}
+.sheet li{margin:4px 0}
+.btns{display:flex;flex-direction:column;gap:8px}
+.btns .btn{width:100%}
+.thm{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.thm .btn{min-height:40px;padding:0 14px;font-size:14px}
+.uilbl{margin:4px 0 6px;font-weight:700;font-size:14px}
+.tmeta{color:var(--muted);font-size:13px;text-align:center;margin:8px 0 0;white-space:pre-line}
+.chk{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}
+.chk input{width:22px;height:22px;accent-color:var(--accent);flex:none;margin:0}
+@media (min-width:640px){.overlay{align-items:center}.sheet{border-radius:16px}}
+body.modal-lock{overflow:hidden}
+
+/* --- уведомления --- */
+#updbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;align-items:center;gap:10px;
+  width:max-content;max-width:calc(100vw - 24px);padding:8px 8px 8px 16px;border-radius:999px;background:var(--ink);color:var(--bg);box-shadow:var(--shadow);font-size:15px}
+#updbar .ub{min-height:40px;padding:0 16px;border-radius:999px;border:0;background:var(--accent);color:var(--accent-ink);font-weight:700}
+#updbar .ux{min-height:40px;width:36px;border:0;background:none;color:inherit;font-size:18px;opacity:.7}
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translate(-50%,12px);
+  z-index:40;background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:999px;font-weight:700;
+  opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.bad{background:var(--danger);color:#fff}
+@media (min-width:900px){#toast,#updbar{bottom:24px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <h1>Текстовые инструменты</h1>
+      <div class="hdr-btns">
+        <button class="iconbtn" id="undoBtn" type="button" aria-label="Отменить" title="Отменить (Ctrl+Z)">↶</button>
+        <button class="iconbtn" id="redoBtn" type="button" aria-label="Повторить" title="Повторить (Ctrl+Y)">↷</button>
+        <button class="iconbtn" id="menuBtn" type="button" aria-label="Меню" title="Меню">⋮</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap app">
+  <section class="pane in">
+    <div class="phead"><span class="ptitle">Текст</span><span class="cnt" id="cntIn"></span></div>
+    <textarea class="field area" id="src" placeholder="Вставьте или введите текст" spellcheck="false" autocomplete="off"></textarea>
+    <div class="selhint" id="selhint" hidden><span id="selText"></span><button class="linkbtn" id="selClear" type="button">Снять</button></div>
+    <div class="pbtns">
+      <button class="btn" id="pasteBtn" type="button">Вставить</button>
+      <button class="btn" id="clearBtn" type="button">Очистить</button>
+    </div>
+  </section>
+
+  <section class="tools" id="tools">
+    <div class="tgroup">
+      <div class="tlbl">Раскладка</div>
+      <div class="tbtns">
+        <button class="tb" type="button" data-t="layout" data-p="en-ru" title="ghbdtn → привет">EN → RU</button>
+        <button class="tb" type="button" data-t="layout" data-p="ru-en" title="руддщ → hello (учитывает і, ї, є, ґ)">RU → EN</button>
+        <button class="tb" type="button" data-t="layout" data-p="ru-ua" title="ыснувати → існувати, і обратно">RU ↔ UA</button>
+      </div>
+    </div>
+    <div class="tgroup">
+      <div class="tlbl"><span>Регистр</span><span class="sp"></span>
+        <label class="mini"><input type="checkbox" id="protOn"> исключения</label>
+        <button class="linkbtn" id="protEdit" type="button">настроить</button></div>
+      <div class="tbtns">
+        <button class="tb" type="button" data-t="case" data-p="upper">ВЕРХНИЙ</button>
+        <button class="tb" type="button" data-t="case" data-p="lower">нижний</button>
+        <button class="tb" type="button" data-t="case" data-p="sentence">Как в предложении</button>
+        <button class="tb" type="button" data-t="case" data-p="title">Каждое Слово</button>
+        <button class="tb" type="button" data-t="case" data-p="invert">иНВЕРСИЯ</button>
+      </div>
+    </div>
+    <div class="tgroup">
+      <div class="tlbl">Очистка</div>
+      <div class="tbtns">
+        <button class="tb main" type="button" data-t="clean" data-p="all" title="Края строк, переносы слов, склейка строк, двойные пробелы">Всё сразу</button>
+        <button class="tb" type="button" data-t="clean" data-p="spaces">Двойные пробелы</button>
+        <button class="tb" type="button" data-t="clean" data-p="empty">Пустые строки</button>
+        <button class="tb" type="button" data-t="clean" data-p="join" title="Строки внутри абзаца склеиваются, абзацы и списки остаются">Склеить строки (PDF)</button>
+        <button class="tb" type="button" data-t="clean" data-p="hyphen" title="сло-↵во → слово">Переносы слов</button>
+        <button class="tb" type="button" data-t="clean" data-p="trim">Пробелы по краям</button>
+      </div>
+    </div>
+    <details class="tgroup fr" id="frPanel">
+      <summary>Найти и заменить</summary>
+      <div class="frgrid">
+        <input class="field" id="frFind" type="text" placeholder="Найти" autocomplete="off" spellcheck="false">
+        <input class="field" id="frRepl" type="text" placeholder="Заменить на" autocomplete="off" spellcheck="false" enterkeyhint="done">
+        <button class="btn primary" id="frGo" type="button">Заменить все</button>
+      </div>
+      <div class="fropts">
+        <label class="mini"><input type="checkbox" id="frCs"> учитывать регистр</label>
+        <label class="mini"><input type="checkbox" id="frWw"> целые слова</label>
+        <label class="mini"><input type="checkbox" id="frRe"> регулярное выражение</label>
+      </div>
+      <div class="frinfo" id="frInfo"></div>
+    </details>
+  </section>
+
+  <section class="steps" id="steps" aria-live="polite"></section>
+
+  <section class="pane out">
+    <div class="phead"><span class="ptitle">Результат</span><span class="cnt" id="cntOut"></span></div>
+    <textarea class="field area" id="out" readonly placeholder="Здесь будет результат" spellcheck="false"></textarea>
+    <div class="pbtns">
+      <button class="btn primary" id="copyBtn" type="button">Копировать результат</button>
+      <button class="btn" id="acceptBtn" type="button" title="Результат станет текстом, шаги сбросятся">↑ В поле текста</button>
+    </div>
+  </section>
+</main>
+
+<div id="actbar">
+  <button class="btn" id="pasteBtn2" type="button">Вставить</button>
+  <button class="btn primary" id="copyBtn2" type="button">Копировать результат</button>
+</div>
+<div id="updbar" role="status" hidden><span>Доступна новая версия</span><button class="ub" id="updBtn" type="button">Обновить</button><button class="ux" id="updX" type="button" aria-label="Скрыть">✕</button></div>
+<div id="modals"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+
+const APP_VERSION = '2026-11-11.1';
+const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
+const $ = s => document.querySelector(s);
+
+function h(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k === 'value') e.value = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (v === true) e.setAttribute(k, '');
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids.flat()) {
+    if (c == null || c === false) continue;
+    e.append(c.nodeType ? c : document.createTextNode(c));
+  }
+  return e;
+}
+
+/*CORE-START*/
+/* ---------- раскладка ---------- */
+const EN_KEYS = "`qwertyuiop[]asdfghjkl;'zxcvbnm,./" + '~QWERTYUIOP{}ASDFGHJKL:"ZXCVBNM<>?' + '@#$^&';
+const RU_KEYS = 'ёйцукенгшщзхъфывапролджэячсмитьбю.' + 'ЁЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,' + '"№;:?';
+const EN2RU = new Map(), RU2EN = new Map();
+[...EN_KEYS].forEach((c, i) => { EN2RU.set(c, RU_KEYS[i]); RU2EN.set(RU_KEYS[i], c); });
+// украинские буквы на тех же клавишах (для RU → EN)
+[['і', 's'], ['І', 'S'], ['ї', ']'], ['Ї', '}'], ['є', "'"], ['Є', '"'], ['ґ', '\\'], ['Ґ', '|']].forEach(([u, e]) => RU2EN.set(u, e));
+const RU2UA = { 'ы': 'і', 'Ы': 'І', 'э': 'є', 'Э': 'Є', 'ъ': 'ї', 'Ъ': 'Ї', '\\': 'ґ' };
+const UA2RU = { 'і': 'ы', 'І': 'Ы', 'є': 'э', 'Є': 'Э', 'ї': 'ъ', 'Ї': 'Ъ', 'ґ': '\\', 'Ґ': '/' };
+const CYR = /[\u0400-\u04FF]/, LAT = /[A-Za-z]/;
+const mapStr = (s, m) => [...s].map(c => (m.has(c) ? m.get(c) : c)).join('');
+// RU ↔ UA: раскладки отличаются только клавишами ы/і, э/є, ъ/ї, ё/апостроф (и \ / ґ). Направление — по каждому слову.
+function swapUa(w) {
+  if (!CYR.test(w)) return w;
+  if (/[ыЫэЭъЪёЁ]/.test(w)) return w.replace(/[ыЫэЭъЪ\\]/g, c => RU2UA[c]).replace(/[ёЁ]/g, "'");
+  if (/[іІїЇєЄґҐ]/.test(w) || /[\u0400-\u04FF]['’ʼ][\u0400-\u04FF]/.test(w)) {
+    return w.replace(/[іІїЇєЄґҐ]/g, c => UA2RU[c])
+      .replace(/([\u0400-\u04FF])['’ʼ](?=([\u0400-\u04FF]))/g, (m, a, b) => a + (b !== b.toLowerCase() ? 'Ё' : 'ё'));
+  }
+  return w;
+}
+// Меняются только «слова» (участки без пробелов), в которых есть буквы исходной раскладки,
+// поэтому правильные слова и знаки препинания вокруг них не трогаются
+function convertLayout(text, dir) {
+  return text.split(/(\s+)/).map(w => {
+    if (!w || /^\s+$/.test(w)) return w;
+    if (dir === 'en-ru') return LAT.test(w) ? mapStr(w, EN2RU) : w;
+    if (dir === 'ru-en') return CYR.test(w) ? mapStr(w, RU2EN) : w;
+    if (dir === 'ru-ua') return swapUa(w);
+    return w;
+  }).join('');
+}
+
+/* ---------- регистр ---------- */
+const ABBR_STOP = new Set(['т.е', 'т.к', 'т.д', 'т.п', 'т.н', 'т.ч', 'и.о', 'др', 'см', 'рис', 'табл', 'стр', 'с', 'г', 'гг', 'им', 'ул', 'д', 'кв', 'п', 'пп', 'шт', 'руб', 'коп', 'тыс', 'млн', 'млрд', 'мин', 'макс', 'прим', 'напр', 'e.g', 'i.e', 'etc', 'vs', 'fig']);
+const capFirst = s => s.replace(/\p{L}/u, c => c.toUpperCase());
+const isUpperWord = s => { const l = s.replace(/[^\p{L}]/gu, ''); return l.length >= 2 && l === l.toUpperCase() && l !== l.toLowerCase(); };
+function excMap(list) {
+  const m = new Map();
+  String(list || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean).forEach(w => m.set(w.toLowerCase(), w));
+  return m;
+}
+// доля слов, набранных целиком заглавными: если их большинство, это «текст капсом», и правило аббревиатур отключается
+function capsRatio(text) {
+  const w = text.match(/\p{L}{2,}/gu) || [];
+  if (!w.length) return 0;
+  return w.filter(x => x === x.toUpperCase() && x !== x.toLowerCase()).length / w.length;
+}
+function convCase(core, mode, capNext) {
+  if (mode === 'upper') return core.toUpperCase();
+  if (mode === 'lower') return core.toLowerCase();
+  if (mode === 'title') return capFirst(core.toLowerCase());
+  if (mode === 'sentence') { const l = core.toLowerCase(); return capNext ? capFirst(l) : l; }
+  if (mode === 'invert') return [...core].map(c => (c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase())).join('');
+  return core;
+}
+// prot: { on, list, digits, abbr }
+function caseTransform(text, mode, prot) {
+  const P = prot || {};
+  const exc = P.on ? excMap(P.list) : new Map();
+  const useAbbr = P.on && P.abbr && mode !== 'upper' && mode !== 'invert' && capsRatio(text) <= 0.5;
+  let capNext = true, out = '';
+  for (const part of text.split(/(\s+)/)) {
+    if (!part) continue;
+    if (/^\s+$/.test(part)) { out += part; if (/\n[ \t\u00a0]*\n/.test(part)) capNext = true; continue; }
+    const m = part.match(/^([^\p{L}\p{N}]*)([\s\S]*?)([^\p{L}\p{N}]*)$/u);
+    const lead = m[1], core = m[2], trail = m[3];
+    if (!core) { out += part; if (/[.!?…]/.test(part)) capNext = true; continue; }
+    const key = core.toLowerCase();
+    let res, keepCap = false;
+    if (exc.has(key)) res = exc.get(key);
+    else if (P.on && P.digits && /\p{L}/u.test(core) && /\p{N}/u.test(core)) res = core;   // обозначения с цифрами
+    else if (useAbbr && isUpperWord(core)) res = core;                                     // аббревиатуры
+    else if (mode === 'sentence' && core.length === 1 && trail.startsWith('.') && core !== core.toLowerCase()) { res = core; keepCap = true; } // инициалы
+    else res = convCase(core, mode, capNext);
+    out += lead + res + trail;
+    capNext = !keepCap && /[.!?…]/.test(trail) && !ABBR_STOP.has(key);
+  }
+  return out;
+}
+
+/* ---------- очистка ---------- */
+const LIST_RE = /^([-–—•·▪*]\s|\d{1,3}[.)]\s|\p{L}\)\s)/u;
+const dehyph = t => t.replace(/\u00ad/g, '').replace(/(\p{L})[-‐‑][ \t]*\n[ \t]*(\p{Ll})/gu, '$1$2');
+function joinLines(t) {
+  return t.split(/\n(?:[ \t\u00a0]*\n)+/).map(p => {
+    let out = '';
+    p.split('\n').forEach((line, i) => {
+      const s = line.trim();
+      if (i === 0) { out = s; return; }
+      if (!s) return;
+      out += LIST_RE.test(s) ? '\n' + s : (out ? ' ' : '') + s;
+    });
+    return out;
+  }).join('\n\n');
+}
+function cleanText(t, kind) {
+  switch (kind) {
+    case 'spaces': return t.replace(/[ \t\u00a0]{2,}/g, ' ');
+    case 'empty': return t.split('\n').filter(l => l.trim() !== '').join('\n');
+    case 'hyphen': return dehyph(t);
+    case 'join': return joinLines(dehyph(t));
+    case 'trim': return t.split('\n').map(l => l.trim()).join('\n').trim();
+    case 'all': {
+      let x = t.split('\n').map(l => l.trim()).join('\n');
+      x = joinLines(dehyph(x));
+      return x.replace(/[ \t\u00a0]{2,}/g, ' ').trim();
+    }
+  }
+  return t;
+}
+
+/* ---------- найти и заменить ---------- */
+// p: { find, repl, cs, ww, re } → { rx, repl } или { err }
+function makeRegex(p) {
+  if (!p || !p.find) return { err: '' };
+  const src = p.re ? p.find : p.find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const flags = 'g' + (p.cs ? '' : 'i') + (p.re ? 'm' : '');
+  const whole = s => '(?<![\\p{L}\\p{N}_])(?:' + s + ')(?![\\p{L}\\p{N}_])';
+  let rx;
+  try { rx = new RegExp(p.ww ? whole(src) : src, flags + 'u'); }
+  catch (e) {
+    if (p.ww) return { err: 'Ошибка в выражении' };
+    try { rx = new RegExp(src, flags); } catch (e2) { return { err: 'Ошибка в выражении' }; }
+  }
+  const repl = p.re ? String(p.repl || '').replace(/\\n/g, '\n').replace(/\\t/g, '\t') : String(p.repl || '').replace(/\$/g, '$$$$');
+  return { rx, repl };
+}
+function countMatches(t, p) {
+  const r = makeRegex(p);
+  if (r.err !== undefined) return r;
+  let n = 0;
+  for (const _ of t.matchAll(r.rx)) { if (++n > 99999) break; }
+  return { n };
+}
+
+/* ---------- шаг цепочки ---------- */
+function applyStep(t, s, prot) {
+  switch (s.type) {
+    case 'layout': return convertLayout(t, s.p);
+    case 'case': return caseTransform(t, s.p, prot);
+    case 'clean': return cleanText(t, s.p);
+    case 'replace': { const r = makeRegex(s.p); return r.rx ? t.replace(r.rx, r.repl) : t; }
+  }
+  return t;
+}
+function countText(t) {
+  if (!t) return { chars: 0, words: 0, lines: 0 };
+  return { chars: t.length, words: (t.match(/[\p{L}\p{N}]+(?:['’\-.][\p{L}\p{N}]+)*/gu) || []).length, lines: t.split('\n').length };
+}
+/*CORE-END*/
+
+/* ---------- данные (только в этом браузере) ---------- */
+const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
+  fr: { find: '', repl: '', cs: false, ww: false, re: false, open: false }, theme: 'auto' });
+const STEP_TYPES = ['layout', 'case', 'clean', 'replace'];
+function load() {
+  const d = DEF();
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && typeof s === 'object') {
+      return { ...d, theme: ['auto', 'light', 'dark'].includes(s.theme) ? s.theme : 'auto',
+        text: typeof s.text === 'string' ? s.text : '',
+        steps: Array.isArray(s.steps) ? s.steps.filter(x => x && STEP_TYPES.includes(x.type)) : [],
+        prot: { ...d.prot, ...(s.prot || {}) }, fr: { ...d.fr, ...(s.fr || {}) } };
+    }
+  } catch (e) { /* пусто или повреждено */ }
+  return d;
+}
+let state = load();
+let saveT = 0;
+function saveNow() {
+  clearTimeout(saveT); saveT = 0;
+  try { localStorage.setItem(KEY, JSON.stringify(state)); }
+  catch (e) { try { localStorage.setItem(KEY, JSON.stringify({ ...state, text: '' })); } catch (e2) { /* нет места */ } }
+}
+const save = () => { clearTimeout(saveT); saveT = setTimeout(saveNow, 300); };
+window.addEventListener('pagehide', saveNow);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); });
+
+/* ---------- элементы ---------- */
+const src = $('#src'), out = $('#out'), stepsEl = $('#steps');
+const narrow = window.matchMedia ? window.matchMedia('(max-width: 899px)') : { matches: false, addEventListener() {} };
+let lastOut = '';
+
+/* ---------- сообщения и окна ---------- */
+let toastT;
+function toast(msg, bad) {
+  const t = $('#toast');
+  t.textContent = msg; t.className = 'show' + (bad ? ' bad' : '');
+  clearTimeout(toastT); toastT = setTimeout(() => { t.className = ''; }, bad ? 2600 : 1500);
+}
+const stack = [];
+function openModal(build) {
+  const overlay = h('div', { class: 'overlay' });
+  const box = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true' });
+  overlay.append(box);
+  const api = { box, close() { overlay.remove(); const i = stack.indexOf(api); if (i >= 0) stack.splice(i, 1); document.body.classList.toggle('modal-lock', stack.length > 0); } };
+  api.dismiss = () => api.close();
+  overlay.addEventListener('mousedown', e => { if (e.target === overlay) api.dismiss(); });
+  stack.push(api); document.body.classList.add('modal-lock');
+  $('#modals').append(overlay);
+  build(box, api);
+  return api;
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && stack.length) stack[stack.length - 1].dismiss(); });
+const btn = (label, fn, kind) => h('button', { class: 'btn ' + (kind || ''), type: 'button', onclick: fn }, label);
+
+async function copyText(text) {
+  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; } } catch (e) { /* запасной способ */ }
+  try {
+    const ta = h('textarea', { value: text, readonly: true, style: 'position:fixed;left:-9999px;top:0;opacity:0' });
+    document.body.append(ta); ta.select(); ta.setSelectionRange(0, ta.value.length);
+    const ok = document.execCommand('copy'); ta.remove(); return ok;
+  } catch (e) { return false; }
+}
+
+/* ---------- названия шагов ---------- */
+const NAMES = {
+  layout: { 'en-ru': 'EN → RU', 'ru-en': 'RU → EN', 'ru-ua': 'RU ↔ UA' },
+  case: { upper: 'ВЕРХНИЙ', lower: 'нижний', sentence: 'Как в предложении', title: 'Каждое Слово', invert: 'иНВЕРСИЯ' },
+  clean: { all: 'Очистка: всё', spaces: 'Двойные пробелы', empty: 'Пустые строки', join: 'Склеить строки', hyphen: 'Переносы слов', trim: 'Пробелы по краям' }
+};
+const cut = (s, n) => { s = String(s).replace(/\n/g, '↵'); return s.length > n ? s.slice(0, n) + '…' : s; };
+function stepLabel(s) {
+  if (s.type === 'replace') return '«' + cut(s.p.find, 14) + '» → «' + cut(s.p.repl, 14) + '»';
+  return (NAMES[s.type] && NAMES[s.type][s.p]) || s.type;
+}
+
+/* ---------- расчёт результата: текст проходит шаги по очереди ---------- */
+function recompute() {
+  let t = state.text;
+  for (const s of state.steps) t = applyStep(t, s, state.prot);
+  lastOut = t;
+  out.value = state.steps.length ? t : '';
+  $('#cntOut').textContent = state.steps.length ? fmtCount(t) : '';
+  $('#acceptBtn').disabled = !state.steps.length;
+  updFrInfo();
+}
+const currentOutput = () => (state.steps.length ? lastOut : state.text);
+function fmtCount(t) {
+  const c = countText(t);
+  return c.chars ? c.chars + ' симв. · ' + c.words + ' сл. · ' + c.lines + ' стр.' : 'пусто';
+}
+function renderSteps() {
+  if (!state.steps.length) {
+    stepsEl.replaceChildren(h('span', { text: 'Нажмите действие — результат появится ' + (narrow.matches ? 'ниже' : 'справа') + '. Действия складываются по очереди, исходный текст не меняется.' }));
+    return;
+  }
+  const kids = [h('span', { text: 'Шаги:' })];
+  state.steps.forEach((s, i) => {
+    if (i) kids.push(h('span', { class: 'arrow', text: '→' }));
+    kids.push(h('span', { class: 'step' }, h('span', { text: stepLabel(s), title: stepLabel(s) }),
+      h('button', { type: 'button', 'aria-label': 'Убрать шаг ' + stepLabel(s), title: 'Убрать этот шаг', onclick() { flushTyping(); state.steps.splice(i, 1); commit(); after(); } }, '✕')));
+  });
+  kids.push(h('button', { class: 'linkbtn', type: 'button', onclick() { flushTyping(); state.steps = []; commit(); after(); } }, 'Сбросить шаги'));
+  stepsEl.replaceChildren(...kids);
+}
+function updCounts() { $('#cntIn').textContent = state.text ? fmtCount(state.text) : ''; }
+function updSel() {
+  const n = src.selectionEnd - src.selectionStart;
+  $('#selhint').hidden = !(n > 0);
+  if (n > 0) $('#selText').textContent = 'Выделено ' + n + ' симв. — действие применится только к ним';
+  updFrInfo();
+}
+function after() { recompute(); renderSteps(); updCounts(); updSel(); updUndo(); save(); }
+
+/* ---------- отмена и повтор: текст + шаги ---------- */
+const hist = [];
+let hi = -1, typingT = 0;
+const snap = () => ({ text: state.text, steps: JSON.stringify(state.steps), a: src.selectionStart, b: src.selectionEnd });
+function commit() {
+  clearTimeout(typingT); typingT = 0;
+  const s = snap(), cur = hist[hi];
+  if (cur && cur.text === s.text && cur.steps === s.steps) { updUndo(); return; }
+  hist.splice(hi + 1); hist.push(s);
+  if (hist.length > 150) hist.shift();
+  hi = hist.length - 1; updUndo();
+}
+function flushTyping() { if (typingT) commit(); }
+function restore(s) {
+  src.value = s.text; state.text = s.text; state.steps = JSON.parse(s.steps);
+  try { src.setSelectionRange(s.a, s.b); } catch (e) { /* ничего */ }
+  after();
+}
+function undo() { flushTyping(); if (hi > 0) { hi--; restore(hist[hi]); } else toast('Отменять нечего'); }
+function redo() { flushTyping(); if (hi < hist.length - 1) { hi++; restore(hist[hi]); } else toast('Повторять нечего'); }
+function updUndo() {
+  $('#undoBtn').disabled = !(hi > 0 || typingT);
+  $('#redoBtn').disabled = !(hi < hist.length - 1) || !!typingT;
+}
+
+/* ---------- действия ---------- */
+function doOp(type, p) {
+  flushTyping();
+  const step = { type, p: typeof p === 'object' ? { ...p } : p };
+  const a = src.selectionStart, b = src.selectionEnd;
+  if (b > a) {                                                  // есть выделение — меняем только его, прямо в поле текста
+    const frag = src.value.slice(a, b), res = applyStep(frag, step, state.prot);
+    if (res === frag) { toast('В выделенном ничего не изменилось'); return; }
+    src.setRangeText(res, a, b, 'select');
+    state.text = src.value; commit(); after();
+    toast('✓ ' + stepLabel(step) + ' — в выделенном (↶ отменит)');
+    return;
+  }
+  if (!state.text) { toast('Сначала вставьте или введите текст', true); return; }
+  const before = currentOutput(), res = applyStep(before, step, state.prot);
+  if (res === before) { toast('Ничего не изменилось — шаг не добавлен'); return; }
+  state.steps.push(step); commit(); after();
+  out.classList.add('flash'); setTimeout(() => out.classList.remove('flash'), 600);
+  toast('✓ ' + stepLabel(step) + (narrow.matches ? ' — результат ниже' : ''));
+}
+document.querySelectorAll('#tools .tb').forEach(b => {
+  b.addEventListener('mousedown', e => e.preventDefault());   // на компьютере выделение в поле не пропадает
+  b.addEventListener('click', () => doOp(b.dataset.t, b.dataset.p));
+});
+
+async function pasteFromClipboard() {
+  let t = null;
+  try { if (navigator.clipboard && navigator.clipboard.readText) t = await navigator.clipboard.readText(); } catch (e) { t = null; }
+  if (t == null) { toast('Нет доступа к буферу: вставьте долгим нажатием в поле (на ПК — Ctrl+V)', true); return; }
+  if (!t) { toast('Буфер обмена пуст', true); return; }
+  flushTyping();
+  src.value = t.replace(/\r\n?/g, '\n'); state.text = src.value;
+  src.setSelectionRange(0, 0);
+  commit(); after();
+  toast(state.steps.length ? 'Вставлено, шаги применены' : 'Вставлено');
+}
+async function copyResult() {
+  const t = currentOutput();
+  if (!t) { toast('Копировать нечего', true); return; }
+  const ok = await copyText(t);
+  toast(ok ? '✓ Скопировано ' + (state.steps.length ? '' : '(без изменений) ') + '· ' + t.length + ' симв.' : 'Не удалось скопировать', !ok);
+}
+$('#pasteBtn').addEventListener('click', pasteFromClipboard);
+$('#pasteBtn2').addEventListener('click', pasteFromClipboard);
+$('#copyBtn').addEventListener('click', copyResult);
+$('#copyBtn2').addEventListener('click', copyResult);
+$('#acceptBtn').addEventListener('click', () => {
+  if (!state.steps.length) return;
+  flushTyping();
+  src.value = lastOut; state.text = lastOut; state.steps = [];
+  commit(); after(); toast('Результат перенесён в поле текста (↶ вернёт)');
+});
+$('#clearBtn').addEventListener('click', () => {
+  if (!state.text && !state.steps.length) return;
+  flushTyping();
+  src.value = ''; state.text = ''; state.steps = [];
+  commit(); after(); toast('Очищено (↶ вернёт)');
+});
+$('#selClear').addEventListener('click', () => { const e = src.selectionEnd; src.setSelectionRange(e, e); updSel(); });
+
+src.addEventListener('input', () => {
+  state.text = src.value;
+  clearTimeout(typingT); typingT = setTimeout(commit, 600);
+  recompute(); updCounts(); updSel(); updUndo(); save();
+});
+['select', 'keyup', 'mouseup', 'touchend', 'focus'].forEach(ev => src.addEventListener(ev, updSel));
+document.addEventListener('selectionchange', () => { if (document.activeElement === src) updSel(); });
+const isUndoKey = e => (e.ctrlKey || e.metaKey) && !e.altKey && ['z', 'я'].includes(e.key.toLowerCase()) && !e.shiftKey;
+const isRedoKey = e => (e.ctrlKey || e.metaKey) && !e.altKey && (['y', 'н'].includes(e.key.toLowerCase()) || (['z', 'я'].includes(e.key.toLowerCase()) && e.shiftKey));
+document.addEventListener('keydown', e => {
+  if (stack.length) return;
+  const tg = e.target && e.target.tagName;
+  if ((tg === 'INPUT' || tg === 'TEXTAREA') && e.target !== src) return;      // в полях поиска — обычная отмена браузера
+  if (isUndoKey(e)) { e.preventDefault(); undo(); }
+  else if (isRedoKey(e)) { e.preventDefault(); redo(); }
+});
+$('#undoBtn').addEventListener('click', undo);
+$('#redoBtn').addEventListener('click', redo);
+
+/* ---------- исключения регистра ---------- */
+const protOn = $('#protOn');
+protOn.checked = !!state.prot.on;
+protOn.addEventListener('change', () => { state.prot.on = protOn.checked; recompute(); save(); });
+function protSheet() {
+  openModal((box, api) => {
+    const list = h('textarea', { class: 'field', rows: 6, placeholder: 'Например: SolidWorks, Inventor, DXF, ГОСТ, ОСТ, iPhone', value: state.prot.list, spellcheck: 'false' });
+    const dg = h('input', { type: 'checkbox' }); dg.checked = !!state.prot.digits;
+    const ab = h('input', { type: 'checkbox' }); ab.checked = !!state.prot.abbr;
+    box.append(h('h2', { text: 'Исключения при смене регистра' }),
+      h('p', { class: 'msg', text: 'Слова из списка всегда пишутся так, как вы их здесь записали. Разделяйте пробелом, запятой или новой строкой.' }),
+      list,
+      h('label', { class: 'chk' }, dg, h('span', { text: 'Не менять слова с цифрами (обозначения: АБВГ.123456.001, М8х20)' })),
+      h('label', { class: 'chk' }, ab, h('span', { text: 'Не менять аббревиатуры (ГОСТ, ДСП) в режимах «нижний», «как в предложении», «каждое слово»' })),
+      h('p', { class: 'msg', text: 'Если почти весь текст набран заглавными, правило аббревиатур не действует — иначе «капс» нельзя было бы исправить. Исключения включаются галочкой «исключения» в блоке «Регистр».' }),
+      h('div', { class: 'btns' },
+        btn('Сохранить', () => {
+          state.prot.list = list.value; state.prot.digits = dg.checked; state.prot.abbr = ab.checked;
+          recompute(); save(); api.close(); toast('Исключения сохранены');
+        }, 'primary'),
+        btn('Отмена', () => api.close(), 'ghost')));
+  });
+}
+$('#protEdit').addEventListener('click', protSheet);
+
+/* ---------- найти и заменить ---------- */
+const fr = { find: $('#frFind'), repl: $('#frRepl'), cs: $('#frCs'), ww: $('#frWw'), re: $('#frRe') };
+fr.find.value = state.fr.find; fr.repl.value = state.fr.repl;
+fr.cs.checked = !!state.fr.cs; fr.ww.checked = !!state.fr.ww; fr.re.checked = !!state.fr.re;
+$('#frPanel').open = !!state.fr.open;
+$('#frPanel').addEventListener('toggle', e => { state.fr.open = e.target.open; save(); });
+const frParams = () => ({ find: fr.find.value, repl: fr.repl.value, cs: fr.cs.checked, ww: fr.ww.checked, re: fr.re.checked });
+function updFrInfo() {
+  const el = $('#frInfo'); if (!el) return;
+  const p = frParams();
+  if (!p.find) { el.textContent = ''; el.className = 'frinfo'; return; }
+  const a = src.selectionStart, b = src.selectionEnd, inSel = b > a;
+  const r = countMatches(inSel ? src.value.slice(a, b) : currentOutput(), p);
+  el.className = 'frinfo' + (r.err ? ' bad' : '');
+  el.textContent = r.err ? r.err : 'Найдено: ' + r.n + (inSel ? ' в выделенном' : state.steps.length ? ' (в результате)' : '');
+}
+Object.values(fr).forEach(el => el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
+  Object.assign(state.fr, frParams()); save(); updFrInfo();
+}));
+function frGo() {
+  const p = frParams();
+  if (!p.find) { toast('Введите, что искать', true); fr.find.focus(); return; }
+  const r = makeRegex(p);
+  if (r.err) { toast(r.err, true); return; }
+  doOp('replace', p);
+}
+$('#frGo').addEventListener('mousedown', e => e.preventDefault());
+$('#frGo').addEventListener('click', frGo);
+fr.repl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); frGo(); } });
+fr.find.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fr.repl.focus(); } });
+
+/* ---------- тема и меню ---------- */
+function applyTheme() {
+  const r = document.documentElement;
+  if (state.theme === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', state.theme);
+  const bg = getComputedStyle(r).getPropertyValue('--bg').trim();
+  const m = document.querySelector('meta[name="theme-color"]'); if (m && bg) m.setAttribute('content', bg);
+}
+if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+narrow.addEventListener('change', renderSteps);
+
+function helpSheet() {
+  openModal((box, api) => {
+    box.append(h('h2', { text: 'Как пользоваться' }),
+      h('ul', {},
+        h('li', { text: 'Вставьте текст, нажимайте действия. Каждое действие добавляет шаг; результат — это текст после всех шагов по очереди. Лишний шаг убирается крестиком.' }),
+        h('li', { text: 'Шаги сохраняются: вставьте следующий текст — он сразу обработается теми же шагами.' }),
+        h('li', { text: 'Если в поле текста что-то выделено, действие меняет только выделенное, прямо в поле.' }),
+        h('li', { text: '«↑ В поле текста» делает результат исходным текстом и сбрасывает шаги.' }),
+        h('li', { text: '↶ и ↷ отменяют и повторяют всё: набор, вставку, шаги. На ПК — Ctrl+Z и Ctrl+Y.' }),
+        h('li', { text: 'Раскладка меняет только слова, в которых есть буквы «не той» раскладки. Опечатки она не исправляет.' }),
+        h('li', { text: '«Склеить строки» соединяет строки внутри абзаца (как после копирования из PDF), пустая строка между абзацами и пункты списков остаются.' }),
+        h('li', { text: 'В регулярных выражениях замена понимает $1 и \\n.' }),
+        h('li', { text: 'Текст и настройки хранятся только в этом браузере и никуда не отправляются.' })),
+      h('div', { class: 'btns' }, btn('Понятно', () => api.close(), 'primary')));
+  });
+}
+function menuSheet() {
+  openModal((box, api) => {
+    const draw = () => box.replaceChildren(
+      h('h2', { text: 'Меню' }),
+      h('div', { class: 'uilbl', text: 'Тема' }),
+      h('div', { class: 'thm' }, [['auto', 'Как в системе'], ['light', 'Светлая'], ['dark', 'Тёмная']].map(([k, n]) =>
+        btn(n, () => { state.theme = k; applyTheme(); save(); draw(); }, state.theme === k ? 'primary' : ''))),
+      h('div', { class: 'btns' },
+        btn('Исключения регистра…', () => { api.close(); protSheet(); }),
+        btn('Как пользоваться', () => { api.close(); helpSheet(); }),
+        btn('Проверить обновление', () => { api.close(); checkUpdate(); }),
+        btn('Закрыть', () => api.close(), 'ghost')),
+      h('p', { class: 'tmeta', text: 'Версия: ' + APP_VERSION }));
+    draw();
+  });
+}
+$('#menuBtn').addEventListener('click', menuSheet);
+
+/* ---------- запуск ---------- */
+applyTheme();
+src.value = state.text;
+commit();
+after();
+
+/* ---------- офлайн-кэш и обновление (при открытии с https) ---------- */
+let swReg = null, updWorker = null;
+function showUpdate(w) { updWorker = w; $('#updbar').hidden = false; }
+function applyUpdate() {
+  saveNow();
+  if (updWorker) { $('#updBtn').disabled = true; updWorker.postMessage({ type: 'SKIP_WAITING' }); setTimeout(() => location.reload(), 4000); }
+  else location.reload();
+}
+async function checkUpdate() {
+  if (!swReg) { toast('Проверка обновлений работает при открытии с адреса https', true); return; }
+  if (swReg.waiting && navigator.serviceWorker.controller) { showUpdate(swReg.waiting); return; }
+  toast('Проверяю…');
+  try { await swReg.update(); } catch (e) { toast('Нет связи — не удалось проверить', true); return; }
+  setTimeout(() => {
+    if (swReg.waiting && navigator.serviceWorker.controller) showUpdate(swReg.waiting);
+    else if (swReg.installing) toast('Скачиваю новую версию…');
+    else toast('У вас последняя версия ✓');
+  }, 1200);
+}
+$('#updBtn').addEventListener('click', applyUpdate);
+$('#updX').addEventListener('click', () => { $('#updbar').hidden = true; });
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    swReg = reg;
+    if (reg.waiting && navigator.serviceWorker.controller) showUpdate(reg.waiting);
+    reg.addEventListener('updatefound', () => {
+      const w = reg.installing; if (!w) return;
+      w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) showUpdate(w); });
+    });
+  }).catch(() => {});
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || reloading) return; reloading = true; saveNow(); location.reload(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && swReg) swReg.update().catch(() => {}); });
+}
+})();
+</script>
+</body>
+</html>
