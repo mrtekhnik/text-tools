@@ -289,7 +289,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-11.3';
+const APP_VERSION = '2026-11-11.4';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -670,8 +670,15 @@ function setEdit(on) {
   editBtn.classList.toggle('on', on);
   editBtn.setAttribute('aria-pressed', String(on));
   editBtn.textContent = on ? '✓ Готово' : '✎ Править';
-  if (on) { src.focus(); const e = src.value.length; try { src.setSelectionRange(e, e); } catch (er) {} }
-  else if (document.activeElement === src) src.blur();
+  // раскладку переключаем сразу: если поле уже было в фокусе, событие focus не придёт
+  document.body.classList.toggle('editing', on);
+  if (on) {
+    // курсор остаётся там, куда вы нажали в тексте; если не нажимали — в конце
+    const a = caretKnown ? src.selectionStart : src.value.length, b = caretKnown ? src.selectionEnd : a;
+    if (document.activeElement === src) src.blur();
+    src.focus();
+    try { src.setSelectionRange(a, b); } catch (er) {}
+  } else if (document.activeElement === src) src.blur();
 }
 if (touch) {
   editBtn.hidden = false;
@@ -811,7 +818,7 @@ function helpSheet() {
         h('li', { text: 'Шаги сохраняются: вставьте следующий текст — он сразу обработается теми же шагами.' }),
         h('li', { text: '«Вставить» добавляет текст из буфера туда, где стоит курсор (если курсор не ставили — в конец, с новой строки). Чтобы заменить текст целиком, сначала нажмите ✕.' }),
         h('li', { text: '«↑ В текст» делает результат исходным текстом и сбрасывает шаги.' }),
-        h('li', { text: 'На телефоне клавиатура появляется только по кнопке «✎ Править». Нажатие на команду её закрывает.' }),
+        h('li', { text: 'На телефоне клавиатура появляется только по кнопке «✎ Править». Чтобы исправить место в тексте, сначала нажмите на него, потом «✎ Править» — курсор будет там. Нажатие на команду или «✓ Готово» закрывает клавиатуру.' }),
         h('li', { text: 'Если выделить часть текста (долгое нажатие) и сразу нажать команду, изменится только выделенное, прямо в верхнем окне.' }),
         h('li', { text: '↶ и ↷ отменяют и повторяют всё: набор, вставку, шаги. На ПК — Ctrl+Z и Ctrl+Y.' }),
         h('li', { text: 'Раскладка меняет только слова, в которых есть буквы «не той» раскладки. Опечатки она не исправляет.' }),
