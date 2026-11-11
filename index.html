@@ -160,6 +160,15 @@ button{font:inherit;color:inherit;cursor:pointer}
 .chk{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}
 .chk input{width:22px;height:22px;accent-color:var(--accent);flex:none;margin:0}
 @media (min-width:640px){.overlay{align-items:center}.sheet{border-radius:16px}}
+.uigrp{border-top:1px solid var(--line)}
+.uigrp>summary{list-style:none;cursor:pointer;min-height:48px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
+.uigrp>summary::-webkit-details-marker{display:none}
+.uigrp>summary::before{content:'▸';color:var(--muted);width:14px}
+.uigrp[open]>summary::before{content:'▾'}
+.uibody{padding:0 0 12px}
+.uibody .field{margin-bottom:4px}
+.orow{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.orow span{flex:1;font-weight:600}
 body.modal-lock{overflow:hidden}
 
 /* --- уведомления --- */
@@ -232,9 +241,7 @@ body.modal-lock{overflow:hidden}
       </div>
     </div>
     <div class="tgroup" data-g="case">
-      <div class="tlbl"><span class="gtitle">Регистр</span><span class="sp"></span>
-        <label class="mini"><input type="checkbox" id="protOn"> исключения</label>
-        <button class="linkbtn" id="protEdit" type="button">настроить</button></div>
+      <div class="tlbl gtitle">Регистр</div>
       <div class="tbtns">
         <button class="tb" type="button" data-t="case" data-p="upper">ВЕРХНИЙ</button>
         <button class="tb" type="button" data-t="case" data-p="lower">нижний</button>
@@ -282,7 +289,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-11.2';
+const APP_VERSION = '2026-11-11.3';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -455,7 +462,9 @@ function countText(t) {
 /* ---------- данные (только в этом браузере) ---------- */
 const TABS = ['layout', 'case', 'clean', 'replace'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
-  fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout' });
+  fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
+  ui: { toasts: 'all', order: TABS.slice() } });
+const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace'];
 function load() {
   const d = DEF();
@@ -466,7 +475,8 @@ function load() {
         tab: TABS.includes(s.tab) ? s.tab : 'layout',
         text: typeof s.text === 'string' ? s.text : '',
         steps: Array.isArray(s.steps) ? s.steps.filter(x => x && STEP_TYPES.includes(x.type)) : [],
-        prot: { ...d.prot, ...(s.prot || {}) }, fr: { ...d.fr, ...(s.fr || {}) } };
+        prot: { ...d.prot, ...(s.prot || {}) }, fr: { ...d.fr, ...(s.fr || {}) },
+        ui: { toasts: s.ui && s.ui.toasts === 'warn' ? 'warn' : 'all', order: fixOrder(s.ui && s.ui.order) } };
     }
   } catch (e) { /* пусто или повреждено */ }
   return d;
@@ -487,11 +497,14 @@ const src = $('#src'), out = $('#out'), stepsEl = $('#steps');
 const mm = q => (window.matchMedia ? window.matchMedia(q) : { matches: false, addEventListener() {} });
 const narrow = mm('(max-width: 899px)');
 const touch = mm('(pointer: coarse)').matches;   // телефон: поле текста по умолчанию без клавиатуры
-let lastOut = '';
+let lastOut = '', caretKnown = false;
 
 /* ---------- сообщения и окна ---------- */
 let toastT;
-function toast(msg, bad) {
+// level: не задан — обычная подсказка (можно отключить в настройках); 'warn' — предупреждение; true — ошибка
+function toast(msg, level) {
+  if (!level && state.ui.toasts === 'warn') return;
+  const bad = level === true;
   const t = $('#toast');
   t.textContent = msg; t.className = 'show' + (bad ? ' bad' : '');
   clearTimeout(toastT); toastT = setTimeout(() => { t.className = ''; }, bad ? 2600 : 1400);
@@ -590,7 +603,7 @@ function commit() {
   hi = hist.length - 1; updUndo();
 }
 function flushTyping() { if (typingT) commit(); }
-function restore(s) { src.value = s.text; state.text = s.text; state.steps = JSON.parse(s.steps); after(); }
+function restore(s) { src.value = s.text; state.text = s.text; state.steps = JSON.parse(s.steps); caretKnown = false; after(); }
 function undo() { flushTyping(); if (hi > 0) { hi--; restore(hist[hi]); } else toast('Отменять нечего'); }
 function redo() { flushTyping(); if (hi < hist.length - 1) { hi++; restore(hist[hi]); } else toast('Повторять нечего'); }
 function updUndo() {
@@ -606,7 +619,7 @@ function doOp(type, p, sel) {
   const step = { type, p: typeof p === 'object' ? { ...p } : p };
   if (sel && sel.b > sel.a && sel.b <= src.value.length) {   // выделение — меняем только его, прямо в поле текста
     const frag = src.value.slice(sel.a, sel.b), res = applyStep(frag, step, state.prot);
-    if (res === frag) { toast('В выделенном ничего не изменилось'); return; }
+    if (res === frag) { toast('В выделенном ничего не изменилось', 'warn'); return; }
     src.setRangeText(res, sel.a, sel.b, 'select');
     state.text = src.value; commit(); after();
     toast('✓ ' + stepLabel(step) + ' — в выделенном (↶ отменит)');
@@ -616,7 +629,7 @@ function doOp(type, p, sel) {
   const before = currentOutput(), res = applyStep(before, step, state.prot);
   if (res === before) {
     const prot = type === 'case' && state.prot.on && applyStep(before, step, { on: false }) !== before;
-    toast(prot ? 'Ничего не изменилось: слова защищены исключениями (снимите галочку «исключения»)' : 'Ничего не изменилось — шаг не добавлен', prot);
+    toast(prot ? 'Ничего не изменилось: слова защищены исключениями (⋮ → Оформление и настройки)' : 'Ничего не изменилось — шаг не добавлен', prot || 'warn');
     return;
   }
   state.steps.push(step); commit(); after();
@@ -689,8 +702,14 @@ async function pasteFromClipboard() {
   }
   if (!t) { toast('Буфер обмена пуст', true); return; }
   flushTyping();
-  src.value = t.replace(/\r\n?/g, '\n'); state.text = src.value;
-  src.scrollTop = 0;
+  t = t.replace(/\r\n?/g, '\n');
+  // вставка как Ctrl+V: в место курсора; если курсор не ставили — в конец, с новой строки
+  let a = src.value.length, b = a;
+  if (caretKnown) { a = src.selectionStart; b = src.selectionEnd; }
+  else if (src.value && !/\s$/.test(src.value)) t = '\n' + t;
+  src.setRangeText(t, a, b, 'end');
+  caretKnown = false;            // следующая вставка снова пойдёт в конец с новой строки, пока курсор не поставят вручную
+  state.text = src.value;
   commit(); after();
   toast(state.steps.length ? 'Вставлено, шаги применены' : 'Вставлено');
 }
@@ -703,13 +722,13 @@ async function copyResult() {
 function accept() {
   if (!state.steps.length) return;
   flushTyping();
-  src.value = lastOut; state.text = lastOut; state.steps = [];
+  src.value = lastOut; state.text = lastOut; state.steps = []; caretKnown = false;
   commit(); after(); toast('Результат стал текстом (↶ вернёт)');
 }
 function clearAll() {
   if (!state.text && !state.steps.length) return;
   flushTyping();
-  src.value = ''; state.text = ''; state.steps = [];
+  src.value = ''; state.text = ''; state.steps = []; caretKnown = false;
   commit(); after(); toast('Очищено (↶ вернёт)');
 }
 $('#pasteBtn').addEventListener('click', pasteFromClipboard);
@@ -729,6 +748,8 @@ src.addEventListener('input', () => {
   recompute(); updCounts(); updSel(); updUndo(); save();
 });
 ['select', 'keyup', 'mouseup', 'touchend', 'focus'].forEach(ev => src.addEventListener(ev, updSel));
+// курсор, который поставил сам человек (касанием или клавишами); после замены всего текста он «сбрасывается»
+['pointerup', 'keyup', 'select'].forEach(ev => src.addEventListener(ev, () => { caretKnown = true; }));
 if (!touch) src.addEventListener('blur', updSel);
 document.addEventListener('selectionchange', () => { if (document.activeElement === src) updSel(); });
 const isUndoKey = e => (e.ctrlKey || e.metaKey) && !e.altKey && ['z', 'я'].includes(e.key.toLowerCase()) && !e.shiftKey;
@@ -742,31 +763,6 @@ document.addEventListener('keydown', e => {
 });
 $('#undoBtn').addEventListener('click', undo);
 $('#redoBtn').addEventListener('click', redo);
-
-/* ---------- исключения регистра ---------- */
-const protOn = $('#protOn');
-protOn.checked = !!state.prot.on;
-protOn.addEventListener('change', () => { state.prot.on = protOn.checked; recompute(); save(); });
-function protSheet() {
-  openModal((box, api) => {
-    const list = h('textarea', { class: 'field', rows: 6, placeholder: 'Например: SolidWorks, Inventor, DXF, ГОСТ, ОСТ, iPhone', value: state.prot.list, spellcheck: 'false' });
-    const dg = h('input', { type: 'checkbox' }); dg.checked = !!state.prot.digits;
-    const ab = h('input', { type: 'checkbox' }); ab.checked = !!state.prot.abbr;
-    box.append(h('h2', { text: 'Исключения при смене регистра' }),
-      h('p', { class: 'msg', text: 'Слова из списка всегда пишутся так, как вы их здесь записали. Разделяйте пробелом, запятой или новой строкой.' }),
-      list,
-      h('label', { class: 'chk' }, dg, h('span', { text: 'Не менять слова с цифрами (обозначения: АБВГ.123456.001, М8х20)' })),
-      h('label', { class: 'chk' }, ab, h('span', { text: 'Не менять аббревиатуры (ГОСТ, ДСП) в режимах «нижний», «как в предложении», «каждое слово»' })),
-      h('p', { class: 'msg', text: 'Если почти весь текст набран заглавными, правило аббревиатур не действует — иначе «капс» нельзя было бы исправить. Исключения включаются галочкой «исключения» во вкладке «Регистр».' }),
-      h('div', { class: 'btns' },
-        btn('Сохранить', () => {
-          state.prot.list = list.value; state.prot.digits = dg.checked; state.prot.abbr = ab.checked;
-          recompute(); save(); api.close(); toast('Исключения сохранены');
-        }, 'primary'),
-        btn('Отмена', () => api.close(), 'ghost')));
-  });
-}
-$('#protEdit').addEventListener('click', protSheet);
 
 /* ---------- найти и заменить ---------- */
 const fr = { find: $('#frFind'), repl: $('#frRepl'), cs: $('#frCs'), ww: $('#frWw'), re: $('#frRe') };
@@ -813,6 +809,7 @@ function helpSheet() {
       h('ul', {},
         h('li', { text: 'Вставьте текст и нажимайте команды. Верхнее окно — исходный текст, он не меняется. Нижнее окно «Результат» — текст после всех команд по очереди. Лишний шаг убирается крестиком.' }),
         h('li', { text: 'Шаги сохраняются: вставьте следующий текст — он сразу обработается теми же шагами.' }),
+        h('li', { text: '«Вставить» добавляет текст из буфера туда, где стоит курсор (если курсор не ставили — в конец, с новой строки). Чтобы заменить текст целиком, сначала нажмите ✕.' }),
         h('li', { text: '«↑ В текст» делает результат исходным текстом и сбрасывает шаги.' }),
         h('li', { text: 'На телефоне клавиатура появляется только по кнопке «✎ Править». Нажатие на команду её закрывает.' }),
         h('li', { text: 'Если выделить часть текста (долгое нажатие) и сразу нажать команду, изменится только выделенное, прямо в верхнем окне.' }),
@@ -820,30 +817,82 @@ function helpSheet() {
         h('li', { text: 'Раскладка меняет только слова, в которых есть буквы «не той» раскладки. Опечатки она не исправляет.' }),
         h('li', { text: '«Склеить строки» соединяет строки внутри абзаца (как после копирования из PDF); абзацы и пункты списков остаются.' }),
         h('li', { text: 'В регулярных выражениях замена понимает $1 и \\n.' }),
+        h('li', { text: 'Тема, подсказки, порядок групп команд и исключения регистра — в ⋮ → «Оформление и настройки».' }),
         h('li', { text: 'Текст и настройки хранятся только в этом браузере и никуда не отправляются.' })),
       h('div', { class: 'btns' }, btn('Понятно', () => api.close(), 'primary')));
   });
 }
+/* ---------- оформление и настройки (блоки сворачиваются) ---------- */
+const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена' };
+function applyGroupOrder() {
+  const tabs = $('.ttabs'), tools = $('#tools');
+  state.ui.order.forEach(g => {
+    tabs.append(tabs.querySelector('.ttab[data-g="' + g + '"]'));
+    tools.append(tools.querySelector('.tgroup[data-g="' + g + '"]'));
+  });
+}
+const setOpen = {};      // какие блоки настроек раскрыты (пока открыта страница)
+function settingsSheet() {
+  openModal((box, api) => {
+    const grp = (key, title, ...kids) => h('details', { class: 'uigrp', open: !!setOpen[key], ontoggle(e) { setOpen[key] = e.target.open; } },
+      h('summary', { text: title }), h('div', { class: 'uibody' }, ...kids));
+    const draw = () => {
+      const st0 = box.scrollTop, P = state.prot;
+      const on = h('input', { type: 'checkbox' }); on.checked = !!P.on;
+      on.addEventListener('change', () => { P.on = on.checked; recompute(); save(); });
+      const list = h('textarea', { class: 'field', rows: 5, placeholder: 'Например: SolidWorks, Inventor, DXF, ГОСТ, ОСТ, iPhone', value: P.list, spellcheck: 'false' });
+      list.addEventListener('input', () => { P.list = list.value; recompute(); save(); });
+      const dg = h('input', { type: 'checkbox' }); dg.checked = !!P.digits;
+      dg.addEventListener('change', () => { P.digits = dg.checked; recompute(); save(); });
+      const ab = h('input', { type: 'checkbox' }); ab.checked = !!P.abbr;
+      ab.addEventListener('change', () => { P.abbr = ab.checked; recompute(); save(); });
+      const order = state.ui.order;
+      const move = (i, d) => { const j = i + d; if (j < 0 || j >= order.length) return; [order[i], order[j]] = [order[j], order[i]]; applyGroupOrder(); save(); draw(); };
+      box.replaceChildren(
+        h('h2', { text: 'Оформление и настройки' }),
+        grp('theme', 'Тема',
+          h('div', { class: 'thm' }, [['auto', 'Как в системе'], ['light', 'Светлая'], ['dark', 'Тёмная']].map(([k, n]) =>
+            btn(n, () => { state.theme = k; applyTheme(); save(); draw(); }, state.theme === k ? 'primary' : '')))),
+        grp('toasts', 'Всплывающие подсказки',
+          h('p', { class: 'msg', text: 'Сообщения внизу экрана после действий («✓ Скопировано», «✓ EN → RU»…). Предупреждения и ошибки показываются всегда.' }),
+          h('div', { class: 'thm' }, [['all', 'Показывать'], ['warn', 'Не показывать']].map(([k, n]) =>
+            btn(n, () => { state.ui.toasts = k; save(); draw(); }, state.ui.toasts === k ? 'primary' : '')))),
+        grp('order', 'Порядок групп команд',
+          h('p', { class: 'msg', text: 'В таком порядке идут вкладки на телефоне и блоки на компьютере.' }),
+          h('div', {}, order.map((g, i) => h('div', { class: 'orow' },
+            h('span', { text: (i + 1) + '. ' + GROUP_NAMES[g] }),
+            h('button', { class: 'hb', type: 'button', 'aria-label': 'Выше', disabled: i === 0, onclick() { move(i, -1); } }, '↑'),
+            h('button', { class: 'hb', type: 'button', 'aria-label': 'Ниже', disabled: i === order.length - 1, onclick() { move(i, 1); } }, '↓'))))),
+        grp('prot', 'Исключения при смене регистра',
+          h('label', { class: 'chk' }, on, h('span', { text: 'Учитывать исключения' })),
+          h('p', { class: 'msg', text: 'Слова из списка всегда пишутся так, как вы их здесь записали. Разделяйте пробелом, запятой или новой строкой.' }),
+          list,
+          h('label', { class: 'chk' }, dg, h('span', { text: 'Не менять слова с цифрами (АБВГ.123456.001, М8х20)' })),
+          h('label', { class: 'chk' }, ab, h('span', { text: 'Не менять аббревиатуры (ГОСТ, ДСП) в режимах «нижний», «как в предложении», «каждое слово»' })),
+          h('p', { class: 'msg', text: 'Если почти весь текст набран заглавными, правило аббревиатур не действует — иначе «капс» нельзя было бы исправить.' })),
+        h('div', { class: 'btns', style: 'margin-top:12px' }, btn('Готово', () => api.close(), 'primary')));
+      box.scrollTop = st0;
+    };
+    draw();
+  });
+}
 function menuSheet() {
   openModal((box, api) => {
-    const draw = () => box.replaceChildren(
+    box.append(
       h('h2', { text: 'Меню' }),
-      h('div', { class: 'uilbl', text: 'Тема' }),
-      h('div', { class: 'thm' }, [['auto', 'Как в системе'], ['light', 'Светлая'], ['dark', 'Тёмная']].map(([k, n]) =>
-        btn(n, () => { state.theme = k; applyTheme(); save(); draw(); }, state.theme === k ? 'primary' : ''))),
       h('div', { class: 'btns' },
-        btn('Исключения регистра…', () => { api.close(); protSheet(); }),
+        btn('Оформление и настройки…', () => { api.close(); settingsSheet(); }),
         btn('Как пользоваться', () => { api.close(); helpSheet(); }),
         btn('Проверить обновление', () => { api.close(); checkUpdate(); }),
         btn('Закрыть', () => api.close(), 'ghost')),
       h('p', { class: 'tmeta', text: 'Версия: ' + APP_VERSION }));
-    draw();
   });
 }
 $('#menuBtn').addEventListener('click', menuSheet);
 
 /* ---------- запуск ---------- */
 applyTheme();
+applyGroupOrder();
 showTab(state.tab);
 src.value = state.text;
 commit();
@@ -860,12 +909,12 @@ function applyUpdate() {
 async function checkUpdate() {
   if (!swReg) { toast('Проверка обновлений работает при открытии с адреса https', true); return; }
   if (swReg.waiting && navigator.serviceWorker.controller) { showUpdate(swReg.waiting); return; }
-  toast('Проверяю…');
+  toast('Проверяю…', 'warn');
   try { await swReg.update(); } catch (e) { toast('Нет связи — не удалось проверить', true); return; }
   setTimeout(() => {
     if (swReg.waiting && navigator.serviceWorker.controller) showUpdate(swReg.waiting);
-    else if (swReg.installing) toast('Скачиваю новую версию…');
-    else toast('У вас последняя версия ✓');
+    else if (swReg.installing) toast('Скачиваю новую версию…', 'warn');
+    else toast('У вас последняя версия ✓', 'warn');
   }, 1200);
 }
 $('#updBtn').addEventListener('click', applyUpdate);
