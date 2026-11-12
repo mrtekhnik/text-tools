@@ -108,9 +108,6 @@ button{font:inherit;color:inherit;cursor:pointer}
   .tgroup.dragging{opacity:.45}
   .tgroup.dropbefore{box-shadow:-5px 0 0 0 var(--accent)}
   .tgroup.dropafter{box-shadow:5px 0 0 0 var(--accent)}
-  /* «Плотно»: группы подтягиваются вверх без пустот (высота задаётся из скрипта) */
-  .tools.dense{grid-auto-rows:2px;row-gap:0;align-items:start}
-  .tools.dense>.tgroup{margin-bottom:10px}
   /* «Ровные ряды»: карточки в ряду одной высоты */
   .tools.eqrows{align-items:stretch}
   .tools.eqrows>.tgroup.collapsed{align-self:start}
@@ -671,7 +668,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.26';
+const APP_VERSION = '2026-11-12.27';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1643,7 +1640,7 @@ function dateByTpl(tpl, d) {
 const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'format', 'phone', 'fname', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'dense', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, dateWhich: 'today', dateCustom: '', dateTpls: [], hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, dateWhich: 'today', dateCustom: '', dateTpls: [], hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
   sets: [], presets: [], hist: [], num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw'];
@@ -1663,7 +1660,7 @@ function load() {
         ui: (() => { const u = s.ui || {}, strs = a => (Array.isArray(a) ? a.filter(x => typeof x === 'string') : []);
           const hidden = strs(u.hidden).filter(x => TABS.includes(x));
           return { toasts: u.toasts === 'warn' ? 'warn' : 'all', order: fixOrder(u.order), hidden: hidden.length >= TABS.length ? [] : hidden,
-            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs, deskLayout: ['dense', 'rows', 'line'].includes(u.deskLayout) ? u.deskLayout : 'dense', collapsed: strs(u.collapsed).filter(x => TABS.includes(x)), symCat: Math.max(0, Math.min(6, +u.symCat || 0)),
+            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs, deskLayout: u.deskLayout === 'line' ? 'line' : 'rows', collapsed: strs(u.collapsed).filter(x => TABS.includes(x)), symCat: Math.max(0, Math.min(30, +u.symCat || 0)),
             affix: { pre: String((u.affix || {}).pre || ''), suf: String((u.affix || {}).suf || '') },
             fname: { tpl: typeof (u.fname || {}).tpl === 'string' ? u.fname.tpl : d.ui.fname.tpl, start: (u.fname || {}).start ?? 1, us: !!(u.fname || {}).us },
             histOn: u.histOn !== false, diffMode: u.diffMode === 'lines' ? 'lines' : 'words',
@@ -2249,23 +2246,12 @@ $('#diffBtn').addEventListener('click', diffSheet);
 function applyDeskTabs() {
   const T = $('#tools'), desk = !narrow.matches, tabs = desk && !!state.ui.deskTabs, L = state.ui.deskLayout;
   T.classList.toggle('tabbed', tabs);
-  T.classList.toggle('dense', desk && !tabs && L === 'dense');
   T.classList.toggle('eqrows', desk && !tabs && L === 'rows');
   T.classList.toggle('oneline', desk && !tabs && L === 'line');
   relayout();
 }
-// «Плотно»: каждая группа занимает в сетке столько строк по 2 px, какова её высота, — так группы ложатся плиткой без пустот
-let relayoutRaf = 0;
-function relayout() {
-  cancelAnimationFrame(relayoutRaf);
-  relayoutRaf = requestAnimationFrame(() => {
-    const T = $('#tools'), on = T.classList.contains('dense');
-    T.querySelectorAll(':scope > .tgroup').forEach(g => {
-      g.style.gridRowEnd = on ? 'span ' + Math.max(1, Math.ceil((g.getBoundingClientRect().height + 10) / 2)) : '';
-    });
-  });
-}
-if ('ResizeObserver' in window) { const ro = new ResizeObserver(relayout); document.querySelectorAll('#tools > .tgroup').forEach(g => ro.observe(g)); }
+// раньше здесь пересчитывалась укладка «Плотно» (убрана — группы скакали); вызовы оставлены пустыми
+function relayout() { /* ничего */ }
 window.addEventListener('resize', relayout);
 // колесо мыши листает строки кнопок вбок, если они не помещаются
 document.querySelectorAll('#tools .tbtns, #tools .srow').forEach(el => el.addEventListener('wheel', e => {
@@ -2593,9 +2579,9 @@ function settingsSheet() {
             btn(n, () => { state.ui.deskTabs = k; applyDeskTabs(); save(); draw(); }, !!state.ui.deskTabs === k ? 'primary' : ''))),
           ...(state.ui.deskTabs ? [] : [
             h('div', { class: 'uilbl', text: 'Как укладывать группы' }),
-            h('div', { class: 'thm' }, [['dense', 'Плотно'], ['rows', 'Ровные ряды'], ['line', 'Команды в одну строку']].map(([k, n]) =>
+            h('div', { class: 'thm' }, [['rows', 'Ровные ряды'], ['line', 'Команды в одну строку']].map(([k, n]) =>
               btn(n, () => { state.ui.deskLayout = k; applyDeskTabs(); save(); draw(); }, state.ui.deskLayout === k ? 'primary' : ''))),
-            h('p', { class: 'msg', text: '«Плотно» — группы подтягиваются вверх без пустот. «Ровные ряды» — карточки в ряду одной высоты. «Команды в одну строку» — кнопки строкой с прокруткой вбок (колесом мыши тоже). Группы можно перетаскивать мышью за шапку (⠿); щелчок по шапке сворачивает группу.' })]))]),
+            h('p', { class: 'msg', text: '«Ровные ряды» — карточки в ряду одной высоты, группы стоят на месте. «Команды в одну строку» — кнопки строкой с прокруткой вбок (колесом мыши тоже). Группы можно перетаскивать мышью за шапку (⠿); щелчок по шапке сворачивает группу.' })]))]),
         grp('paste', 'Вставка и очистка',
           h('div', { class: 'uilbl', text: '«Вставить», когда в поле уже есть текст' }),
           h('div', { class: 'thm' }, [['ask', 'Спрашивать'], ['replace', 'Заменять'], ['add', 'Добавлять']].map(([k, n]) =>
