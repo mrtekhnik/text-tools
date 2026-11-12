@@ -94,7 +94,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .segflex{display:flex;gap:4px}
 .segflex .seg{flex:1 1 0;min-width:0}
 .seg:disabled{opacity:.35;cursor:default}
-.numtop{display:grid;grid-template-columns:3fr 2fr;gap:8px;margin-bottom:5px}
+.seggrid.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.numtop{display:grid;grid-template-columns:4fr 2fr;gap:8px;margin-bottom:5px}
 .numrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:5px;align-items:stretch}
 .numbr{margin-top:2px}
 .numhint{font-size:12.5px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -277,9 +278,10 @@ body.modal-lock{overflow:hidden}
     <div class="tgroup" data-g="num">
       <div class="tlbl gtitle">Числа словами</div>
       <div class="numtop">
-        <div class="seggrid g3" id="numMode" role="group" aria-label="Что писать">
+        <div class="seggrid g4" id="numMode" role="group" aria-label="Что писать">
           <button class="seg" type="button" data-v="card" title="Количественные: 5 → пять; 3,5 → три целых пять десятых">пять</button>
           <button class="seg" type="button" data-v="ord" title="Порядковые: 5 → пятый; 5-й → пятый">пятый</button>
+          <button class="seg" type="button" data-v="abbr" title="Сокращённо: 5 → 5-й, 21 → 21-го (по падежу и роду)">5-й</button>
           <button class="seg" type="button" data-v="money" title="Сумма прописью: 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек">сумма</button>
         </div>
         <div class="seggrid g2" id="numLang" role="group" aria-label="Язык">
@@ -341,7 +343,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.2';
+const APP_VERSION = '2026-11-12.3';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -698,6 +700,20 @@ function ordinalWords(digits, caseName, g, lang) {
   const pre = rest ? numberToWords(String(rest), 'nom', 'm', lang) + ' ' : '';
   return pre + ordEnding(L, stem, c, g);
 }
+// Сокращённая запись порядкового: 5-й, 21-го, 3-я, 7-ми (рус.); 5-й, 21-го, 5-та, 3-тя (укр.).
+// Правило: берётся конец слова — одна буква, если перед последней гласной стоит гласная или ь (пятая → -я, третья → -я),
+// две буквы, если согласная (пятого → -го, пятыми → -ми, п'ята → -та); если слово кончается согласной — одна буква (пятый → -й, пятым → -м)
+const VOW = /[аеёиоуыэюяіїєАЕЁИОУЫЭЮЯІЇЄ]/;
+function ordSuffix(word) {
+  const a = word[word.length - 1], b = word[word.length - 2] || '';
+  if (VOW.test(a) && b && !VOW.test(b) && !/[ьъй'’]/.test(b)) return b + a;
+  return a;
+}
+function ordinalAbbr(digits, caseName, g, lang, shown) {
+  const w = ordinalWords(digits, caseName, g, lang);
+  if (w == null) return null;
+  return (shown || digits) + '-' + ordSuffix(w.split(' ').pop());
+}
 // 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек
 function moneyWords(intD, kopD, cur, lang) {
   const L = LN(lang), C = L.cur[cur] || L.cur.UAH, d = String(intD).replace(/\D/g, '');
@@ -725,12 +741,12 @@ const zeroLed = s => s.length > 1 && s[0] === '0';
 function numbersToWords(t, p) {
   const o = p || {}, l = o.l === 'ua' ? 'ua' : 'ru', c = o.c || 'nom', g = o.g || 'm';
   // Порядковые и суммы: если в тексте есть числа с окончанием (5-й) или с валютой (грн, $), меняются только они
-  if (o.m === 'ord') {
+  if (o.m === 'ord' || o.m === 'abbr') {
     const only = [...t.matchAll(ORD_RE)].some(x => x[2]);
     return t.replace(ORD_RE, (m, d, suf) => {
       const digits = d.replace(/\D/g, '');
       if (zeroLed(digits) || (only && !suf)) return m;
-      return ordinalWords(digits, c, g, l) || m;
+      return (o.m === 'abbr' ? ordinalAbbr(digits, c, g, l, d) : ordinalWords(digits, c, g, l)) || m;
     });
   }
   if (o.m === 'money') {
@@ -768,7 +784,7 @@ function load() {
         text: typeof s.text === 'string' ? s.text : '',
         steps: Array.isArray(s.steps) ? s.steps.filter(x => x && STEP_TYPES.includes(x.type)) : [],
         prot: { ...d.prot, ...(s.prot || {}) }, fr: { ...d.fr, ...(s.fr || {}) },
-        num: (() => { const n = s.num || {}; return { m: ['card', 'ord', 'money'].includes(n.m) ? n.m : 'card', l: n.l === 'ua' ? 'ua' : 'ru',
+        num: (() => { const n = s.num || {}; return { m: ['card', 'ord', 'abbr', 'money'].includes(n.m) ? n.m : 'card', l: n.l === 'ua' ? 'ua' : 'ru',
           c: CASES.includes(n.c) ? n.c : 'nom', g: ['m', 'f', 'n', 'p'].includes(n.g) ? n.g : 'm', cur: ['UAH', 'USD', 'EUR', 'RUB'].includes(n.cur) ? n.cur : 'UAH', br: !!n.br }; })(),
         ui: { toasts: s.ui && s.ui.toasts === 'warn' ? 'warn' : 'all', order: fixOrder(s.ui && s.ui.order) } };
     }
@@ -840,7 +856,7 @@ const CUR_SHORT = { UAH: 'грн', USD: '$', EUR: '€', RUB: '₽' };
 function numLabel(p) {
   const ua = p.l === 'ua' ? ' · укр' : '';
   if (p.m === 'money') return 'Сумма прописью, ' + (CUR_SHORT[p.cur] || 'грн') + (p.br ? ', в скобках' : '') + ua;
-  return (p.m === 'ord' ? 'Порядковые, ' : 'Числа словами, ') + (CASE_SHORT[p.c] || 'им.') + ' ' + (GEN_SHORT[p.g] || 'м.р.') + ua;
+  return (p.m === 'ord' ? 'Порядковые, ' : p.m === 'abbr' ? 'Как 5-й, ' : 'Числа словами, ') + (CASE_SHORT[p.c] || 'им.') + ' ' + (GEN_SHORT[p.g] || 'м.р.') + ua;
 }
 function stepLabel(s) {
   const base = s.type === 'replace' ? '«' + cut(s.p.find, 14) + '» → «' + cut(s.p.repl, 14) + '»'
@@ -961,7 +977,8 @@ document.querySelectorAll('#tools .tb[data-t]').forEach(b => bindCmd(b, sel => d
 /* ---------- числа словами: режим, язык, падеж, род, валюта ---------- */
 const numParams = () => {
   const n = state.num;
-  return { m: n.m, l: n.l, c: n.m === 'money' ? 'nom' : n.c, g: n.m === 'ord' ? n.g : (n.g === 'p' ? 'm' : n.g), cur: n.cur, br: !!n.br };
+  const ordLike = n.m === 'ord' || n.m === 'abbr';
+  return { m: n.m, l: n.l, c: n.m === 'money' ? 'nom' : n.c, g: ordLike ? n.g : (n.g === 'p' ? 'm' : n.g), cur: n.cur, br: !!n.br };
 };
 function updNum() {
   const n = state.num, P = numParams();
@@ -969,10 +986,10 @@ function updNum() {
   mark('#numMode', n.m); mark('#numLang', n.l); mark('#numCase', P.c); mark('#numGen', P.g); mark('#numCur', n.cur);
   const money = n.m === 'money';
   $('#numGen').hidden = money; $('#numCur').hidden = !money; $('#numBrWrap').hidden = !money;
-  $('#numGen .seg[data-v="p"]').hidden = n.m !== 'ord';
+  $('#numGen .seg[data-v="p"]').hidden = n.m !== 'ord' && n.m !== 'abbr';
   document.querySelectorAll('#numCase .seg').forEach(b => { b.disabled = money; });
   $('#numBr').checked = !!n.br;
-  const ex = n.m === 'money' ? ['1250,50'] : n.m === 'ord' ? ['1', '22', '2000'] : ['1', '22', '3,5'];
+  const ex = n.m === 'money' ? ['1250,50'] : n.m === 'ord' ? ['1', '22', '2000'] : n.m === 'abbr' ? ['1', '3', '5', '21', '2000'] : ['1', '22', '3,5'];
   $('#numHint').textContent = (money ? 'Сумма всегда в им. падеже. ' : '') + 'Пример: ' + ex.map(x => x + ' → ' + numbersToWords(x, { ...P, br: false })).join(', ');
 }
 [['#numMode', 'm'], ['#numLang', 'l'], ['#numCase', 'c'], ['#numGen', 'g'], ['#numCur', 'cur']].forEach(([id, key]) => document.querySelectorAll(id + ' .seg').forEach(b => {
@@ -1160,6 +1177,7 @@ function helpSheet() {
         h('li', { text: 'В регулярных выражениях замена понимает $1 и \\n.' }),
         h('li', { text: '«Числа», режим «пять»: 5 → пять, 3,5 → три целых пять десятых. Выберите падеж и род (род нужен для 1 и 2: один/одна/одно).' }),
         h('li', { text: 'Режим «пятый» — порядковые: 5 → пятый, 2000 → двухтысячный; «мн» — пятые. Если в тексте есть числа с окончанием (5-й, 21-го), меняются только они.' }),
+        h('li', { text: 'Режим «5-й» — порядковые сокращённо, окончание по падежу и роду: 5 → 5-й, 21 в род. → 21-го, 3 в ж.р. → 3-я; по-украински 5 в ж.р. → 5-та. Если в тексте уже есть 5-го, 21-й и т.п., меняются только они — так можно исправить окончания.' }),
         h('li', { text: 'Режим «сумма» — прописью, как в документах: 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек. Валюта берётся из текста (грн, $, €, ₽, USD…), иначе — выбранная. Если в тексте есть суммы с валютой, меняются только они. «В скобках» оставляет цифры и добавляет слова в скобках.' }),
         h('li', { text: '«рус / укр» — язык числительных. Обозначения (М8, АБВГ.123456.001), даты, время, проценты, №5, 007, 5-7 остаются цифрами. До 999 миллиардов.' }),
         h('li', { text: 'Тема, подсказки, порядок групп команд и исключения регистра — в ⋮ → «Оформление и настройки».' }),
