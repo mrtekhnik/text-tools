@@ -681,7 +681,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.36';
+const APP_VERSION = '2026-11-12.37';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1702,14 +1702,44 @@ function fixEncoding(t) {
   return t.replace(/[^\s\d.,;:!?()\[\]{}"'/\\<>=+_|@#$%^&*~`]+/gu, w => fixMojiWord(w) ?? w);
 }
 // буквы, сдвинутые на постоянное число позиций (PDF из некоторых программ): ɉɪɢɜɟɬ → Привет
+// Частоты букв (русский + украинский) — по ним выбирается сдвиг, при котором получаются нормальные слова
+const CYR_FREQ = { 'о': 10, 'е': 8, 'а': 8, 'и': 7, 'н': 6.7, 'т': 6.3, 'с': 5.5, 'р': 4.7, 'в': 4.5, 'л': 4.4, 'к': 3.5, 'м': 3.2, 'д': 3, 'п': 2.8, 'у': 2.6,
+  'і': 2, 'я': 2, 'ы': 1.9, 'ь': 1.7, 'г': 1.7, 'з': 1.6, 'б': 1.6, 'ч': 1.4, 'й': 1.2, 'х': 1, 'ж': 0.9, 'ш': 0.7, 'ю': 0.6, 'ї': 0.6, 'ц': 0.5, 'є': 0.4,
+  'щ': 0.3, 'э': 0.3, 'ф': 0.2, 'ё': 0.2, 'ъ': 0.04, 'ґ': 0.05 };
+// Сдвинутые буквы (PDF из некоторых программ): каждая буква заменена знаком на одно и то же расстояние дальше или ближе
+// в таблице символов: ɉɪɢɜɟɬ → Привет, ǋǱǭ ǰǶǱǰǼ → Вид знизу. Сдвиг в разных PDF свой — подбирается по частотам букв
+const SHIFT_CH = /[Ā-ͯ]{2,}/g, SHIFT_ANY = /[Ā-ͯ]+/g;
+// частые сочетания двух букв: «ви», «зн», «ст»… — по ним настоящие слова отличаются от случайного набора букв
+const CYR_BIGR = new Set('ов на ан ст та ро ка ер ра ни за ва ен по ал ти нн ри ат ви пр ня тр ос до от ме во ск ет ор ве ли ла те ре ок кр ко ас ит ть но ні ві бо го то ле де сп ав ие ом ар ол нт ма рі не ль ог ин ир ід че ия аз ис чн тв ел ло он ач мо ус об им ад ір ув хн ич из ны од ну ут ид пл рк вк мі ку ес ки ей ры кл ту вн оп сл пе оз лу ех зм дл ые ьн шк пи шв чи иц сн тя со пу ам рх рт ци ик ац ру ба ий зн ча фа ак га зв іс бу вл ед ош ой се ый мк уп св аб це ги оч ху ев ез жи гр ун па іч ів лі дн ін да ці ія ум ді еб зг ля ук тк ыт рн вы лл лт бл тс ся иа зу зр си сб ец иф рп нш шт йн уб са зд бе аг ям ег еж жа их щи ши зь ьб иб нс кс уа дс тт ою рб сі гн гі іа із иш дп ьо кі іл йм іт ив вс шо вт вч сь як дь'.split(' '));
+function shiftScore(chars, k) {
+  let sc = 0, cyr = 0, prev = '';
+  for (const [c, start] of chars) {
+    if (start) prev = '';
+    const m = String.fromCharCode(c + k), lo = m.toLowerCase(), f = CYR_FREQ[lo];
+    if (f) {
+      cyr++; sc += Math.log(f) - (m !== lo ? (start ? 1 : 4) : 0);
+      if (!start && prev) sc += CYR_BIGR.has(prev + lo) ? 1.5 : -1.5;
+      prev = lo;
+    } else if (/[0-9.,:;!?()«»"'\-–—\/%№]/.test(m)) sc -= 2;
+    else return null;
+  }
+  return cyr >= chars.length * 0.7 ? sc / chars.length : null;
+}
 function fixShift(t) {
-  return t.replace(/[ƀ-ʯ]{2,}/g, w => {
-    for (const k of [0x1D6]) {
-      const s = [...w].map(c => String.fromCharCode(c.charCodeAt(0) + k)).join('');
-      if (/^[Ѐ-џ]+$/.test(s)) return s;
-    }
-    return w;
-  });
+  const toks = t.match(SHIFT_CH);
+  if (!toks) return t;
+  const chars = [];
+  toks.forEach(w => [...w].forEach((c, i) => chars.push([c.charCodeAt(0), i === 0])));
+  if (chars.length < 3) return t;
+  let best = null, bk = 0;
+  const lo = Math.min(...chars.map(x => x[0])), hi = Math.max(...chars.map(x => x[0]));
+  for (let k = 0x404 - hi; k <= 0x491 - lo; k++) {
+    if (!k) continue;
+    const sc = shiftScore(chars, k);
+    if (sc != null && (best == null || sc > best)) { best = sc; bk = k; }
+  }
+  if (best == null || best < 0.6) return t;          // не похоже на русский или украинский текст — не трогаем
+  return t.replace(SHIFT_ANY, w => [...w].map(c => String.fromCharCode(c.charCodeAt(0) + bk)).join(''));
 }
 // латинские буквы-двойники внутри русских слов и наоборот: «Бoлт» (o латинская) → «Болт»
 const LAT2CYR = { A: 'А', B: 'В', C: 'С', E: 'Е', H: 'Н', K: 'К', M: 'М', O: 'О', P: 'Р', T: 'Т', X: 'Х', I: 'І', a: 'а', c: 'с', e: 'е', o: 'о', p: 'р', x: 'х', y: 'у', i: 'і' };
