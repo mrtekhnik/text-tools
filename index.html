@@ -172,6 +172,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .diffout ins{background:rgba(13,107,91,.18);color:var(--accent);text-decoration:none;border-bottom:2px solid var(--accent);border-radius:3px}
 .rowlbl{grid-column:1/-1;flex:none;align-self:center;font-size:12.5px;font-weight:700;color:var(--muted);padding-right:2px}
 .tgroup .tbtns+.tbtns{margin-top:6px}
+.numback{margin-top:8px}
 .tbtns.wide{grid-template-columns:repeat(auto-fill,minmax(178px,1fr))}
 .tbtns.wide .tb{white-space:nowrap;font-variant-numeric:tabular-nums}
 .fnrow{display:grid;grid-template-columns:minmax(0,1fr) 76px auto;gap:6px;margin-bottom:5px}
@@ -587,6 +588,12 @@ body.modal-lock{overflow:hidden}
         <button class="tb main" type="button" id="numGo" data-id="num:go">→ словами</button>
       </div>
       <div class="numhint" id="numHint"></div>
+      <div class="tbtns numback">
+        <span class="rowlbl">Обратно</span>
+        <button class="tb" type="button" data-t="numw" data-p="digits" title="двадцать пятого → 25-го, три целых пять десятых → 3,5, полторы тысячи → 1500 (русский и украинский)">словами → цифрами</button>
+        <button class="tb" type="button" data-t="numw" data-p="ru-ua" title="Числительные на украинский с тем же падежом и родом: двадцать пятого → двадцять п'ятого. Остальные слова не переводятся">числа RU → UA</button>
+        <button class="tb" type="button" data-t="numw" data-p="ua-ru" title="Числительные на русский с тем же падежом и родом: на п'ятому → на пятом. Остальные слова не переводятся">числа UA → RU</button>
+      </div>
     </div>
     <div class="tgroup fr" data-g="replace">
       <div class="tlbl gtitle">Найти и заменить</div>
@@ -617,7 +624,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.18';
+const APP_VERSION = '2026-11-12.19';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -815,6 +822,7 @@ function applyWhole(t, s, prot) {
     case 'extract': return extractOp(t, s.p);
     case 'fio': return fioOp(t, s.p);
     case 'dim': return dimOp(t, s.p);
+    case 'numw': return numWordsOp(t, s.p);
   }
   return t;
 }
@@ -1440,6 +1448,129 @@ function dimOp(t, p) {
   }
   return t;
 }
+/* ---------- числа: словами → цифрами и перевод числительных RU ↔ UA ---------- */
+// Словарь строится из того же движка, что пишет числа словами, — формы совпадают один в один.
+const nKey = w => w.toLowerCase().replace(/ё/g, 'е').replace(/[’ʼ`]/g, "'");
+let NUM_LEX = null;
+function numLex() {
+  if (NUM_LEX) return NUM_LEX;
+  const lex = new Map();
+  const add = (w, e) => { if (!w || /\s/.test(w)) return; const k = nKey(w); if (!lex.has(k)) lex.set(k, []); lex.get(k).push(e); };
+  const ATOMS = [...Array(20).keys(), 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900];
+  ['ru', 'ua'].forEach(l => {
+    const L = NL[l];
+    CASES.forEach((cn, c) => {
+      ['m', 'f', 'n'].forEach(g => { for (let v = 1; v < 20; v++) add(smallWords(L, v, c, g), { l, t: 'u', v, c: cn, g }); });
+      add(L.small[0][c], { l, t: 'z', v: 0, c: cn });
+      for (let t = 2; t <= 9; t++) add(L.tens[t][c], { l, t: 't', v: t * 10, c: cn });
+      for (let d = 1; d <= 9; d++) add(L.hund[d][c], { l, t: 'h', v: d * 100, c: cn });
+      [1, 2, 3].forEach(k => { const B = L.big[k]; if (!B) return; add(B.one[c], { l, t: 'b', k, c: cn, one: true }); add(B.many[c], { l, t: 'b', k, c: cn }); if (c === 0) { add(B.few, { l, t: 'b', k, c: 'nom' }); add(B.few, { l, t: 'b', k, c: 'acc' }); } });
+      add(L.whole.one[c], { l, t: 'w', c: cn }); add(L.whole.many[c], { l, t: 'w', c: cn });
+      L.den.forEach((st, i) => { add(st + L.adjOne[c], { l, t: 'd', n: i + 1, c: cn }); add(st + L.adjMany[c], { l, t: 'd', n: i + 1, c: cn }); });
+      ['m', 'f', 'n', 'p'].forEach(g => {
+        ATOMS.forEach(v => add(ordinalWords(String(v), cn, g, l), { l, t: 'o', v, c: cn, g }));
+        [1, 2, 3].forEach(k => ATOMS.forEach(v => { if (v) add(ordinalWords(String(v * Math.pow(1000, k)), cn, g, l), { l, t: 'ob', v: v * Math.pow(1000, k), c: cn, g }); }));
+      });
+    });
+  });
+  [['полтора', 'ru', 'm'], ['полторы', 'ru', 'f'], ['півтора', 'ua', 'm'], ['півтори', 'ua', 'f']].forEach(([w, l, g]) => add(w, { l, t: 'half', g, c: 'nom' }));
+  return (NUM_LEX = lex);
+}
+const CASE_PRI = ['nom', 'acc', 'gen', 'dat', 'ins', 'pre'];
+// Разбор числительного, начиная с токена i, на языке l. Возвращает { end, v, ord, frac, cases, g, formal } или null
+function parseNumWords(toks, i, l) {
+  const lex = numLex();
+  const ents = j => (j < toks.length ? (lex.get(nKey(toks[j].w)) || []).filter(e => e.l === l) : []);
+  const pickCases = (es, t) => new Set(es.filter(e => e.t === t).map(e => e.c));
+  let total = 0, grp = 0, slot = 0, lastBig = 9, j = i, cases = null, g = 'm', formal = false, seen = false;
+  const meet = s => { cases = cases ? new Set([...cases].filter(x => s.has(x))) : s; if (!cases.size) cases = s; };
+  for (; j < toks.length; j++) {
+    if (j > i && !toks[j].sp) break;                     // между словами — только пробелы
+    const es = ents(j); if (!es.length) break;
+    const has = t => es.some(e => e.t === t);
+    const ord = es.find(e => e.t === 'o' && ((slot === 0) || (slot === 1 && e.v < 100) || (slot === 2 && e.v < 10 && e.v > 0)));
+    if (has('h') && slot === 0 && !grp) { grp += es.find(e => e.t === 'h').v; slot = 1; meet(pickCases(es, 'h')); }
+    else if (has('t') && slot <= 1) { grp += es.find(e => e.t === 't').v; slot = 2; meet(pickCases(es, 't')); }
+    else if (has('u') && (slot <= 1 || slot === 2 && es.find(e => e.t === 'u').v < 10)) {
+      const u = es.find(e => e.t === 'u'); grp += u.v; slot = 3; meet(pickCases(es, 'u'));
+      const gs = new Set(es.filter(e => e.t === 'u').map(e => e.g));
+      if (u.v <= 2) g = gs.has('m') ? 'm' : gs.has('f') ? 'f' : 'n';
+    } else if (has('b') && es.find(e => e.t === 'b').k < lastBig && (seen || grp || true)) {
+      const b = es.find(e => e.t === 'b');
+      if (grp === 1) formal = true;
+      total += (grp || 1) * Math.pow(1000, b.k); grp = 0; slot = 0; lastBig = b.k; g = 'm';
+      meet(pickCases(es, 'b'));
+    } else if (ord || (has('ob') && !grp)) {
+      const o = ord || es.find(e => e.t === 'ob');
+      const os = es.filter(e => e.t === o.t && e.v === o.v);
+      const gBy = {};
+      CASE_PRI.forEach(c => { const gg = ['m', 'f', 'n', 'p'].find(x => os.some(e => e.c === c && e.g === x)); if (gg) gBy[c] = gg; });
+      const c0 = CASE_PRI.find(c => gBy[c]);
+      return { end: j + 1, v: total + grp + o.v, ord: true, cases: new Set(Object.keys(gBy)), gBy, g: gBy[c0], l };
+    } else if (has('z') && j === i) { return { end: j + 1, v: 0, cases: pickCases(es, 'z'), g: 'm', l }; }
+    else if (has('half') && j === i) {
+      const e = es.find(x => x.t === 'half'), nb = j + 1 < toks.length && toks[j + 1].sp ? ents(j + 1).find(x => x.t === 'b' && x.one && x.c === 'gen') : null;
+      if (nb) return { end: j + 2, v: 1.5 * Math.pow(1000, nb.k), half: true, hk: nb.k, cases: new Set(['nom']), g: e.g, l };     // полторы тысячи
+      return { end: j + 1, v: 1.5, half: true, cases: new Set(['nom']), g: e.g, l };
+    }
+    else break;
+    seen = true;
+  }
+  if (j === i) return null;
+  const res = { end: j, v: total + grp, cases: cases || new Set(['nom']), g, formal, l };
+  // дробь: «три целых пять десятых»
+  const w = ents(j).find(e => e.t === 'w');
+  if (w && toks[j].sp) {
+    const fr = parseNumWords(toks, j + 1, l);
+    if (fr && !fr.ord && fr.end < toks.length && toks[fr.end].sp) {
+      const d = ents(fr.end).find(e => e.t === 'd');
+      if (d && String(fr.v).length <= d.n) return { end: fr.end + 1, v: res.v, frac: String(fr.v).padStart(d.n, '0'), cases: new Set([w.c]), g: 'f', l };
+    }
+  }
+  return res;
+}
+function numWordsRun(t, l, fn) {
+  const toks = [];
+  const re = /[\p{L}'’ʼ]+/gu;
+  let m, prevEnd = 0;
+  while ((m = re.exec(t))) { toks.push({ w: m[0], a: m.index, b: m.index + m[0].length, sp: /^[  ]+$/.test(t.slice(prevEnd, m.index)) }); prevEnd = m.index + m[0].length; }
+  let out = '', last = 0;
+  for (let i = 0; i < toks.length;) {
+    let r = null;
+    for (const lang of l === 'any' ? ['ru', 'ua'] : [l]) { const x = parseNumWords(toks, i, lang); if (x && (!r || x.end > r.end)) r = x; }
+    if (!r) { i++; continue; }
+    if (i > 0 && toks[i].sp) r.prev = nKey(toks[i - 1].w);
+    const a = toks[i].a, b = toks[r.end - 1].b, rep = fn(r, t.slice(a, b));
+    if (rep != null) { out += t.slice(last, a) + rep; last = b; }
+    i = r.end;
+  }
+  return out + t.slice(last);
+}
+const pickCase = s => CASE_PRI.find(c => s.has(c)) || 'nom';
+function wordsToDigits(t) {
+  return numWordsRun(t, 'any', (r, src) => {
+    if (r.half) return r.hk ? String(r.v) : '1,5';
+    if (r.frac != null) return r.v + ',' + r.frac;
+    if (r.ord) { const c = pickCase(r.cases); return ordinalAbbr(String(r.v), c, r.gBy[c], r.l); }
+    return String(r.v);
+  });
+}
+function translateNumerals(t, p) {
+  const [from, to] = p === 'ua-ru' ? ['ua', 'ru'] : ['ru', 'ua'];
+  return numWordsRun(t, from, (r, src) => {
+    // после «на, в, у, о, при» — предложный (місцевий): на п'ятому поверсі → на пятом этаже
+    const c = r.cases.has('pre') && /^(на|в|во|у|о|об|обо|при|по)$/.test(r.prev || '') && !(r.prev === 'по' && r.cases.has('dat')) ? 'pre' : pickCase(r.cases);
+    let w;
+    if (r.half) w = (to === 'ua' ? (r.g === 'f' ? 'півтори' : 'півтора') : (r.g === 'f' ? 'полторы' : 'полтора')) + (r.hk ? ' ' + LN(to).big[r.hk].one[1] : '');
+    else if (r.frac != null) w = fractionWords(String(r.v), r.frac, c, to);
+    else if (r.ord) w = ordinalWords(String(r.v), c, r.gBy[c] || r.g, to);
+    else w = numberToWords(String(r.v), c, r.g, to, r.formal);
+    if (w == null) return null;
+    const caps = src.length > 1 && src === src.toUpperCase();
+    return caps ? w.toUpperCase() : src[0] !== src[0].toLowerCase() ? w[0].toUpperCase() + w.slice(1) : w;
+  });
+}
+function numWordsOp(t, p) { return p === 'digits' ? wordsToDigits(t) : translateNumerals(t, p); }
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
@@ -1449,7 +1580,7 @@ const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: tr
   ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'dense', collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
   sets: [], presets: [], hist: [], num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
-const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim'];
+const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw'];
 const uid0 = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 function load() {
   const d = DEF();
@@ -1543,6 +1674,7 @@ const NAMES = {
   typo: { 'q-ru': '«Ёлочки»', 'q-en': '"Прямые" кавычки', dash: 'Дефис → тире', hyph: 'Тире → дефис', 'dec-dot': '1,5 → 1.5', 'dec-comma': '1.5 → 1,5' },
   date: { dmy: 'Даты 12.11.2026', iso: 'Даты 2026-11-12', slash: 'Даты 12/11/2026', ru: 'Даты 12 ноября 2026 г.', ua: 'Даты 12 листопада 2026 р.' },
   nfmt: { grp: 'Разряды 1 234 567', ungrp: 'Без разрядов' },
+  numw: { digits: 'Словами → цифрами', 'ru-ua': 'Числительные RU → UA', 'ua-ru': 'Числительные UA → RU' },
   fio: { short: 'ФИО → Шевченко Т. Г.', 'ini-first': 'ФИО → Т. Г. Шевченко' },
   dim: { x: 'Размеры x → ×', dia: 'd20 → Ø20', sym: '+/- → ±, гр. → °', mm2m: 'мм → м', m2mm: 'м → мм' },
   phone: { intl: 'Тел. +380671234567', e123: 'Тел. +380 67 123 45 67', 'intl-sp': 'Тел. +380 67 123-45-67', 'intl-br': 'Тел. +380 (67) 123-45-67', d380: 'Тел. 380671234567', loc: 'Тел. 0671234567', 'loc-sp': 'Тел. 067 123 45 67', 'loc-br': 'Тел. (067) 123-45-67', 'loc-dash': 'Тел. 067-123-45-67' },
@@ -1652,7 +1784,7 @@ function updUndo() {
 /* ---------- действия ---------- */
 // sel — выделение, снятое в момент нажатия кнопки (или null)
 function doOp(type, p, sel) {
-  const tg = type === 'lines' && p && p.k === 'fname' ? 'fname' : ({ typo: 'format', date: 'format', nfmt: 'format', fio: 'format', dim: 'format', rules: 'replace' }[type] || type);
+  const tg = type === 'lines' && p && p.k === 'fname' ? 'fname' : ({ typo: 'format', date: 'format', nfmt: 'format', fio: 'format', dim: 'format', numw: 'num', rules: 'replace' }[type] || type);
   if (!quietTab && TABS.includes(tg) && state.tab !== tg) showTab(tg);      // группа последней команды — текущая
   if (state.text !== src.value) { state.text = src.value; }
   flushTyping();
@@ -2297,6 +2429,7 @@ function helpSheet() {
         h('li', { text: 'Режим «сумма» — прописью, как в документах: 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек. Валюта берётся из текста (грн, $, €, ₽, USD…), иначе — выбранная. Если в тексте есть суммы с валютой, меняются только они. «В скобках» оставляет цифры и добавляет слова в скобках.' }),
         h('li', { text: '«Строки»: сортировка А→Я и Я→А (числа по значению: Деталь-2 раньше Деталь-10), без дублей, обратный порядок, нумерация и её снятие, префикс и суффикс для каждой строки.' }),
         h('li', { text: '«Формат»: кавычки «ёлочки» и "прямые", дефис ↔ тире, десятичная запятая ↔ точка, разряды 1 234 567, любые даты → 12.11.2026, 2026-11-12, 12/11/2026 или словами. Обозначения вроде АБВГ.123456.001 не трогаются.' }),
+        h('li', { text: '«Числа» → «Обратно»: словами → цифрами (двадцать пятого → 25-го, три целых пять десятых → 3,5, полторы тысячи → 1500) и перевод числительных RU ↔ UA с тем же падежом и родом (на п\'ятому поверсі → на пятом). Остальные слова не переводятся. Если форма числа подходит к нескольким падежам, после «на, в, у, о, при» берётся предложный, иначе — именительный или родительный.' }),
         h('li', { text: 'Δ у окна «Результат» — подсветка изменений прямо в результате: удалённое красным, добавленное зелёным. Нажмите ещё раз, чтобы вернуть обычный вид.' }),
         h('li', { text: '«Столбцы»: таблица из Excel или CSV — оставить или переставить столбцы (3,1,2), убрать лишние, сменить разделитель (→ Tab вставится в Excel по ячейкам), посчитать итоги и добавить строку «Итого». Колонку «Поз.» с номерами 1, 2, 3 итоги не суммируют.' }),
         h('li', { text: '«Извлечь»: выписать списком обозначения (АБВГ.123456.001), стандарты (ГОСТ, ДСТУ, DIN), числа, телефоны, e-mail или ссылки.' }),
@@ -2325,14 +2458,14 @@ function cmdButtons(g) {
   const el = document.querySelector('.tgroup[data-g="' + g + '"]');
   if (!el) return [];
   if (g === 'sym') return [...el.querySelectorAll('#symCats .seg')];
-  return g === 'num' ? [...el.querySelectorAll('#numMode .seg')] : [...el.querySelectorAll('.tb[data-t], .tb[data-id]')];
+  return g === 'num' ? [...el.querySelectorAll('#numMode .seg, .tb[data-t]')] : [...el.querySelectorAll('.tb[data-t], .tb[data-id]')];
 }
 function applyVisibility() {
   const hid = new Set(state.ui.hidden), hc = new Set(state.ui.hiddenCmd);
   document.querySelectorAll('.ttab').forEach(t => { t.hidden = hid.has(t.dataset.g); });
   document.querySelectorAll('.tgroup').forEach(t => t.classList.toggle('off', hid.has(t.dataset.g)));
   TABS.forEach(g => cmdButtons(g).forEach(b => { b.hidden = hc.has(cmdId(b)); }));
-  const modes = cmdButtons('num').filter(b => !b.hidden);
+  const modes = cmdButtons('num').filter(b => b.dataset.v && !b.hidden);
   if (modes.length && !modes.some(b => b.dataset.v === state.num.m)) { state.num.m = modes[0].dataset.v; updNum(); }
   renderSym();
   if (hid.has(state.tab)) showTab(state.ui.order.find(g => !hid.has(g)) || TABS[0]);
@@ -2388,7 +2521,7 @@ function settingsSheet() {
                 h('button', { class: 'hb', type: 'button', 'aria-label': 'Ниже', disabled: i === order.length - 1, onclick() { move(i, 1); } }, '↓')),
               vis && cmds.length > 1 ? h('div', { class: 'cmdchips' }, cmds.map(b => {
                 const id = cmdId(b), on = !U.hiddenCmd.includes(id);
-                const label = g === 'num' ? NUM_MODE_NAMES[b.dataset.v] : b.textContent.trim();
+                const label = g === 'num' && b.dataset.v ? NUM_MODE_NAMES[b.dataset.v] : b.textContent.trim();
                 return h('button', { class: 'seg' + (on ? ' on' : ''), type: 'button', title: on ? 'Скрыть' : 'Показать', onclick() {
                   if (on && cmds.filter(x => !U.hiddenCmd.includes(cmdId(x))).length <= 1) { toast('В группе должна остаться хотя бы одна команда — или отключите всю группу', 'warn'); return; }
                   U.hiddenCmd = on ? [...U.hiddenCmd, id] : U.hiddenCmd.filter(x => x !== id);
@@ -2485,7 +2618,7 @@ function paintCounts() {
 }
 function scheduleCounts() { clearTimeout(cntT); cntT = setTimeout(calcCounts, 150); }
 
-const STEP_ENUM = ['layout', 'case', 'clean', 'translit', 'typo', 'date', 'nfmt', 'phone', 'lines', 'fio', 'dim'];
+const STEP_ENUM = ['layout', 'case', 'clean', 'translit', 'typo', 'date', 'nfmt', 'phone', 'lines', 'fio', 'dim', 'numw'];
 function canEdit(s) {
   if (['replace', 'num', 'cols', 'extract'].includes(s.type)) return true;
   if (s.type === 'rules') return state.sets.length > 0;
@@ -2631,6 +2764,7 @@ const KW = {
   nfmt: 'разряды тысячи пробелы число', date: 'дата даты формат', phone: 'телефон номер мобильный', 'fname:go': 'имена файлов шаблон dxf нумерация',
   'num:go': 'числа словами прописью сумма падеж', 'replace:go': 'найти заменить',
   cols: 'столбцы колонки excel таблица csv', 'cols:stats': 'сумма итоги посчитать', 'cols:sum': 'сумма итого', extract: 'извлечь выписать найти список',
+  numw: 'числа словами цифры числительные перевод украинский русский прописью обратно', 'numw:digits': 'цифрами', 'numw:ru-ua': 'украинский перевод', 'numw:ua-ru': 'русский перевод',
   fio: 'фио инициалы фамилия имя отчество', dim: 'размеры', 'dim:x': 'умножить крестик размер', 'dim:dia': 'диаметр', 'dim:sym': 'плюс минус градус допуск',
   'dim:mm2m': 'миллиметры метры', 'dim:m2mm': 'метры миллиметры', 'lines:join': 'склеить объединить в строку через запятую', 'lines:split': 'разбить разделить на строки столбик'
 };
