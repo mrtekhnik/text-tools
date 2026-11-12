@@ -433,12 +433,20 @@ body.modal-lock{overflow:hidden}
     <div class="tgroup" data-g="clean">
       <div class="tlbl gtitle">Очистка</div>
       <div class="tbtns">
+        <span class="rowlbl">Пробелы и строки</span>
         <button class="tb main" type="button" data-t="clean" data-p="all" title="Края строк, переносы слов, склейка строк, двойные пробелы">Всё сразу</button>
         <button class="tb" type="button" data-t="clean" data-p="spaces">Двойные пробелы</button>
         <button class="tb" type="button" data-t="clean" data-p="empty">Пустые строки</button>
         <button class="tb" type="button" data-t="clean" data-p="join" title="Строки внутри абзаца склеиваются, абзацы и списки остаются">Склеить строки</button>
         <button class="tb" type="button" data-t="clean" data-p="hyphen" title="сло-↵во → слово">Переносы слов</button>
         <button class="tb" type="button" data-t="clean" data-p="trim">Пробелы по краям</button>
+      </div>
+      <div class="tbtns">
+        <span class="rowlbl">Починить</span>
+        <button class="tb main" type="button" data-t="fix" data-p="pdf" title="Всё сразу для текста, скопированного из PDF, Word, сайтов: кракозябры, сдвинутые буквы, латиница в русских словах, буквы через пробел, невидимые символы, лигатуры">Текст из PDF</button>
+        <button class="tb" type="button" data-t="fix" data-p="enc" title="Текст в неверной кодировке: Ðîçì³ðè → Розміри, РџСЂРёРІРµС‚ → Привет, Ð¿Ñ€Ð¸Ð²ÐµÑ‚ → привет, ɉɪɢɜɟɬ → Привет">Кракозябры</button>
+        <button class="tb" type="button" data-t="fix" data-p="mixed" title="Латинские буквы-двойники в русских и украинских словах и наоборот: Бoлт (o латинская) → Болт, AБВГ → АБВГ">Смешанные буквы</button>
+        <button class="tb" type="button" data-t="fix" data-p="invis" title="Мягкие переносы и нулевые пробелы — убрать, неразрывные пробелы — в обычные, лигатуры ﬁ ﬂ — в fi fl">Невидимые символы</button>
       </div>
     </div>
     <div class="tgroup" data-g="lines">
@@ -470,6 +478,8 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="typo" data-p="dec-comma" title="Десятичная точка → запятая (даты, версии и обозначения не трогаются)">1.5 → 1,5</button>
         <button class="tb" type="button" data-t="nfmt" data-p="grp" title="Разряды неразрывным пробелом в числах от 5 цифр (годы не трогаются)">1 234 567</button>
         <button class="tb" type="button" data-t="nfmt" data-p="ungrp" title="Убрать пробелы между разрядами">1234567</button>
+        <button class="tb" type="button" data-t="roman" data-p="to-ar" title="Римские → арабские рядом со словами: XIV век → 14 век, глава IX → глава 9, III-IV кварталы → 3-4 кварталы. Понимает и кириллические І, Х, С, М">XIV → 14</button>
+        <button class="tb" type="button" data-t="roman" data-p="to-rom" title="Арабские → римские (1–3999). Меняются все отдельные числа — лучше выделить нужный кусок">14 → XIV</button>
       </div>
       <div class="tbtns">
         <span class="rowlbl">ФИО</span>
@@ -671,7 +681,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.34';
+const APP_VERSION = '2026-11-12.36';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -870,6 +880,8 @@ function applyWhole(t, s, prot) {
     case 'fio': return fioOp(t, s.p);
     case 'dim': return dimOp(t, s.p);
     case 'numw': return numWordsOp(t, s.p);
+    case 'fix': return fixOp(t, s.p);
+    case 'roman': return romanOp(t, s.p);
   }
   return t;
 }
@@ -1651,6 +1663,115 @@ function dateByTpl(tpl, d) {
     return k[0] !== k[0].toLowerCase() ? w[0].toUpperCase() + w.slice(1) : w;
   });
 }
+/* ---------- починить текст: кракозябры, сдвиг букв, смешанные алфавиты, невидимые символы (в т. ч. из PDF) ---------- */
+let CP_TABLES = null;
+function cpTables() {
+  if (CP_TABLES) return CP_TABLES;
+  const mk = enc => { const d = new TextDecoder(enc), to = [], from = new Map(); for (let b = 0; b < 256; b++) { const c = d.decode(Uint8Array.of(b)); to[b] = c; if (!from.has(c)) from.set(c, b); } return { to, from }; };
+  return (CP_TABLES = { w1251: mk('windows-1251'), w1252: mk('windows-1252') });
+}
+const CYR_RE = /[Ѐ-ӿ]/;
+const isCyrWord = s => /^[Ѐ-ӿ'’ʼ\-́]+$/u.test(s);
+// строка → байты по таблице (null, если есть символ вне таблицы)
+function toBytes(s, tbl) { const out = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) { const b = tbl.from.get(s[i]); if (b == null) return null; out[i] = b; } return out; }
+function utf8(bytes) { try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch (e) { return null; } }
+// одно «слово» из кракозябр → нормальный текст или null
+function fixMojiWord(w) {
+  const T = cpTables();
+  // UTF-8, прочитанный как Windows-1251: РџСЂРёРІРµС‚
+  if (/[РСТ]/.test(w) && w.length >= 4) {
+    const b = toBytes(w, T.w1251), u = b && utf8(b);
+    if (u && CYR_RE.test(u) && u.length < w.length) return u;
+  }
+  if (/^[\u0000-ɏ -™]+$/.test(w) && /[À-ÿ]/.test(w)) {
+    const b = toBytes(w, T.w1252);
+    if (b) {
+      // UTF-8, прочитанный как Windows-1252: Ð¿Ñ€Ð¸Ð²ÐµÑ‚
+      const u = utf8(b);
+      if (u && CYR_RE.test(u) && u.length < w.length) return u;
+      // Windows-1251, прочитанный как Windows-1252 (частый случай с PDF): Ðîçì³ðè
+      if ([...b].filter(x => x >= 0xC0).length >= Math.max(2, b.length * 0.6)) {
+        const c = [...b].map(x => T.w1251.to[x]).join('');
+        if (CYR_RE.test(c) && !/[\u0080-¿ЂЃЉЊЌ-Џђѓљњќ-џ]/.test(c.replace(/[«»°±§©®№·…–—‘’“”„]/g, ''))) return c;
+      }
+    }
+  }
+  return null;
+}
+function fixEncoding(t) {
+  return t.replace(/[^\s\d.,;:!?()\[\]{}"'/\\<>=+_|@#$%^&*~`]+/gu, w => fixMojiWord(w) ?? w);
+}
+// буквы, сдвинутые на постоянное число позиций (PDF из некоторых программ): ɉɪɢɜɟɬ → Привет
+function fixShift(t) {
+  return t.replace(/[ƀ-ʯ]{2,}/g, w => {
+    for (const k of [0x1D6]) {
+      const s = [...w].map(c => String.fromCharCode(c.charCodeAt(0) + k)).join('');
+      if (/^[Ѐ-џ]+$/.test(s)) return s;
+    }
+    return w;
+  });
+}
+// латинские буквы-двойники внутри русских слов и наоборот: «Бoлт» (o латинская) → «Болт»
+const LAT2CYR = { A: 'А', B: 'В', C: 'С', E: 'Е', H: 'Н', K: 'К', M: 'М', O: 'О', P: 'Р', T: 'Т', X: 'Х', I: 'І', a: 'а', c: 'с', e: 'е', o: 'о', p: 'р', x: 'х', y: 'у', i: 'і' };
+const CYR2LAT = Object.fromEntries(Object.entries(LAT2CYR).map(([l, c]) => [c, l]));
+function fixMixed(t) {
+  return t.replace(/\p{L}+/gu, w => {
+    const cyr = (w.match(/[Ѐ-ӿ]/g) || []).length, lat = (w.match(/[A-Za-z]/g) || []).length;
+    if (!cyr || !lat) return w;
+    if (cyr >= lat) { const r = w.replace(/[A-Za-z]/g, c => LAT2CYR[c] || c); return /[A-Za-z]/.test(r) ? w : r; }
+    const r = w.replace(/[Ѐ-ӿ]/g, c => CYR2LAT[c] || c); return /[Ѐ-ӿ]/.test(r) ? w : r;
+  });
+}
+// невидимые и «особые» символы: мягкий перенос, нулевые пробелы, неразрывные пробелы, лигатуры
+const LIGS = { 'ﬀ': 'ff', 'ﬁ': 'fi', 'ﬂ': 'fl', 'ﬃ': 'ffi', 'ﬄ': 'ffl', 'ﬅ': 'st', 'ﬆ': 'st' };
+function fixInvisible(t) {
+  return t.replace(/[­​-‍⁠﻿]/g, '').replace(/[     ]/g, ' ').replace(/[ﬀ-ﬆ]/g, c => LIGS[c] || c);
+}
+// буквы через пробел (разрядка): «П р и в е т  м и р» → «Привет мир». Слова в разрядке разделены двумя и более пробелами.
+// Нужно хотя бы одно слово из 4+ букв в разрядке, чтобы не склеить обычные «а и в»
+function fixSpaced(t) {
+  return t.replace(/(?<![\p{L}\p{N}])\p{L}(?: \p{L})+(?: {2,}\p{L}(?: \p{L})*)*(?![\p{L}\p{N}])/gu, m => {
+    const words = m.split(/ {2,}/);
+    if (!words.some(w => w.length >= 7)) return m;          // «П р и в» — 4 буквы = 7 символов
+    return words.map(w => w.replace(/ /g, '')).join(' ');
+  });
+}
+function fixOp(t, p) {
+  switch (p) {
+    case 'enc': return fixShift(fixEncoding(t));
+    case 'mixed': return fixMixed(t);
+    case 'invis': return fixInvisible(t);
+    case 'pdf': return fixMixed(fixSpaced(fixInvisible(fixShift(fixEncoding(t)))));
+  }
+  return t;
+}
+/* ---------- римские цифры ---------- */
+const ROM = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+function toRoman(n) { let s = ''; for (const [v, r] of ROM) while (n >= v) { s += r; n -= v; } return s; }
+const ROM_OK = /^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/;
+// кириллические двойники, которыми часто пишут римские цифры: І, Х, С, М
+const ROM_CYR = { 'І': 'I', 'Х': 'X', 'С': 'C', 'М': 'M' };
+// латинские сокращения, которые формально тоже римские числа
+const ROM_ABBR = new Set(['CD', 'CV', 'DC', 'MD', 'MC', 'DI', 'LI', 'CI', 'MI', 'DM', 'MM', 'XL', 'CM', 'MIX', 'DIV', 'DL', 'ML', 'MV', 'LCD', 'CC', 'DIX']);
+function fromRoman(r) { let n = 0, i = 0; for (const [v, s] of ROM) while (r.startsWith(s, i)) { n += v; i += s.length; } return n; }
+function romanOp(t, p) {
+  if (p === 'to-rom') {
+    return t.replace(/(?<![\p{L}\p{N}_.,:\/\-№#])(\d{1,4})(?![\p{L}\p{N}_]|[.,:\/\-]\p{N})/gu, (m, d) => (+d >= 1 && +d <= 3999 && d[0] !== '0' ? toRoman(+d) : m));
+  }
+  // римские → арабские — только рядом с русским или украинским словом: «XIV век», «глава IX», «III-IV кварталы», «I квартал».
+  // Латинские сокращения (CD, CV, MIX, MM) и «220 V», «20 °C» не трогаются
+  const R = '[IVXLCDMІХСМ]+';
+  return t.replace(new RegExp('(?<![\\p{L}\\p{N}_°\'’\\-–])(' + R + ')(?:([-–])(' + R + '))?(?![\\p{L}\\p{N}_\'’\\-–])', 'gu'), (m, a, dash, b, off, str) => {
+    const before = str.slice(Math.max(0, off - 40), off), after = str.slice(off + m.length, off + m.length + 40);
+    const ctx = /[\u0400-\u04FF][\p{L}'’]*[ \u00a0]$/u.test(before) || /^[ \u00a0][\u0400-\u04FF]/u.test(after);
+    if (!ctx || ROM_ABBR.has(a) || ROM_ABBR.has(b)) return m;
+    const conv = r => { const lat = r.replace(/[ІХСМ]/g, c => ROM_CYR[c]); return lat && ROM_OK.test(lat) ? String(fromRoman(lat)) : null; };
+    const x = conv(a), y = b ? conv(b) : '';
+    if (x == null || y == null) return m;
+    if (!b && /[\u0400-\u04FF]/.test(a) && a.length < 2) return m;          // одиночная кириллическая С, М, Х — это буквы, не числа
+    return x + (b ? dash + y : '');
+  });
+}
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
@@ -1660,7 +1781,7 @@ const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: tr
   ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, dateWhich: 'today', dateCustom: '', dateTpls: [], hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
   sets: [], presets: [], hist: [], num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
-const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw'];
+const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw', 'fix', 'roman'];
 const uid0 = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 function load() {
   const d = DEF();
@@ -1756,6 +1877,8 @@ const NAMES = {
   typo: { 'q-ru': '«Ёлочки»', 'q-en': '"Прямые" кавычки', dash: 'Дефис → тире', hyph: 'Тире → дефис', 'dec-dot': '1,5 → 1.5', 'dec-comma': '1.5 → 1,5' },
   date: { dmy: 'Даты 12.11.2026', iso: 'Даты 2026-11-12', slash: 'Даты 12/11/2026', ru: 'Даты 12 ноября 2026 г.', ua: 'Даты 12 листопада 2026 р.' },
   nfmt: { grp: 'Разряды 1 234 567', ungrp: 'Без разрядов' },
+  roman: { 'to-ar': 'Римские → арабские', 'to-rom': 'Арабские → римские' },
+  fix: { pdf: 'Починить текст из PDF', enc: 'Кракозябры → текст', mixed: 'Смешанные буквы', invis: 'Невидимые символы' },
   numw: { digits: 'Словами → цифрами', 'ru-ua': 'Числительные RU → UA', 'ua-ru': 'Числительные UA → RU' },
   fio: { short: 'ФИО → Шевченко Т. Г.', 'ini-first': 'ФИО → Т. Г. Шевченко' },
   dim: { x: 'Размеры x → ×', dia: 'd20 → Ø20', sym: '+/- → ±, гр. → °', mm2m: 'мм → м', m2mm: 'м → мм' },
@@ -1866,7 +1989,7 @@ function updUndo() {
 /* ---------- действия ---------- */
 // sel — выделение, снятое в момент нажатия кнопки (или null)
 function doOp(type, p, sel) {
-  const tg = type === 'lines' && p && p.k === 'fname' ? 'fname' : ({ typo: 'format', date: 'dates', nfmt: 'format', fio: 'format', dim: 'format', numw: 'num', rules: 'replace' }[type] || type);
+  const tg = type === 'lines' && p && p.k === 'fname' ? 'fname' : ({ typo: 'format', date: 'dates', nfmt: 'format', fio: 'format', dim: 'format', numw: 'num', fix: 'clean', roman: 'format', rules: 'replace' }[type] || type);
   if (!quietTab && TABS.includes(tg) && state.tab !== tg) showTab(tg);      // группа последней команды — текущая
   if (state.text !== src.value) { state.text = src.value; }
   flushTyping();
@@ -2669,7 +2792,7 @@ function paintCounts() {
 }
 function scheduleCounts() { clearTimeout(cntT); cntT = setTimeout(calcCounts, 150); }
 
-const STEP_ENUM = ['layout', 'case', 'clean', 'translit', 'typo', 'date', 'nfmt', 'phone', 'lines', 'fio', 'dim', 'numw'];
+const STEP_ENUM = ['layout', 'case', 'clean', 'translit', 'typo', 'date', 'nfmt', 'phone', 'lines', 'fio', 'dim', 'numw', 'fix', 'roman'];
 function canEdit(s) {
   if (['replace', 'num', 'cols', 'extract'].includes(s.type)) return true;
   if (s.type === 'rules') return state.sets.length > 0;
@@ -2815,6 +2938,8 @@ const KW = {
   nfmt: 'разряды тысячи пробелы число', date: 'дата даты формат', phone: 'телефон номер мобильный', 'fname:go': 'имена файлов шаблон dxf нумерация',
   dins: 'вставить дату сегодня время число календарь', 'num:go': 'числа словами прописью сумма падеж', 'replace:go': 'найти заменить',
   cols: 'столбцы колонки excel таблица csv', 'cols:stats': 'сумма итоги посчитать', 'cols:sum': 'сумма итого', extract: 'извлечь выписать найти список',
+  roman: 'римские цифры века главы',
+  fix: 'починить pdf кракозябры кодировка иероглифы латиница кириллица невидимые символы пробелы word', 'fix:mixed': 'латинские буквы смешанные алфавиты обозначения', 'fix:invis': 'неразрывный пробел мягкий перенос',
   numw: 'числа словами цифры числительные перевод украинский русский прописью обратно', 'numw:digits': 'цифрами', 'numw:ru-ua': 'украинский перевод', 'numw:ua-ru': 'русский перевод',
   fio: 'фио инициалы фамилия имя отчество', dim: 'размеры', 'dim:x': 'умножить крестик размер', 'dim:dia': 'диаметр', 'dim:sym': 'плюс минус градус допуск',
   'dim:mm2m': 'миллиметры метры', 'dim:m2mm': 'метры миллиметры', 'lines:join': 'склеить объединить в строку через запятую', 'lines:split': 'разбить разделить на строки столбик'
