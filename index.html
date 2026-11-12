@@ -188,6 +188,26 @@ button{font:inherit;color:inherit;cursor:pointer}
 .step span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .step button{flex:none;border:0;background:none;width:34px;height:34px;border-radius:999px;color:var(--muted);font-size:16px}
 .arrow{color:var(--muted);flex:none}
+.step .slbl{display:inline-flex;align-items:center;gap:6px;min-width:0;width:auto;height:auto;padding:0;border:0;border-radius:0;background:none;color:inherit;font:inherit;font-size:inherit;cursor:pointer}
+.step .scnt{flex:none;font-size:12px;font-weight:700;line-height:1;padding:3px 7px;border-radius:999px;background:var(--surface);color:var(--accent)}
+.step .scnt:empty{display:none}
+.step.noop{background:var(--line)}
+.step.noop .scnt{color:var(--muted)}
+.step.off{background:none;box-shadow:inset 0 0 0 1px var(--muted);color:var(--muted)}
+.step.off .slbl>span:first-child{text-decoration:line-through}
+.step.off .scnt{color:var(--muted)}
+.step[draggable="true"]{cursor:grab}
+.step.dragging{opacity:.4}
+.step.dropbefore{box-shadow:-4px 0 0 var(--accent)}
+.step.dropafter{box-shadow:4px 0 0 var(--accent)}
+.sheet.pal{max-width:640px}
+.pal>.field{margin-bottom:8px}
+.pallist{display:flex;flex-direction:column;gap:2px;max-height:min(60vh,520px);overflow:auto}
+.palitem{display:flex;align-items:baseline;gap:10px;text-align:left;border:0;background:none;color:var(--ink);padding:9px 10px;border-radius:10px;font:inherit;cursor:pointer;min-height:42px}
+.palitem.on{background:var(--accent-soft)}
+.palitem .pl{flex:1;font-weight:600;min-width:0}
+.palitem .pg{color:var(--muted);font-size:13px;white-space:nowrap}
+#freqHint .linkbtn{margin-left:4px}
 
 /* --- телефон: всё на одном экране без прокрутки, оба окна видны, команды по вкладкам внизу --- */
 @media (max-width:899px){
@@ -284,6 +304,7 @@ body.modal-lock{overflow:hidden}
     <div class="bar">
       <h1>Текстовые инструменты</h1>
       <div class="hdr-btns">
+        <button class="iconbtn" id="palBtn" type="button" aria-label="Найти команду" title="Найти команду (Ctrl+K)">🔍</button>
         <button class="iconbtn" id="undoBtn" type="button" aria-label="Отменить" title="Отменить (Ctrl+Z)">↶</button>
         <button class="iconbtn" id="redoBtn" type="button" aria-label="Повторить" title="Повторить (Ctrl+Y)">↷</button>
         <button class="iconbtn" id="menuBtn" type="button" aria-label="Меню" title="Меню">⋮</button>
@@ -300,7 +321,7 @@ body.modal-lock{overflow:hidden}
     <textarea class="field area" id="src" placeholder="Вставьте или введите текст" spellcheck="false" autocomplete="off"></textarea>
     <div class="selhint" id="selhint" hidden><span id="selText"></span><button class="linkbtn" id="selClear" type="button">Снять</button></div>
     <div class="pbtns wide-only">
-      <button class="btn" id="pasteBtn" type="button">Вставить</button>
+      <button class="btn" id="pasteBtn" type="button" title="Вставить из буфера (Ctrl+Shift+V — сразу заменить текст)">Вставить</button>
       <button class="btn" id="clearBtn" type="button">Очистить</button>
     </div>
   </section>
@@ -309,11 +330,11 @@ body.modal-lock{overflow:hidden}
     <div class="phead"><span class="ptitle">Результат</span><span class="cnt" id="cntOut"></span>
       <button class="hb" id="diffBtn" type="button" title="Сравнить текст и результат (или два любых текста)" aria-label="Сравнить">⇄</button>
       <button class="hb" id="histBtn" type="button" title="История скопированных результатов" aria-label="История">🕘</button>
-      <button class="hb" id="acceptBtn2" type="button" title="Результат станет текстом, шаги сбросятся">↑ В текст</button></div>
+      <button class="hb" id="acceptBtn2" type="button" title="Результат станет текстом, шаги сбросятся (Alt+↑)">↑ В текст</button></div>
     <textarea class="field area" id="out" readonly placeholder="Здесь будет результат" spellcheck="false"></textarea>
     <div class="pbtns wide-only">
-      <button class="btn primary" id="copyBtn" type="button">Копировать результат</button>
-      <button class="btn" id="acceptBtn" type="button" title="Результат станет текстом, шаги сбросятся">↑ В поле текста</button>
+      <button class="btn primary" id="copyBtn" type="button" title="Копировать результат (Ctrl+Enter)">Копировать результат</button>
+      <button class="btn" id="acceptBtn" type="button" title="Результат станет текстом, шаги сбросятся (Alt+↑)">↑ В поле текста</button>
     </div>
   </section>
 
@@ -321,6 +342,7 @@ body.modal-lock{overflow:hidden}
 
   <section class="tools" id="tools">
     <div class="ttabs" role="tablist">
+      <button class="ttab" type="button" role="tab" data-g="freq">★ Частые</button>
       <button class="ttab" type="button" role="tab" data-g="layout">Раскладка</button>
       <button class="ttab" type="button" role="tab" data-g="case">Регистр</button>
       <button class="ttab" type="button" role="tab" data-g="clean">Очистка</button>
@@ -333,6 +355,11 @@ body.modal-lock{overflow:hidden}
       <button class="ttab" type="button" role="tab" data-g="phone">Телефоны</button>
       <button class="ttab" type="button" role="tab" data-g="fname">Имена файлов</button>
       <button class="ttab" type="button" role="tab" data-g="presets">Пресеты</button>
+    </div>
+    <div class="tgroup" data-g="freq">
+      <div class="tlbl gtitle">★ Частые</div>
+      <div class="tbtns" id="freqList"></div>
+      <div class="numhint" id="freqHint"></div>
     </div>
     <div class="tgroup" data-g="layout">
       <div class="tlbl gtitle">Раскладка</div>
@@ -498,7 +525,7 @@ body.modal-lock{overflow:hidden}
       </div>
       <div class="numrow">
         <button class="hb numopt" id="numOptBtn" type="button" title="Показать или скрыть падеж, род и валюту"></button>
-        <button class="tb main" type="button" id="numGo">→ словами</button>
+        <button class="tb main" type="button" id="numGo" data-id="num:go">→ словами</button>
       </div>
       <div class="numhint" id="numHint"></div>
     </div>
@@ -513,7 +540,7 @@ body.modal-lock{overflow:hidden}
         <label class="mini"><input type="checkbox" id="frWw"> целые слова</label>
         <label class="mini"><input type="checkbox" id="frRe"> рег. выражение</label>
       </div>
-      <div class="frrow"><div class="frinfo" id="frInfo"></div><button class="btn primary" id="frGo" type="button">Заменить все</button></div>
+      <div class="frrow"><div class="frinfo" id="frInfo"></div><button class="btn primary" id="frGo" type="button" data-id="replace:go">Заменить все</button></div>
       <div class="setrow"><span class="rowlbl">Наборы:</span><div class="tbtns" id="setList"></div></div>
     </div>
   </section>
@@ -531,7 +558,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.16';
+const APP_VERSION = '2026-11-12.17';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -691,6 +718,7 @@ function applyStep(t, s, prot) { return applyWhole(t, s, prot); }
 // Границы куска помечаются невидимыми служебными символами; они проходят через остальные шаги и в конце удаляются.
 const MARK_RE = /[\uE000-\uE0FF]/g;
 function runSteps(text, steps, prot) {
+  steps = steps.filter(s => !s.off);                 // выключенные шаги не действуют
   const pieces = [];
   steps.forEach((s, i) => { if (Array.isArray(s.r) && pieces.length < 128) pieces.push(i); });
   if (!pieces.length) return steps.reduce((t, s) => applyWhole(t, s, prot), text);
@@ -1236,12 +1264,12 @@ function phoneFmt(t, p) {
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
-const TABS = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'format', 'phone', 'fname', 'presets'];
+const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'format', 'phone', 'fname', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'dense', collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words' },
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'dense', collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {} },
   sets: [], presets: [], hist: [], num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
-const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
+const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone'];
 const uid0 = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 function load() {
@@ -1262,7 +1290,8 @@ function load() {
             hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs, deskLayout: ['dense', 'rows', 'line'].includes(u.deskLayout) ? u.deskLayout : 'dense', collapsed: strs(u.collapsed).filter(x => TABS.includes(x)), symCat: Math.max(0, Math.min(6, +u.symCat || 0)),
             affix: { pre: String((u.affix || {}).pre || ''), suf: String((u.affix || {}).suf || '') },
             fname: { tpl: typeof (u.fname || {}).tpl === 'string' ? u.fname.tpl : d.ui.fname.tpl, start: (u.fname || {}).start ?? 1, us: !!(u.fname || {}).us },
-            histOn: u.histOn !== false, diffMode: u.diffMode === 'lines' ? 'lines' : 'words' }; })(),
+            histOn: u.histOn !== false, diffMode: u.diffMode === 'lines' ? 'lines' : 'words',
+            freq: u.freq && typeof u.freq === 'object' && !Array.isArray(u.freq) ? Object.fromEntries(Object.entries(u.freq).filter(([, v]) => Array.isArray(v) && v.length === 2 && isFinite(v[0]) && isFinite(v[1])).slice(0, 80)) : {} }; })(),
         sets: Array.isArray(s.sets) ? s.sets.filter(x => x && typeof x.name === 'string' && Array.isArray(x.rules)).map(x => ({ id: x.id || uid0(), name: x.name, rules: x.rules.filter(r => r && typeof r.find === 'string') })) : [],
         presets: Array.isArray(s.presets) ? s.presets.filter(x => x && typeof x.name === 'string' && Array.isArray(x.steps)).map(x => ({ id: x.id || uid0(), name: x.name, steps: x.steps.filter(st => st && STEP_TYPES.includes(st.type)) })) : [],
         hist: Array.isArray(s.hist) ? s.hist.filter(x => x && typeof x.t === 'string').slice(0, 30) : [] };
@@ -1274,6 +1303,7 @@ let state = load();
 let saveT = 0;
 function saveNow() {
   clearTimeout(saveT); saveT = 0;
+  if (noSave) return;                              // идёт загрузка из файла — не перезаписывать
   try { localStorage.setItem(KEY, JSON.stringify(state)); }
   catch (e) { try { localStorage.setItem(KEY, JSON.stringify({ ...state, text: '', hist: state.hist.slice(0, 3) })); } catch (e2) { /* нет места */ } }
 }
@@ -1361,6 +1391,7 @@ function recompute() {
   $('#cntOut').textContent = state.steps.length ? fmtCount(t) : (t ? 'без изменений' : '');
   $('#acceptBtn').disabled = $('#acceptBtn2').disabled = !state.steps.length;
   updFrInfo();
+  scheduleCounts();
 }
 const currentOutput = () => lastOut;
 function fmtCount(t) {
@@ -1378,13 +1409,16 @@ function renderSteps() {
   const kids = [h('span', { text: 'Шаги:', style: 'flex:none' })];
   state.steps.forEach((s, i) => {
     if (i) kids.push(h('span', { class: 'arrow', text: '→' }));
-    kids.push(h('span', { class: 'step' }, h('span', { text: stepLabel(s), title: stepLabel(s) }),
+    kids.push(h('span', { class: 'step' + (s.off ? ' off' : ''), 'data-i': i, draggable: touch ? null : 'true' },
+      h('button', { class: 'slbl', type: 'button', title: stepLabel(s) + '\nНажмите — изменить, выключить или переставить' + (touch ? '' : ' (или перетащите мышью)'), onclick() { stepMenu(i); } },
+        h('span', { text: stepLabel(s) }), h('span', { class: 'scnt' })),
       h('button', { type: 'button', 'aria-label': 'Убрать шаг ' + stepLabel(s), title: 'Убрать этот шаг', onclick() { flushTyping(); state.steps.splice(i, 1); commit(); after(); } }, '✕')));
   });
   kids.push(h('button', { class: 'linkbtn', type: 'button', style: 'flex:none', title: 'Сохранить эти шаги как пресет', onclick() { savePreset(); } }, '★ В пресет'));
   kids.push(h('button', { class: 'linkbtn', type: 'button', style: 'flex:none', onclick() { flushTyping(); state.steps = []; commit(); after(); } }, 'Сбросить'));
   stepsEl.replaceChildren(...kids);
   stepsEl.scrollLeft = stepsEl.scrollWidth;
+  paintCounts(); scheduleCounts();
 }
 function updCounts() { $('#cntIn').textContent = state.text ? fmtCount(state.text) : ''; }
 // выделение считается, только пока оно «живое» — поле в фокусе (невидимое старое выделение не учитывается)
@@ -1425,17 +1459,17 @@ function updUndo() {
 // sel — выделение, снятое в момент нажатия кнопки (или null)
 function doOp(type, p, sel) {
   const tg = type === 'lines' && p && p.k === 'fname' ? 'fname' : ({ typo: 'format', date: 'format', nfmt: 'format', rules: 'replace' }[type] || type);
-  if (TABS.includes(tg) && state.tab !== tg) showTab(tg);      // группа последней команды — текущая
+  if (!quietTab && TABS.includes(tg) && state.tab !== tg) showTab(tg);      // группа последней команды — текущая
   if (state.text !== src.value) { state.text = src.value; }
   flushTyping();
   const step = { type, p: typeof p === 'object' ? JSON.parse(JSON.stringify(p)) : p };
-  if (!state.text) { toast('Сначала вставьте или введите текст', true); return; }
+  if (!state.text) { lastOpOk = false; toast('Сначала вставьте или введите текст', true); return; }
   // выделенный кусок: шаг действует только на него, изменение видно в «Результате», исходный текст не меняется.
   // Позиции считаются по тексту результата, поэтому при уже имеющихся шагах выделять нужно в «Результате».
   if (sel && sel.b <= state.text.length) {
     step.r = [sel.a, sel.b];
     const res = runSteps(state.text, [...state.steps, step], state.prot);
-    if (res === lastOut) { toast('В выделенном ничего не изменилось', 'warn'); return; }
+    if (res === lastOut) { lastOpOk = false; toast('В выделенном ничего не изменилось', 'warn'); return; }
     state.steps.push(step); commit(); after();
     out.classList.add('flash'); setTimeout(() => out.classList.remove('flash'), 600);
     toast('✓ ' + stepLabel(step));
@@ -1443,6 +1477,7 @@ function doOp(type, p, sel) {
   }
   const before = currentOutput(), res = applyStep(before, step, state.prot);
   if (res === before) {
+    lastOpOk = false;
     const prot = type === 'case' && state.prot.on && applyStep(before, step, { on: false }) !== before;
     toast(prot ? 'Ничего не изменилось: слова защищены исключениями (⋮ → Оформление и настройки)' : 'Ничего не изменилось — шаг не добавлен', prot || 'warn');
     return;
@@ -1582,6 +1617,11 @@ function formDialog(title, fields, okLabel, extra) {
     api.dismiss = () => done(null);
     box.append(h('h2', { text: title }), ...(extra && extra.msg ? [h('p', { class: 'msg', text: extra.msg })] : []),
       ...fields.map(f => {
+        if (f.type === 'select') {
+          const se = h('select', { class: 'field' }, ...f.options.map(([v, l]) => h('option', { value: v, text: l })));
+          se.value = f.value; inputs[f.key] = se;
+          return h('label', { class: 'flbl' }, h('span', { text: f.label }), se);
+        }
         if (f.type === 'check') { const c = h('input', { type: 'checkbox' }); c.checked = !!f.value; inputs[f.key] = c; return h('label', { class: 'chk' }, c, h('span', { text: f.label })); }
         const inp = h('input', { class: 'field', type: f.type || 'text', value: f.value == null ? '' : f.value, placeholder: f.placeholder || '', autocomplete: 'off', spellcheck: 'false' });
         inputs[f.key] = inp;
@@ -1630,7 +1670,7 @@ function renderSets() {
   box.replaceChildren(
     ...state.sets.map(s => {
       const b = h('button', { class: 'tb', type: 'button', title: s.rules.length + ' прав.: ' + s.rules.map(r => r.find + ' → ' + r.repl).join('; ') }, s.name);
-      bindCmd(b, sel => doOp('rules', { name: s.name, rules: s.rules }, sel));
+      bindCmd(b, sel => runSet(s, sel));
       return b;
     }),
     h('button', { class: 'tb', type: 'button', title: 'Новый набор правил', onclick() { editSet(null); } }, '＋ набор'),
@@ -1704,7 +1744,8 @@ function renderPresets() {
 function applyPreset(pr) {
   if (!state.text) { toast('Сначала вставьте или введите текст', true); return; }
   flushTyping();
-  if (state.tab !== 'presets') showTab('presets');
+  track('preset:' + pr.id);
+  if (!quietTab && state.tab !== 'presets') showTab('presets');
   state.steps.push(...JSON.parse(JSON.stringify(pr.steps)));
   commit(); after();
   toast('✓ Пресет «' + pr.name + '»: ' + pr.steps.length + ' шаг.');
@@ -1895,7 +1936,7 @@ function askDialog(title, msg, buttons, remText, onRemember) {
       h('label', { class: 'chk' }, rem, h('span', { text: remText })));
   }));
 }
-async function pasteFromClipboard() {
+async function pasteFromClipboard(force) {
   let t = null;
   try { if (navigator.clipboard && navigator.clipboard.readText) t = await navigator.clipboard.readText(); } catch (e) { t = null; }
   if (t == null) {
@@ -1908,7 +1949,8 @@ async function pasteFromClipboard() {
   flushTyping();
   t = t.replace(/\r\n?/g, '\n');
   let how = 'add';
-  if (src.value.trim()) {
+  if (force === 'replace') how = 'replace';
+  else if (src.value.trim()) {
     how = state.ui.paste === 'ask'
       ? await askDialog('В поле уже есть текст', 'Заменить его текстом из буфера или добавить к нему?',
         [['replace', 'Заменить', 'primary'], ['add', 'Добавить к тексту', '']],
@@ -2036,6 +2078,11 @@ function helpSheet() {
     box.append(h('h2', { text: 'Как пользоваться' }),
       h('ul', {},
         h('li', { text: 'Вставьте текст и нажимайте команды. Верхнее окно — исходный текст, он не меняется. Нижнее окно «Результат» — текст после всех команд по очереди. Лишний шаг убирается крестиком.' }),
+        h('li', { text: 'Нажмите на шаг — его можно изменить (что искать, падеж, вариант даты и т. п.), выключить не удаляя, передвинуть раньше или позже. На компьютере шаги можно перетаскивать мышью. Число на шаге — сколько мест он изменил; серый шаг ничего не меняет.' }),
+        h('li', { text: '🔍 вверху (на компьютере Ctrl+K) — поиск любой команды по названию: «тире», «даты», «телефон», «заглавные». Можно печатать и в другой раскладке. Enter выполняет.' }),
+        h('li', { text: '«★ Частые» — команды, которыми вы чаще пользуетесь на этом устройстве, собираются сами.' }),
+        h('li', { text: 'Клавиши на компьютере: Ctrl+K — найти команду, Ctrl+Enter — копировать результат, Ctrl+Shift+V — заменить текст из буфера, Alt+↑ — результат в текст, Ctrl+Z / Ctrl+Y — отменить / повторить.' }),
+        h('li', { text: '⋮ → «Экспорт и импорт» — перенести наборы замен, пресеты и настройки на другое устройство файлом.' }),
         h('li', { text: 'Шаги сохраняются: вставьте следующий текст — он сразу обработается теми же шагами.' }),
         h('li', { text: '«Вставить»: если в поле уже есть текст, приложение спросит — заменить или добавить (в место курсора, а если курсор не ставили — в конец с новой строки). Выбор можно запомнить.' }),
         h('li', { text: 'Вкладки групп и строки кнопок листаются пальцем вбок. Ненужные группы и команды скрываются в ⋮ → «Оформление и настройки» → «Группы и команды» — отдельно на каждом устройстве.' }),
@@ -2071,7 +2118,7 @@ function helpSheet() {
   });
 }
 /* ---------- оформление и настройки (блоки сворачиваются) ---------- */
-const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', sym: 'Знаки', lines: 'Строки', format: 'Формат', phone: 'Телефоны', fname: 'Имена файлов', presets: 'Пресеты' };
+const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', freq: 'Частые', sym: 'Знаки', lines: 'Строки', format: 'Формат', phone: 'Телефоны', fname: 'Имена файлов', presets: 'Пресеты' };
 const NUM_MODE_NAMES = { card: 'пять', ord: 'пятый', abbr: '5-й', money: 'сумма' };
 // какие группы и команды показывать — хранится в этом браузере, на каждом устройстве своё
 const cmdId = b => b.dataset.id || (b.dataset.t ? b.dataset.t + ':' + b.dataset.p : 'num:' + b.dataset.v);
@@ -2190,6 +2237,8 @@ function menuSheet() {
         btn('Оформление и настройки…', () => { api.close(); settingsSheet(); }),
         btn('История результатов', () => { api.close(); historySheet(); }),
         btn('Сравнить тексты', () => { api.close(); diffSheet(); }),
+        btn('Найти команду' + (touch ? '' : ' (Ctrl+K)'), () => { api.close(); palette(); }),
+        btn('Экспорт и импорт…', () => { api.close(); exportSheet(); }),
         btn('Как пользоваться', () => { api.close(); helpSheet(); }),
         btn('Проверить обновление', () => { api.close(); checkUpdate(); }),
         btn('Закрыть', () => api.close(), 'ghost')),
@@ -2197,6 +2246,398 @@ function menuSheet() {
   });
 }
 $('#menuBtn').addEventListener('click', menuSheet);
+
+/* ---------- Шаги: счётчик изменений, выключение, правка, перестановка ---------- */
+var lastOpOk = null, cntT = 0, cntKey = '', stepCnt = [], dragStep = -1, quietTab = false, fromFreq = false, freqT = 0, noSave = false;
+// сколько мест изменил шаг: соседние изменённые слова считаются одним местом
+function changeCount(a, b) {
+  if (a === b) return 0;
+  const ops = diffTexts(a, b, 'words');
+  if (!ops) return -1;
+  let n = 0, inCh = false;
+  for (const op of ops) { if (op[0]) { if (!inCh) n++; inCh = true; } else if (/\S/.test(op[1])) inCh = false; }
+  return n;
+}
+function calcCounts() {
+  const steps = state.steps, text = state.text;
+  const key = text + '\u0001' + JSON.stringify(steps);
+  if (key !== cntKey) {
+    cntKey = key; stepCnt = [];
+    if (text.length <= 300000) {
+      const frag = steps.some(s => Array.isArray(s.r));
+      let prev = text;
+      steps.forEach((s, i) => {
+        if (s.off) { stepCnt.push(null); return; }
+        const cur = frag ? runSteps(text, steps.slice(0, i + 1), state.prot) : applyWhole(prev, s, state.prot);
+        stepCnt.push(changeCount(prev, cur)); prev = cur;
+      });
+    }
+  }
+  paintCounts();
+}
+function paintCounts() {
+  stepsEl.querySelectorAll('.step').forEach(el => {
+    const i = +el.dataset.i, c = (stepCnt || [])[i], s = state.steps[i], b = el.querySelector('.scnt');
+    if (!b || !s) return;
+    b.textContent = s.off ? 'выкл' : c == null || c < 0 ? '' : String(c);
+    b.title = s.off ? 'Шаг выключен' : c > 0 ? 'Изменено мест: ' + c : c === 0 ? 'Этот шаг ничего не меняет' : '';
+    el.classList.toggle('noop', !s.off && c === 0);
+  });
+}
+function scheduleCounts() { clearTimeout(cntT); cntT = setTimeout(calcCounts, 150); }
+
+const STEP_ENUM = ['layout', 'case', 'clean', 'translit', 'typo', 'date', 'nfmt', 'phone', 'lines'];
+function canEdit(s) {
+  if (['replace', 'num'].includes(s.type)) return true;
+  if (s.type === 'rules') return state.sets.length > 0;
+  if (s.type === 'lines' && s.p && typeof s.p === 'object') return true;
+  return STEP_ENUM.includes(s.type) && NAMES[s.type] && Object.keys(NAMES[s.type]).length > 1;
+}
+function stepMenu(i) {
+  const s = state.steps[i]; if (!s) return;
+  const c = stepCnt[i], n = state.steps.length;
+  openModal((box, api) => {
+    const act = fn => () => { api.close(); flushTyping(); fn(); };
+    const mv = (d, label) => { const b = btn(label, act(() => { const a = state.steps, j = i + d; [a[i], a[j]] = [a[j], a[i]]; commit(); after(); })); b.disabled = i + d < 0 || i + d >= n; b.style.flex = '1'; return b; };
+    box.append(h('h2', { text: stepLabel(s) }),
+      h('p', { class: 'msg', text: 'Шаг ' + (i + 1) + ' из ' + n + (s.off ? ' · выключен' : c > 0 ? ' · изменено мест: ' + c : c === 0 ? ' · сейчас ничего не меняет' : '') + (Array.isArray(s.r) ? '\nДействует только на выделенный кусок.' : '') }),
+      h('div', { class: 'btns' },
+        canEdit(s) ? btn('✎ Изменить…', act(() => editStep(i)), 'primary') : null,
+        btn(s.off ? 'Включить шаг' : 'Выключить, не удаляя', act(() => { if (s.off) delete s.off; else s.off = true; commit(); after(); })),
+        n > 1 ? h('div', { style: 'display:flex;gap:8px' }, mv(-1, '← Раньше'), mv(1, 'Позже →')) : null,
+        btn('✕ Убрать шаг', act(() => { state.steps.splice(i, 1); commit(); after(); })),
+        btn('Закрыть', () => api.close(), 'ghost')));
+  });
+}
+const NUM_M = [['card', 'Числа словами (пять)'], ['ord', 'Порядковые (пятый)'], ['abbr', 'Сокращённо (5-й)'], ['money', 'Сумма прописью']];
+async function editStep(i) {
+  const s = state.steps[i]; if (!s) return;
+  let p = null;
+  if (s.type === 'replace') {
+    const v = await formDialog('Изменить замену', [
+      { key: 'find', label: 'Найти', value: s.p.find }, { key: 'repl', label: 'Заменить на', value: s.p.repl },
+      { key: 'cs', type: 'check', label: 'Учитывать регистр', value: s.p.cs }, { key: 'ww', type: 'check', label: 'Только целые слова', value: s.p.ww },
+      { key: 're', type: 'check', label: 'Регулярное выражение', value: s.p.re }], 'Сохранить');
+    if (!v) return;
+    if (!v.find) { toast('Поле «Найти» пустое', true); return; }
+    const r = makeRegex(v); if (r.err) { toast(r.err, true); return; }
+    p = v;
+  } else if (s.type === 'lines' && s.p && s.p.k === 'affix') {
+    const v = await formDialog('Префикс и суффикс', [
+      { key: 'pre', label: 'В начало каждой строки', value: s.p.pre }, { key: 'suf', label: 'В конец каждой строки', value: s.p.suf }], 'Сохранить');
+    if (!v) return;
+    if (!v.pre && !v.suf) { toast('Оба поля пустые', true); return; }
+    p = { k: 'affix', pre: v.pre, suf: v.suf };
+  } else if (s.type === 'lines' && s.p && s.p.k === 'fname') {
+    const v = await formDialog('Имена файлов', [
+      { key: 'tpl', label: 'Шаблон: {text} — строка, {n} или {n:3} — номер, {date} — дата', value: s.p.tpl },
+      { key: 'start', label: 'Начинать нумерацию с', type: 'number', value: s.p.start },
+      { key: 'us', type: 'check', label: 'Пробелы → _', value: s.p.us }], 'Сохранить');
+    if (!v) return;
+    p = { k: 'fname', tpl: v.tpl || '{text}', start: parseInt(v.start, 10) || 1, us: v.us, safe: true };
+  } else if (s.type === 'rules') {
+    const curId = (state.sets.find(x => x.name === s.p.name) || state.sets[0]).id;
+    const v = await formDialog('Набор правил', [{ key: 'id', label: 'Применить набор', type: 'select', value: curId, options: state.sets.map(x => [x.id, x.name + ' (' + x.rules.length + ' прав.)']) }], 'Сохранить',
+      { msg: 'Правила берутся из сохранённого набора в его текущем виде. Сам набор правится в «Замене» → «Наборы» → ✎.' });
+    if (!v) return;
+    const set = state.sets.find(x => x.id === v.id); if (!set) return;
+    p = { name: set.name, rules: JSON.parse(JSON.stringify(set.rules)) };
+  } else if (s.type === 'num') {
+    const q = s.p;
+    const v = await formDialog('Числа словами', [
+      { key: 'm', label: 'Что делать', type: 'select', value: q.m, options: NUM_M },
+      { key: 'l', label: 'Язык', type: 'select', value: q.l, options: [['ru', 'Русский'], ['ua', 'Украинский']] },
+      { key: 'c', label: 'Падеж (для суммы не используется)', type: 'select', value: q.c, options: CASES.map(k => [k, { nom: 'Именительный', gen: 'Родительный', dat: 'Дательный', acc: 'Винительный', ins: 'Творительный', pre: 'Предложный' }[k]]) },
+      { key: 'g', label: 'Род', type: 'select', value: q.g, options: [['m', 'Мужской'], ['f', 'Женский'], ['n', 'Средний'], ['p', 'Множественное (для порядковых)']] },
+      { key: 'cur', label: 'Валюта (для суммы)', type: 'select', value: q.cur, options: [['UAH', 'гривны'], ['USD', 'доллары'], ['EUR', 'евро'], ['RUB', 'рубли']] },
+      { key: 'br', type: 'check', label: 'Сумма: цифрами, а прописью в скобках', value: q.br }], 'Сохранить');
+    if (!v) return;
+    const ordLike = v.m === 'ord' || v.m === 'abbr';
+    p = { m: v.m, l: v.l, c: v.m === 'money' ? 'nom' : v.c, g: ordLike ? v.g : (v.g === 'p' ? 'm' : v.g), cur: v.cur, br: !!v.br };
+  } else {
+    const opts = NAMES[s.type] || {};
+    const v = await formDialog('Изменить шаг', [{ key: 'p', label: GROUP_NAMES[s.type] || 'Вариант', type: 'select', value: s.p, options: Object.entries(opts) }], 'Сохранить');
+    if (!v) return;
+    p = v.p;
+  }
+  if (!state.steps.includes(s)) return;
+  flushTyping();
+  s.p = p; commit(); after();
+  toast('✓ Шаг изменён: ' + stepLabel(s));
+}
+// перетаскивание шагов мышью (компьютер)
+const clearStepDrop = () => stepsEl.querySelectorAll('.step').forEach(el => el.classList.remove('dragging', 'dropbefore', 'dropafter'));
+stepsEl.addEventListener('dragstart', e => {
+  const el = e.target.closest && e.target.closest('.step');
+  if (!el || touch) return;
+  dragStep = +el.dataset.i;
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', 'step'); } catch (er) { /* ничего */ }
+  el.classList.add('dragging');
+});
+stepsEl.addEventListener('dragover', e => {
+  const el = e.target.closest && e.target.closest('.step');
+  if (dragStep < 0 || !el || +el.dataset.i === dragStep) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  const r = el.getBoundingClientRect(), aft = e.clientX > r.left + r.width / 2;
+  stepsEl.querySelectorAll('.step').forEach(x => { if (x !== el) x.classList.remove('dropbefore', 'dropafter'); });
+  el.classList.toggle('dropafter', aft); el.classList.toggle('dropbefore', !aft);
+});
+stepsEl.addEventListener('drop', e => {
+  const el = e.target.closest && e.target.closest('.step');
+  if (dragStep < 0 || !el) return;
+  e.preventDefault();
+  const to0 = +el.dataset.i + (el.classList.contains('dropafter') ? 1 : 0), from = dragStep;
+  dragStep = -1; clearStepDrop();
+  const to = to0 > from ? to0 - 1 : to0;
+  if (to === from) return;
+  flushTyping();
+  const [s] = state.steps.splice(from, 1); state.steps.splice(to, 0, s);
+  commit(); after();
+});
+stepsEl.addEventListener('dragend', () => { dragStep = -1; clearStepDrop(); });
+
+/* ---------- все команды: для поиска и «Частых» ---------- */
+const KW = {
+  layout: 'раскладка клавиатура язык', 'case:upper': 'заглавные прописные капс большие буквы', 'case:lower': 'строчные маленькие буквы',
+  'case:sentence': 'предложение первая заглавная', 'case:title': 'каждое слово с большой', clean: 'очистка мусор пробелы чистка',
+  translit: 'транслитерация латиница кириллица паспорт', 'lines:sort': 'сортировка алфавит упорядочить', 'lines:sortd': 'сортировка обратный алфавит',
+  'lines:uniq': 'дубли повторы уникальные одинаковые', 'lines:num': 'нумерация пронумеровать список', 'lines:unnum': 'убрать номера маркеры',
+  'lines:affix': 'префикс суффикс начало конец строки добавить', typo: 'типографика', 'typo:q-ru': 'кавычки елочки', 'typo:q-en': 'кавычки прямые',
+  'typo:dash': 'тире дефис', 'typo:hyph': 'тире дефис', 'typo:dec-dot': 'запятая точка десятичная дробь', 'typo:dec-comma': 'точка запятая десятичная дробь',
+  nfmt: 'разряды тысячи пробелы число', date: 'дата даты формат', phone: 'телефон номер мобильный', 'fname:go': 'имена файлов шаблон dxf нумерация',
+  'num:go': 'числа словами прописью сумма падеж', 'replace:go': 'найти заменить'
+};
+function allCommands() {
+  const list = [];
+  TABS.forEach(g => {
+    if (g === 'freq' || g === 'sym' || g === 'presets') return;
+    const el = document.querySelector('.tgroup[data-g="' + g + '"]'); if (!el) return;
+    el.querySelectorAll('.tb[data-t], [data-id]').forEach(b => {
+      if (b.closest('#fnPh')) return;
+      const id = b.dataset.id || cmdId(b), t = b.dataset.t, txt = b.textContent.trim();
+      let label = (t && NAMES[t] && NAMES[t][b.dataset.p]) || txt;
+      if (id === 'num:go') label = numLabel(numParams());
+      else if (id === 'fname:go') label = 'Имена файлов: ' + (fn.tpl.value || '{text}');
+      else if (id === 'replace:go') { if (!fr.find.value) return; label = 'Заменить «' + cut(fr.find.value, 16) + '» → «' + cut(fr.repl.value, 16) + '»'; }
+      list.push({ id, label, group: GROUP_NAMES[g], hint: (txt !== label ? txt + ' ' : '') + (b.title || ''), kw: (KW[id] || '') + ' ' + (KW[t || ''] || ''), run: sel => { pressSel = sel; b.click(); } });
+    });
+  });
+  state.sets.forEach(s => list.push({ id: 'set:' + s.id, label: 'Набор «' + s.name + '»', group: 'Замена', hint: s.rules.map(r => r.find + ' → ' + r.repl).join('; '), kw: 'набор правил', run: sel => runSet(s, sel) }));
+  state.presets.forEach(pr => list.push({ id: 'preset:' + pr.id, label: 'Пресет «' + pr.name + '»', group: 'Пресеты', hint: pr.steps.map(stepLabel).join(' → '), kw: 'пресет цепочка', run: () => applyPreset(pr) }));
+  return list;
+}
+function runSet(s, sel) { lastOpOk = null; doOp('rules', { name: s.name, rules: s.rules }, sel); if (lastOpOk !== false) track('set:' + s.id); lastOpOk = null; }
+function track(id) {
+  if (!id) return;
+  const f = state.ui.freq || (state.ui.freq = {});
+  const e = f[id] || [0, 0];
+  f[id] = [e[0] + 1, Date.now()];
+  const ks = Object.keys(f);
+  if (ks.length > 60) ks.sort((a, b) => f[a][0] - f[b][0] || f[a][1] - f[b][1]).slice(0, ks.length - 60).forEach(k => delete f[k]);
+  save();
+  if (!fromFreq) scheduleFreq();
+}
+$('#tools').addEventListener('click', e => {
+  const b = e.target.closest('.tb[data-t], [data-id]');
+  const ok = lastOpOk; lastOpOk = null;
+  if (!b || b.disabled || ok === false || b.closest('.tgroup[data-g="freq"]') || b.closest('#fnPh')) return;
+  track(b.dataset.id || cmdId(b));
+});
+function freqTop(n) {
+  const f = state.ui.freq || {}, map = new Map(allCommands().map(c => [c.id, c]));
+  return Object.entries(f).filter(([id]) => map.has(id)).sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1]).slice(0, n).map(([id]) => map.get(id));
+}
+function scheduleFreq() { clearTimeout(freqT); freqT = setTimeout(renderFreq, 250); }
+function runQuiet(c, sel, fromF) {
+  quietTab = true; fromFreq = !!fromF;
+  try { c.run(sel); } finally { quietTab = false; fromFreq = false; }
+}
+function renderFreq() {
+  const top = freqTop(10), box = $('#freqList');
+  box.replaceChildren(...top.map(c => {
+    const b = h('button', { class: 'tb fq', type: 'button', title: c.group + (c.hint ? ' — ' + c.hint : '') }, c.label);
+    bindCmd(b, sel => runQuiet(c, sel, true));
+    return b;
+  }));
+  $('#freqHint').replaceChildren(
+    h('span', { text: top.length ? 'Собираются сами — команды, которыми вы чаще пользуетесь на этом устройстве. ' : 'Здесь появятся команды, которыми вы чаще всего пользуетесь на этом устройстве. Любую команду можно найти через 🔍 вверху' + (touch ? '.' : ' или Ctrl+K.') }),
+    top.length ? h('button', { class: 'linkbtn', type: 'button', onclick() { state.ui.freq = {}; save(); renderFreq(); } }, 'Очистить') : '');
+  if (!touch) relayout();
+}
+
+/* ---------- поиск команды (🔍, Ctrl+K) ---------- */
+function focusFind() {
+  if (state.ui.collapsed.includes('replace')) { state.ui.collapsed = state.ui.collapsed.filter(x => x !== 'replace'); applyCollapsed(); relayout(); save(); }
+  showTab('replace');
+  fr.find.focus(); fr.find.select();
+  if (!narrow.matches) fr.find.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+const ACTIONS = () => [
+  ['Копировать результат', 'Ctrl+Enter', copyResult, 'скопировать буфер'],
+  ['Вставить из буфера вместо текста', 'Ctrl+Shift+V', () => pasteFromClipboard('replace'), 'вставить заменить'],
+  ['Вставить из буфера', '', () => pasteFromClipboard(), 'вставить добавить'],
+  ['Результат → в поле текста', 'Alt+↑', accept, 'принять применить'],
+  ['Отменить', 'Ctrl+Z', undo, 'назад'], ['Повторить', 'Ctrl+Y', redo, 'вперед'],
+  ['Сбросить все шаги', '', () => { if (!state.steps.length) { toast('Шагов нет', 'warn'); return; } flushTyping(); state.steps = []; commit(); after(); }, 'удалить шаги'],
+  ['Сохранить шаги как пресет', '', savePreset, 'пресет'],
+  ['Найти и заменить…', '', focusFind, 'поиск замена'],
+  ['Очистить текст и шаги', '', clearAll, 'удалить'],
+  ['Сравнить тексты', '', diffSheet, 'разница отличия'], ['История результатов', '', historySheet, 'скопированные'],
+  ['Оформление и настройки', '', settingsSheet, 'тема группы'], ['Экспорт и импорт настроек', '', exportSheet, 'файл перенос сохранить загрузить'],
+  ['Как пользоваться', '', helpSheet, 'справка помощь']
+].map(([label, key, fn, kw]) => ({ id: 'act:' + label, label, key, kw, group: 'Действие', run: fn }));
+const normQ = s => String(s).toLowerCase().replace(/ё/g, 'е');
+function palette() {
+  const sel = liveSel();
+  openModal((box, api) => {
+    box.classList.add('pal');
+    const inp = h('input', { class: 'field', type: 'search', placeholder: 'Команда: тире, даты, телефон, транслит…', autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'go' });
+    const list = h('div', { class: 'pallist', role: 'listbox' });
+    const cmds = [...allCommands(), ...ACTIONS()], f = state.ui.freq || {};
+    let shown = [], cur = 0;
+    const score = (c, qs) => {
+      const L = normQ(c.label), H = normQ(c.label + ' ' + c.group + ' ' + (c.hint || '') + ' ' + (c.kw || '') + ' ' + (c.key || ''));
+      let best = 0;
+      qs.forEach((q, qi) => {
+        const words = normQ(q).split(/\s+/).filter(Boolean);
+        if (!words.length || !words.every(w => H.includes(w))) return;
+        let s = 1;
+        if (L.startsWith(words[0])) s += 4; else if (words.every(w => L.includes(w))) s += 2;
+        if (qi) s -= 0.5;
+        best = Math.max(best, s);
+      });
+      return best ? best + Math.min(2, Math.log2(1 + ((f[c.id] || [0])[0])) / 3) : 0;
+    };
+    const mark = () => {
+      [...list.children].forEach((el, i) => el.classList.toggle('on', i === cur));
+      const el = list.children[cur]; if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    };
+    const go = c => { api.close(); runQuiet(c, sel); };
+    const draw = () => {
+      const q = inp.value.trim();
+      if (!q) shown = [...freqTop(8), ...ACTIONS()];
+      else {
+        const qs = [...new Set([q, convertLayout(q, 'en-ru'), convertLayout(q, 'ru-en')])];
+        shown = cmds.map(c => [c, score(c, qs)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]).map(x => x[0]).slice(0, 40);
+      }
+      cur = Math.max(0, Math.min(cur, shown.length - 1));
+      if (!shown.length) { list.replaceChildren(h('p', { class: 'msg', text: 'Ничего не найдено' })); return; }
+      list.replaceChildren(...shown.map((c, i) => h('button', { class: 'palitem' + (i === cur ? ' on' : ''), type: 'button', role: 'option',
+        onclick() { go(c); }, onmousemove() { if (cur !== i) { cur = i; mark(); } } },
+        h('span', { class: 'pl', text: c.label }), h('span', { class: 'pg', text: c.group + (c.key ? ' · ' + c.key : '') }))));
+    };
+    inp.addEventListener('input', () => { cur = 0; draw(); });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); cur = Math.min(shown.length - 1, cur + 1); mark(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); cur = Math.max(0, cur - 1); mark(); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (shown[cur]) go(shown[cur]); }
+    });
+    box.append(h('h2', { text: 'Найти команду' }), inp, list,
+      h('p', { class: 'tmeta', text: (sel ? 'Команда изменит только выделенный кусок. ' : '') + (touch ? '' : '↑↓ — выбрать, Enter — выполнить, Esc — закрыть. Можно печатать и в другой раскладке.') }));
+    draw();
+    setTimeout(() => inp.focus(), 30);
+  });
+}
+const palBtn = $('#palBtn');
+if (!touch) palBtn.addEventListener('mousedown', e => e.preventDefault());     // выделение в поле не пропадает
+palBtn.addEventListener('click', palette);
+
+/* ---------- горячие клавиши (компьютер) ---------- */
+document.addEventListener('keydown', e => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && !e.altKey && !e.shiftKey && e.code === 'KeyK') { e.preventDefault(); if (!stack.length) palette(); return; }
+  if (stack.length || e.isComposing) return;
+  const tg = e.target && e.target.tagName;
+  const inOther = (tg === 'INPUT' || tg === 'TEXTAREA' || tg === 'SELECT') && e.target !== src;
+  if (mod && !e.altKey && !e.shiftKey && e.key === 'Enter') { e.preventDefault(); copyResult(); return; }
+  if (mod && e.shiftKey && !e.altKey && e.code === 'KeyV' && !inOther) { e.preventDefault(); pasteFromClipboard('replace'); return; }
+  if (e.altKey && !mod && !e.shiftKey && e.key === 'ArrowUp' && !inOther) {
+    e.preventDefault();
+    if (state.steps.length) accept(); else toast('Шагов нет — результат и так совпадает с текстом', 'warn');
+  }
+});
+
+/* ---------- экспорт и импорт наборов, пресетов и настроек ---------- */
+function exportSheet() {
+  openModal((box, api) => {
+    const parts = [['sets', 'Наборы замен (' + state.sets.length + ')'], ['presets', 'Пресеты (' + state.presets.length + ')'],
+      ['prot', 'Исключения при смене регистра'], ['ui', 'Вид и настройки: тема, порядок и скрытие групп, вставка, числа']];
+    const cbs = {};
+    box.append(h('h2', { text: 'Экспорт и импорт' }),
+      h('p', { class: 'msg', text: 'Перенос на другое устройство файлом: сохраните здесь, откройте приложение на другом устройстве и загрузите файл. Текст, шаги и история в файл не входят.' }),
+      ...parts.map(([k, n]) => { const c = h('input', { type: 'checkbox' }); c.checked = true; cbs[k] = c; return h('label', { class: 'chk' }, c, h('span', { text: n })); }),
+      h('div', { class: 'btns', style: 'margin-top:8px' },
+        btn('Сохранить в файл', () => {
+          const d = { app: 'text-tools', format: 1, version: APP_VERSION, date: new Date().toISOString() };
+          if (cbs.sets.checked) d.sets = state.sets;
+          if (cbs.presets.checked) d.presets = state.presets;
+          if (cbs.prot.checked) d.prot = state.prot;
+          if (cbs.ui.checked) { const u = { ...state.ui }; delete u.freq; d.ui = { theme: state.theme, ui: u, num: state.num }; }
+          if (Object.keys(d).length <= 4) { toast('Отметьте, что сохранить', true); return; }
+          const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(d, null, 1)], { type: 'application/json' })), download: 'text-tools-' + todayISO() + '.json' });
+          a.setAttribute('download', 'text-tools-' + todayISO() + '.json');
+          document.body.append(a); a.click();
+          setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+          api.close(); toast('Файл сохранён: text-tools-' + todayISO() + '.json');
+        }, 'primary'),
+        btn('Загрузить из файла…', () => { api.close(); importFile(); }),
+        btn('Закрыть', () => api.close(), 'ghost')));
+  });
+}
+function importFile() {
+  const inp = h('input', { type: 'file', accept: '.json,application/json', style: 'display:none' });
+  inp.addEventListener('change', async () => {
+    const f = inp.files && inp.files[0]; inp.remove();
+    if (!f) return;
+    let d = null;
+    try { d = JSON.parse(await f.text()); } catch (e) { d = null; }
+    if (!d || d.app !== 'text-tools') { toast('Это не файл настроек «Текстовых инструментов»', true); return; }
+    importSheet(d);
+  });
+  document.body.append(inp); inp.click();
+}
+const mergeById = (a, b) => { const o = a.slice(); b.forEach(x => { if (!x || typeof x.name !== 'string') return; const i = o.findIndex(y => y.id === x.id); if (i >= 0) o[i] = x; else o.push(x); }); return o; };
+function importSheet(d) {
+  const parts = [['sets', 'Наборы замен', Array.isArray(d.sets) ? d.sets.length : 0], ['presets', 'Пресеты', Array.isArray(d.presets) ? d.presets.length : 0],
+    ['prot', 'Исключения при смене регистра', d.prot ? 1 : 0], ['ui', 'Вид и настройки', d.ui ? 1 : 0]].filter(x => x[2]);
+  if (!parts.length) { toast('В файле нет данных', true); return; }
+  openModal((box, api) => {
+    const cbs = {};
+    let replace = false;
+    const modes = h('div', { class: 'thm' });
+    const drawModes = () => modes.replaceChildren(
+      btn('Добавить к своим', () => { replace = false; drawModes(); }, replace ? '' : 'primary'),
+      btn('Заменить свои', () => { replace = true; drawModes(); }, replace ? 'primary' : ''));
+    drawModes();
+    box.append(h('h2', { text: 'Загрузить из файла' }),
+      h('p', { class: 'msg', text: 'Файл от ' + (d.date ? new Date(d.date).toLocaleString('ru-RU') : '—') + '. Отметьте, что загрузить.' }),
+      ...parts.map(([k, n, c]) => { const cb = h('input', { type: 'checkbox' }); cb.checked = true; cbs[k] = cb; return h('label', { class: 'chk' }, cb, h('span', { text: n + (k === 'sets' || k === 'presets' ? ' (' + c + ')' : '') })); }),
+      ...(cbs.sets || cbs.presets ? [h('div', { class: 'uilbl', text: 'Наборы и пресеты' }), modes,
+        h('p', { class: 'msg', text: '«Добавить» — ваши остаются, из файла добавляются (одинаковые обновляются). «Заменить» — остаются только те, что в файле.' })] : []),
+      h('div', { class: 'btns' },
+        btn('Загрузить', () => {
+          const cur = JSON.parse(JSON.stringify(state));
+          if (cbs.sets && cbs.sets.checked) cur.sets = replace ? d.sets : mergeById(cur.sets, d.sets);
+          if (cbs.presets && cbs.presets.checked) cur.presets = replace ? d.presets : mergeById(cur.presets, d.presets);
+          if (cbs.prot && cbs.prot.checked && typeof d.prot === 'object') cur.prot = { ...cur.prot, ...d.prot };
+          if (cbs.ui && cbs.ui.checked && typeof d.ui === 'object') {
+            if (d.ui.theme) cur.theme = d.ui.theme;
+            if (d.ui.ui && typeof d.ui.ui === 'object') cur.ui = { ...cur.ui, ...d.ui.ui, freq: cur.ui.freq };
+            if (d.ui.num && typeof d.ui.num === 'object') cur.num = d.ui.num;
+          }
+          try {
+            localStorage.setItem(KEY, JSON.stringify(cur));
+            try { sessionStorage.setItem(KEY + '.msg', 'Загружено из файла'); } catch (e) { /* ничего */ }
+          } catch (e) { toast('Не удалось сохранить: нет места', true); return; }
+          noSave = true; clearTimeout(saveT);
+          location.reload();
+        }, 'primary'),
+        btn('Отмена', () => api.close(), 'ghost')));
+  });
+}
+try { const m = sessionStorage.getItem(KEY + '.msg'); if (m) { sessionStorage.removeItem(KEY + '.msg'); setTimeout(() => toast('✓ ' + m, 'warn'), 400); } } catch (e) { /* ничего */ }
+renderFreq();
 
 /* ---------- запуск ---------- */
 applyTheme();
