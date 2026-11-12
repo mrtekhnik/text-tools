@@ -669,7 +669,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.28';
+const APP_VERSION = '2026-11-12.29';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1552,7 +1552,7 @@ function parseNumWords(toks, i, l) {
       CASE_PRI.forEach(c => { const gg = ['m', 'f', 'n', 'p'].find(x => os.some(e => e.c === c && e.g === x)); if (gg) gBy[c] = gg; });
       const c0 = CASE_PRI.find(c => gBy[c]);
       return { end: j + 1, v: total + grp + o.v, ord: true, cases: new Set(Object.keys(gBy)), gBy, g: gBy[c0], l };
-    } else if (has('z') && j === i) { return { end: j + 1, v: 0, cases: pickCases(es, 'z'), g: 'm', l }; }
+    } else if (has('z') && j === i) { meet(pickCases(es, 'z')); j++; break; }      // ноль — дальше может быть «целых …»
     else if (has('half') && j === i) {
       const e = es.find(x => x.t === 'half'), nb = j + 1 < toks.length && toks[j + 1].sp ? ents(j + 1).find(x => x.t === 'b' && x.one && x.c === 'gen') : null;
       if (nb) return { end: j + 2, v: 1.5 * Math.pow(1000, nb.k), half: true, hk: nb.k, cases: new Set(['nom']), g: e.g, l };     // полторы тысячи
@@ -1563,10 +1563,16 @@ function parseNumWords(toks, i, l) {
   }
   if (j === i) return null;
   const res = { end: j, v: total + grp, cases: cases || new Set(['nom']), g, formal, l };
+  // простая дробь: «три четвёртых», «одна вторая», «пять восьмых» — числитель и порядковое в ж. р. или мн. ч.
+  if (j < toks.length && toks[j].sp && res.v > 0 && !total) {
+    const od = ents(j).find(e => e.t === 'o' && (e.g === 'f' || e.g === 'p') && e.v >= 2);
+    if (od) return { end: j + 1, v: 0, num: res.v, den: od.v, cases: res.cases, g: 'f', l };
+  }
   // дробь: «три целых пять десятых»
   const w = ents(j).find(e => e.t === 'w');
   if (w && toks[j].sp) {
     const fr = parseNumWords(toks, j + 1, l);
+    if (fr && fr.den) return { end: fr.end, v: res.v, whole: true, num: fr.num, den: fr.den, cases: new Set([w.c]), g: 'f', l };   // две целых одна вторая
     if (fr && !fr.ord && fr.end < toks.length && toks[fr.end].sp) {
       const d = ents(fr.end).find(e => e.t === 'd');
       if (d && String(fr.v).length <= d.n) return { end: fr.end + 1, v: res.v, frac: String(fr.v).padStart(d.n, '0'), cases: new Set([w.c]), g: 'f', l };
@@ -1595,6 +1601,11 @@ const pickCase = s => CASE_PRI.find(c => s.has(c)) || 'nom';
 function wordsToDigits(t) {
   return numWordsRun(t, 'any', (r, src) => {
     if (r.half) return r.hk ? String(r.v) : '1,5';
+    if (r.den) {
+      const z = String(r.den).match(/^10+$/) ? String(r.den).length - 1 : 0;      // десятые, сотые… — десятичной записью: 3,5
+      if (z && String(r.num).length <= z) return (r.v || 0) + ',' + String(r.num).padStart(z, '0');
+      return (r.v ? r.v + ' ' : '') + r.num + '/' + r.den;
+    }
     if (r.frac != null) return r.v + ',' + r.frac;
     if (r.ord) { const c = pickCase(r.cases); return ordinalAbbr(String(r.v), c, r.gBy[c], r.l); }
     return String(r.v);
@@ -1607,6 +1618,8 @@ function translateNumerals(t, p) {
     const c = r.cases.has('pre') && /^(на|в|во|у|о|об|обо|при|по)$/.test(r.prev || '') && !(r.prev === 'по' && r.cases.has('dat')) ? 'pre' : pickCase(r.cases);
     let w;
     if (r.half) w = (to === 'ua' ? (r.g === 'f' ? 'півтори' : 'півтора') : (r.g === 'f' ? 'полторы' : 'полтора')) + (r.hk ? ' ' + LN(to).big[r.hk].one[1] : '');
+    else if (r.den && r.whole && /^10+$/.test(String(r.den)) && String(r.num).length < String(r.den).length) w = fractionWords(String(r.v), String(r.num).padStart(String(r.den).length - 1, '0'), c, to);
+    else if (r.den) w = numbersToWords((r.v ? r.v + ' ' : '') + r.num + '/' + r.den, { m: 'card', l: to, c, g: 'f', cur: 'UAH', br: false });
     else if (r.frac != null) w = fractionWords(String(r.v), r.frac, c, to);
     else if (r.ord) w = ordinalWords(String(r.v), c, r.gBy[c] || r.g, to);
     else w = numberToWords(String(r.v), c, r.g, to, r.formal);
