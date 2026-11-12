@@ -1572,7 +1572,8 @@ function parseNumWords(toks, i, l) {
   const w = ents(j).find(e => e.t === 'w');
   if (w && toks[j].sp) {
     const fr = parseNumWords(toks, j + 1, l);
-    if (fr && fr.den) return { end: fr.end, v: res.v, whole: true, num: fr.num, den: fr.den, cases: new Set([w.c]), g: 'f', l };   // две целых одна вторая
+    const wc = new Set(ents(j).filter(e => e.t === 'w').map(e => e.c)), both = new Set([...res.cases].filter(c => wc.has(c)));
+    if (fr && fr.den) return { end: fr.end, v: res.v, whole: true, num: fr.num, den: fr.den, cases: both.size ? both : wc, g: 'f', l };   // две целых одна вторая
     if (fr && !fr.ord && fr.end < toks.length && toks[fr.end].sp) {
       const d = ents(fr.end).find(e => e.t === 'd');
       if (d && String(fr.v).length <= d.n) return { end: fr.end + 1, v: res.v, frac: String(fr.v).padStart(d.n, '0'), cases: new Set([w.c]), g: 'f', l };
