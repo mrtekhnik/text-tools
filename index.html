@@ -96,30 +96,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tgroup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px}
 /* все группы сразу (компьютер): у каждой группы цветная шапка, текущая (где была последняя команда) — в рамке */
 .tgroup>.tlbl.gtitle{margin:-10px -10px 10px;padding:7px 12px;background:var(--accent-soft);color:var(--ink);border-radius:13px 13px 0 0;font-size:14px}
-/* все группы сразу: шапка группы сворачивает и разворачивает её; состояние запоминается */
-.tools:not(.tabbed) .tgroup>.gtitle{cursor:pointer;user-select:none}
-.tools:not(.tabbed) .tgroup>.gtitle::before{content:'▾';width:12px}
-.tools:not(.tabbed) .tgroup.collapsed>.gtitle::before{content:'▸'}
-.tools:not(.tabbed) .tgroup.collapsed>:not(.gtitle){display:none!important}
-.tools:not(.tabbed) .tgroup.collapsed>.gtitle{margin-bottom:-10px;border-radius:13px}
-/* компьютер, все группы сразу: значок для перетаскивания группы за шапку */
-@media (min-width:900px){
-  .tools:not(.tabbed) .tgroup>.gtitle::after{content:'⠿';margin-left:auto;opacity:.55;font-size:16px;line-height:1;cursor:grab}
-  .tgroup.dragging{opacity:.45}
-  .tgroup.dropbefore{box-shadow:-5px 0 0 0 var(--accent)}
-  .tgroup.dropafter{box-shadow:5px 0 0 0 var(--accent)}
-  /* «Ровные ряды»: карточки в ряду одной высоты */
-  .tools.eqrows{align-items:stretch}
-  .tools.eqrows>.tgroup.collapsed{align-self:start}
-  /* «Команды в одну строку»: кнопки строкой с прокруткой вбок, как на телефоне */
-  .tools.oneline .tbtns,.tools.oneline .srow{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}
-  .tools.oneline .segflex{flex-wrap:nowrap;flex:none}
-  .tools.oneline .tb{flex:none;white-space:nowrap;padding:2px 14px}
-  .tools.oneline .seg{flex:none}
-}
 .tgroup.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .tgroup.on>.tlbl.gtitle{background:var(--accent);color:var(--accent-ink)}
-/* вкладками (телефон всегда, компьютер — по настройке): активная вкладка залита цветом, панель её команд — в цветной рамке */
+/* вкладками (телефон и компьютер): активная вкладка залита цветом, панель её команд — в цветной рамке */
 .tabbed{display:flex!important;flex-direction:column;gap:0!important;align-items:stretch!important}
 @media (min-width:900px){
   /* вкладками на компьютере: команды строкой слева направо, кнопки по ширине текста */
@@ -191,6 +170,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .numback{margin-top:8px}
 .iconbtn svg{display:block;margin:auto}
 .iconbtn.away{display:none}
+#topBtn.away+.hsep{display:none}
 .hsep{width:1px;height:28px;background:var(--line);margin:0 4px;flex:none}
 @media (max-width:899px){.deskonly{display:none!important}}
 .dwhich{margin-top:8px;align-items:center;position:relative}
@@ -348,7 +328,6 @@ body.modal-lock{overflow:hidden}
       <h1>Текстовые инструменты</h1>
       <div class="hdr-btns">
         <button class="iconbtn deskonly" id="topBtn" type="button" aria-label="Наверх" title="Наверх"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14M12 20V9M7 13l5-5 5 5"/></svg></button>
-        <button class="iconbtn deskonly" id="foldBtn" type="button" aria-label="Свернуть все группы" title="Свернуть все группы"></button>
         <span class="hsep deskonly" aria-hidden="true"></span>
         <button class="iconbtn" id="palBtn" type="button" aria-label="Найти команду" title="Найти команду (Ctrl+K)">🔍</button>
         <button class="iconbtn" id="undoBtn" type="button" aria-label="Отменить" title="Отменить (Ctrl+Z)">↶</button>
@@ -669,7 +648,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.30';
+const APP_VERSION = '2026-11-12.31';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -2259,10 +2238,8 @@ $('#diffBtn').addEventListener('click', diffSheet);
 
 /* ---------- вкладки команд: телефон всегда, компьютер — по настройке ---------- */
 function applyDeskTabs() {
-  const T = $('#tools'), desk = !narrow.matches, tabs = desk && !!state.ui.deskTabs, L = state.ui.deskLayout;
+  const T = $('#tools'), tabs = !narrow.matches;      // на компьютере группы команд — всегда вкладками
   T.classList.toggle('tabbed', tabs);
-  T.classList.toggle('eqrows', desk && !tabs && L === 'rows');
-  T.classList.toggle('oneline', desk && !tabs && L === 'line');
   relayout();
 }
 // раньше здесь пересчитывалась укладка «Плотно» (убрана — группы скакали); вызовы оставлены пустыми
@@ -2587,16 +2564,8 @@ function settingsSheet() {
                 btn('Обычная (1240)', () => { state.ui.deskWidth = 1240; applyWidth(); save(); sync(); }),
                 btn('Во весь экран', () => { state.ui.deskWidth = 0; applyWidth(); save(); sync(); })));
           })(),
-          h('p', { class: 'msg', text: 'Шире — больше групп команд в ряд. Ползунок до упора вправо — во всю ширину окна. Действует только на этом компьютере.' }),
-          h('div', { class: 'uilbl', text: 'Группы команд' }),
-          h('p', { class: 'msg', text: '«Вкладками» — как на телефоне: видна одна группа, всё помещается на экран без прокрутки. Действует только на этом компьютере.' }),
-          h('div', { class: 'thm' }, [[false, 'Все группы сразу'], [true, 'Вкладками']].map(([k, n]) =>
-            btn(n, () => { state.ui.deskTabs = k; applyDeskTabs(); save(); draw(); }, !!state.ui.deskTabs === k ? 'primary' : ''))),
-          ...(state.ui.deskTabs ? [] : [
-            h('div', { class: 'uilbl', text: 'Как укладывать группы' }),
-            h('div', { class: 'thm' }, [['rows', 'Ровные ряды'], ['line', 'Команды в одну строку']].map(([k, n]) =>
-              btn(n, () => { state.ui.deskLayout = k; applyDeskTabs(); save(); draw(); }, state.ui.deskLayout === k ? 'primary' : ''))),
-            h('p', { class: 'msg', text: '«Ровные ряды» — карточки в ряду одной высоты, группы стоят на месте. «Команды в одну строку» — кнопки строкой с прокруткой вбок (колесом мыши тоже). Группы можно перетаскивать мышью за шапку (⠿); щелчок по шапке сворачивает группу.' })]))]),
+          h('p', { class: 'msg', text: 'Шире — больше кнопок в ряд. Ползунок до упора вправо — во всю ширину окна. Действует только на этом компьютере.' })
+        )]),
         grp('paste', 'Вставка и очистка',
           h('div', { class: 'uilbl', text: '«Вставить», когда в поле уже есть текст' }),
           h('div', { class: 'thm' }, [['ask', 'Спрашивать'], ['replace', 'Заменять'], ['add', 'Добавлять']].map(([k, n]) =>
@@ -2896,7 +2865,6 @@ function renderFreq() {
 
 /* ---------- поиск команды (🔍, Ctrl+K) ---------- */
 function focusFind() {
-  if (state.ui.collapsed.includes('replace')) { state.ui.collapsed = state.ui.collapsed.filter(x => x !== 'replace'); applyCollapsed(); relayout(); save(); }
   showTab('replace');
   fr.find.focus(); fr.find.select();
   if (!narrow.matches) fr.find.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -3282,28 +3250,12 @@ function manageDateTpls() {
 }
 renderDateIns();
 
-/* ---------- свернуть / развернуть все группы (компьютер, «Все группы сразу») ---------- */
-// одна кнопка в шапке: если развёрнута хоть одна группа — свернуть все, иначе развернуть все
-const foldBtn = $('#foldBtn');
-const SVG_FOLD = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l5 5 5-5M7 20l5-5 5 5"/></svg>';
-const SVG_UNFOLD = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9l5-5 5 5M7 15l5 5 5-5"/></svg>';
-const anyOpen = () => TABS.some(g => !state.ui.collapsed.includes(g) && !state.ui.hidden.includes(g));
-function updFold() {
-  const open = anyOpen(), t = open ? 'Свернуть все группы' : 'Развернуть все группы';
-  foldBtn.innerHTML = open ? SVG_FOLD : SVG_UNFOLD;
-  foldBtn.title = t; foldBtn.setAttribute('aria-label', t);
-  foldBtn.hidden = $('#tools').classList.contains('tabbed');       // во вкладках сворачивать нечего
-}
-foldBtn.addEventListener('click', () => { state.ui.collapsed = anyOpen() ? TABS.slice() : []; applyCollapsed(); relayout(); save(); });
 const topBtn = $('#topBtn');
 topBtn.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
 // «Наверх» видна, только когда страница прокручена вниз
 const updTop = () => topBtn.classList.toggle('away', scrollY < 300);
 addEventListener('scroll', updTop, { passive: true });
 updTop();
-// значок следит за состоянием: свернули группу вручную или переключили режим — обновится сам
-new MutationObserver(updFold).observe($('#tools'), { subtree: true, attributes: true, attributeFilter: ['class'] });
-updFold();
 
 /* ---------- запуск ---------- */
 applyTheme();
@@ -3311,58 +3263,6 @@ applyGroupOrder();
 showTab(state.tab);
 applyVisibility();
 applyDeskTabs();
-// сворачивание групп в режиме «Все группы сразу» (компьютер)
-function applyCollapsed() {
-  document.querySelectorAll('.tgroup').forEach(t => {
-    const c = state.ui.collapsed.includes(t.dataset.g), hd = t.querySelector(':scope > .gtitle');
-    t.classList.toggle('collapsed', c);
-    if (hd) hd.setAttribute('aria-expanded', String(!c));
-  });
-}
-document.querySelectorAll('.tgroup > .gtitle').forEach(hd => {
-  const g = hd.parentNode.dataset.g;
-  hd.setAttribute('role', 'button'); hd.tabIndex = 0; hd.title = 'Свернуть или развернуть группу';
-  const toggle = () => {
-    if ($('#tools').classList.contains('tabbed') || narrow.matches) return;
-    const c = state.ui.collapsed;
-    state.ui.collapsed = c.includes(g) ? c.filter(x => x !== g) : [...c, g];
-    applyCollapsed(); relayout(); save();
-  };
-  hd.addEventListener('click', toggle);
-  hd.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
-});
-applyCollapsed();
-// перетаскивание групп мышью за шапку (компьютер, «Все группы сразу»)
-let dragG = null;
-const clearDrop = () => document.querySelectorAll('.tgroup').forEach(t => t.classList.remove('dragging', 'dropbefore', 'dropafter'));
-document.querySelectorAll('.tgroup > .gtitle').forEach(hd => {
-  hd.draggable = true;
-  hd.addEventListener('dragstart', e => {
-    if ($('#tools').classList.contains('tabbed') || narrow.matches) { e.preventDefault(); return; }
-    dragG = hd.parentNode.dataset.g;
-    e.dataTransfer.effectAllowed = 'move';
-    try { e.dataTransfer.setData('text/plain', GROUP_NAMES[dragG] || dragG); } catch (er) { /* ничего */ }
-    hd.parentNode.classList.add('dragging');
-  });
-  hd.addEventListener('dragend', () => { dragG = null; clearDrop(); });
-});
-document.querySelectorAll('#tools > .tgroup').forEach(t => {
-  t.addEventListener('dragover', e => {
-    if (!dragG || t.dataset.g === dragG) return;
-    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-    const r = t.getBoundingClientRect(), afterIt = e.clientX > r.left + r.width / 2;
-    t.classList.toggle('dropafter', afterIt); t.classList.toggle('dropbefore', !afterIt);
-  });
-  t.addEventListener('dragleave', e => { if (!t.contains(e.relatedTarget)) t.classList.remove('dropbefore', 'dropafter'); });
-  t.addEventListener('drop', e => {
-    if (!dragG || t.dataset.g === dragG) return;
-    e.preventDefault();
-    const afterIt = t.classList.contains('dropafter'), o = state.ui.order.filter(x => x !== dragG);
-    o.splice(o.indexOf(t.dataset.g) + (afterIt ? 1 : 0), 0, dragG);
-    state.ui.order = o; dragG = null; clearDrop();
-    applyGroupOrder(); relayout(); save();
-  });
-});
 src.value = state.text;
 commit();
 after();
