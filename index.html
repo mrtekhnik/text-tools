@@ -109,6 +109,11 @@ button{font:inherit;color:inherit;cursor:pointer}
   /* вкладок много — на компьютере они переносятся на следующую строку, а не уезжают за край */
   .tabbed .ttabs{flex-wrap:wrap;overflow:visible;row-gap:3px}
   .tabbed .ttabmenu{display:none}
+  /* подписи рядов — колонкой одной ширины, кнопки начинаются ровно */
+  .tabbed .tbtns:has(>.rowlbl),.tabbed .srow:has(>.rowlbl){position:relative;padding-left:156px}
+  .tabbed .tbtns>.rowlbl,.tabbed .srow>.rowlbl{position:absolute;left:0;top:0;width:150px;min-height:44px;display:flex;align-items:center}
+  .tabbed .datefix{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  .tabbed .datefix>.rowlbl{top:12px}
 }
 /* «Числа» на широком мониторе — по ширине в две строки:
    [что писать | язык] [падеж | род | валюта]
@@ -187,7 +192,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #topBtn.away+.hsep{display:none}
 .hsep{width:1px;height:28px;background:var(--line);margin:0 4px;flex:none}
 @media (max-width:899px){.deskonly{display:none!important}}
-.dwhich{margin-top:8px;align-items:center;position:relative}
+.dwhich{align-items:center;position:relative;margin-bottom:6px}
 .dpick{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
 .dprev{font-size:17px;font-weight:700;padding:10px 12px;border-radius:12px;background:var(--accent-soft);word-break:break-word}
 .tbtns.wide{grid-template-columns:repeat(auto-fill,minmax(178px,1fr))}
@@ -396,6 +401,7 @@ body.modal-lock{overflow:hidden}
       <button class="ttab" type="button" role="tab" data-g="format">Формат</button>
       <button class="ttab" type="button" role="tab" data-g="cols">Столбцы</button>
       <button class="ttab" type="button" role="tab" data-g="extract">Извлечь</button>
+      <button class="ttab" type="button" role="tab" data-g="dates">Даты</button>
       <button class="ttab" type="button" role="tab" data-g="phone">Телефоны</button>
       <button class="ttab" type="button" role="tab" data-g="fname">Имена файлов</button>
       <button class="ttab" type="button" role="tab" data-g="presets">Пресеты</button>
@@ -452,7 +458,7 @@ body.modal-lock{overflow:hidden}
     <div class="tgroup" data-g="format">
       <div class="tlbl gtitle">Формат</div>
       <div class="tbtns">
-        <span class="rowlbl">Кавычки</span>
+        <span class="rowlbl">Кавычки и тире</span>
         <button class="tb" type="button" data-t="typo" data-p="q-ru" title="&quot;…&quot; и “…” → «…», вложенные → „…“">«ёлочки»</button>
         <button class="tb" type="button" data-t="typo" data-p="q-en" title="«…», „…“ → &quot;…&quot;">"прямые"</button>
         <button class="tb" type="button" data-t="typo" data-p="dash" title="слово - слово → слово — слово (пункты списков «- » не трогаются)">дефис → тире</button>
@@ -478,23 +484,6 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="dim" data-p="mm2m" title="1500 мм → 1,5 м">мм → м</button>
         <button class="tb" type="button" data-t="dim" data-p="m2mm" title="1,5 м → 1500 мм">м → мм</button>
       </div>
-      <div class="tbtns">
-        <span class="rowlbl">Даты в тексте</span>
-        <button class="tb" type="button" data-t="date" data-p="dmy" title="Любые даты → ДД.ММ.ГГГГ">12.11.2026</button>
-        <button class="tb" type="button" data-t="date" data-p="iso" title="Любые даты → ГГГГ-ММ-ДД (удобно в именах файлов)">2026-11-12</button>
-        <button class="tb" type="button" data-t="date" data-p="slash" title="Любые даты → ДД/ММ/ГГГГ">12/11/2026</button>
-        <button class="tb" type="button" data-t="date" data-p="ru" title="Любые даты → словами по-русски">12 ноября 2026 г.</button>
-        <button class="tb" type="button" data-t="date" data-p="ua" title="Любые даты → словами по-украински">12 листопада 2026 р.</button>
-      </div>
-      <div class="srow dwhich" id="dateWhich">
-        <span class="rowlbl">Вставить дату:</span>
-        <button class="seg" type="button" data-v="today">Сегодня</button>
-        <button class="seg" type="button" data-v="yest">Вчера</button>
-        <button class="seg" type="button" data-v="tom">Завтра</button>
-        <button class="seg" type="button" data-v="custom" title="Выбрать дату в календаре">📅 Дата…</button>
-        <input type="date" id="datePick" class="dpick" tabindex="-1" aria-hidden="true">
-      </div>
-      <div class="tbtns" id="dateIns"></div>
     </div>
     <div class="tgroup" data-g="cols">
       <div class="tlbl gtitle">Столбцы</div>
@@ -525,6 +514,26 @@ body.modal-lock{overflow:hidden}
       </div>
       <div class="srow"><label class="mini"><input type="checkbox" id="exUniq"> без повторов</label></div>
       <div class="numhint">Найденное выписывается списком, по одному в строке.</div>
+    </div>
+    <div class="tgroup" data-g="dates">
+      <div class="tlbl gtitle">Даты</div>
+      <div class="srow dwhich" id="dateWhich">
+        <span class="rowlbl">День</span>
+        <button class="seg" type="button" data-v="today">Сегодня</button>
+        <button class="seg" type="button" data-v="yest">Вчера</button>
+        <button class="seg" type="button" data-v="tom">Завтра</button>
+        <button class="seg" type="button" data-v="custom" title="Выбрать дату в календаре">📅 Дата…</button>
+        <input type="date" id="datePick" class="dpick" tabindex="-1" aria-hidden="true">
+      </div>
+      <div class="tbtns" id="dateIns"></div>
+      <div class="tbtns datefix">
+        <span class="rowlbl">Исправить в тексте</span>
+        <button class="tb" type="button" data-t="date" data-p="dmy" title="Любые даты → ДД.ММ.ГГГГ">12.11.2026</button>
+        <button class="tb" type="button" data-t="date" data-p="iso" title="Любые даты → ГГГГ-ММ-ДД (удобно в именах файлов)">2026-11-12</button>
+        <button class="tb" type="button" data-t="date" data-p="slash" title="Любые даты → ДД/ММ/ГГГГ">12/11/2026</button>
+        <button class="tb" type="button" data-t="date" data-p="ru" title="Любые даты → словами по-русски">12 ноября 2026 г.</button>
+        <button class="tb" type="button" data-t="date" data-p="ua" title="Любые даты → словами по-украински">12 листопада 2026 р.</button>
+      </div>
     </div>
     <div class="tgroup" data-g="phone">
       <div class="tlbl gtitle">Телефоны</div>
@@ -662,7 +671,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.32';
+const APP_VERSION = '2026-11-12.34';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1645,7 +1654,7 @@ function dateByTpl(tpl, d) {
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
-const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'format', 'phone', 'fname', 'presets'];
+const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'format', 'dates', 'phone', 'fname', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
   ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, dateWhich: 'today', dateCustom: '', dateTpls: [], hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
@@ -1857,7 +1866,7 @@ function updUndo() {
 /* ---------- действия ---------- */
 // sel — выделение, снятое в момент нажатия кнопки (или null)
 function doOp(type, p, sel) {
-  const tg = type === 'lines' && p && p.k === 'fname' ? 'fname' : ({ typo: 'format', date: 'format', nfmt: 'format', fio: 'format', dim: 'format', numw: 'num', rules: 'replace' }[type] || type);
+  const tg = type === 'lines' && p && p.k === 'fname' ? 'fname' : ({ typo: 'format', date: 'dates', nfmt: 'format', fio: 'format', dim: 'format', numw: 'num', rules: 'replace' }[type] || type);
   if (!quietTab && TABS.includes(tg) && state.tab !== tg) showTab(tg);      // группа последней команды — текущая
   if (state.text !== src.value) { state.text = src.value; }
   flushTyping();
@@ -2486,7 +2495,7 @@ async function helpSheet() {
   });
 }
 /* ---------- оформление и настройки (блоки сворачиваются) ---------- */
-const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', freq: 'Частые', sym: 'Знаки', lines: 'Строки', cols: 'Столбцы', extract: 'Извлечь', format: 'Формат', phone: 'Телефоны', fname: 'Имена файлов', presets: 'Пресеты' };
+const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', freq: 'Частые', sym: 'Знаки', lines: 'Строки', cols: 'Столбцы', extract: 'Извлечь', format: 'Формат', dates: 'Даты', phone: 'Телефоны', fname: 'Имена файлов', presets: 'Пресеты' };
 const NUM_MODE_NAMES = { card: 'пять', ord: 'пятый', abbr: '5-й', money: 'сумма' };
 // какие группы и команды показывать — хранится в этом браузере, на каждом устройстве своё
 const cmdId = b => b.dataset.id || (b.dataset.t ? b.dataset.t + ':' + b.dataset.p : 'num:' + b.dataset.v);
@@ -3208,7 +3217,7 @@ function renderDateIns() {
     return b;
   };
   const user = state.ui.dateTpls || [];
-  $('#dateIns').replaceChildren(h('span', { class: 'rowlbl', text: 'Вставить' }),
+  $('#dateIns').replaceChildren(h('span', { class: 'rowlbl', text: 'Вставить дату' }),
     ...DATE_TPLS.map(([k, tpl]) => mk('dins:' + k, tpl)),
     ...user.map(u => mk('dins:u' + u.id, u.tpl)),
     h('button', { class: 'tb', type: 'button', title: 'Свой шаблон даты', onclick() { editDateTpl(null); } }, '＋ шаблон'),
