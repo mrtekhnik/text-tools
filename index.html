@@ -90,8 +90,14 @@ button{font:inherit;color:inherit;cursor:pointer}
 .seggrid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .seg{min-height:38px;padding:0 2px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-weight:600;font-size:14px}
 .seg.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.numrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:6px;align-items:stretch}
-.numhint{font-size:12.5px;color:var(--muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seggrid.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.segflex{display:flex;gap:4px}
+.segflex .seg{flex:1 1 0;min-width:0}
+.seg:disabled{opacity:.35;cursor:default}
+.numtop{display:grid;grid-template-columns:3fr 2fr;gap:8px;margin-bottom:5px}
+.numrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:5px;align-items:stretch}
+.numbr{margin-top:2px}
+.numhint{font-size:12.5px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .mini{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);font-size:14px;min-height:32px;cursor:pointer}
 .mini input{width:20px;height:20px;accent-color:var(--accent);margin:0}
 .frgrid{display:grid;gap:8px;grid-template-columns:1fr 1fr 200px;align-items:start}
@@ -270,6 +276,17 @@ body.modal-lock{overflow:hidden}
     </div>
     <div class="tgroup" data-g="num">
       <div class="tlbl gtitle">Числа словами</div>
+      <div class="numtop">
+        <div class="seggrid g3" id="numMode" role="group" aria-label="Что писать">
+          <button class="seg" type="button" data-v="card" title="Количественные: 5 → пять; 3,5 → три целых пять десятых">пять</button>
+          <button class="seg" type="button" data-v="ord" title="Порядковые: 5 → пятый; 5-й → пятый">пятый</button>
+          <button class="seg" type="button" data-v="money" title="Сумма прописью: 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек">сумма</button>
+        </div>
+        <div class="seggrid g2" id="numLang" role="group" aria-label="Язык">
+          <button class="seg" type="button" data-v="ru" title="По-русски">рус</button>
+          <button class="seg" type="button" data-v="ua" title="По-украински">укр</button>
+        </div>
+      </div>
       <div class="seggrid" id="numCase" role="group" aria-label="Падеж">
         <button class="seg" type="button" data-v="nom" title="Именительный: кто? что? — пять">Им.</button>
         <button class="seg" type="button" data-v="gen" title="Родительный: кого? чего? — пяти">Род.</button>
@@ -279,13 +296,21 @@ body.modal-lock{overflow:hidden}
         <button class="seg" type="button" data-v="pre" title="Предложный: о чём? — о пяти">Пр.</button>
       </div>
       <div class="numrow">
-        <div class="seggrid g3" id="numGen" role="group" aria-label="Род (для 1 и 2)">
-          <button class="seg" type="button" data-v="m" title="Мужской род: один, два">муж.</button>
-          <button class="seg" type="button" data-v="f" title="Женский род: одна, две">жен.</button>
-          <button class="seg" type="button" data-v="n" title="Средний род: одно, два">ср.</button>
+        <div class="segflex" id="numGen" role="group" aria-label="Род">
+          <button class="seg" type="button" data-v="m" title="Мужской род: один, два; первый">м</button>
+          <button class="seg" type="button" data-v="f" title="Женский род: одна, две; первая">ж</button>
+          <button class="seg" type="button" data-v="n" title="Средний род: одно, два; первое">ср</button>
+          <button class="seg" type="button" data-v="p" title="Множественное число: первые">мн</button>
         </div>
-        <button class="tb main" type="button" id="numGo" title="5 → пять; обозначения вроде М8 и АБВГ.123.001 не меняются">Числа → словами</button>
+        <div class="segflex" id="numCur" role="group" aria-label="Валюта" hidden>
+          <button class="seg" type="button" data-v="UAH" title="Гривна">грн</button>
+          <button class="seg" type="button" data-v="USD" title="Доллар">$</button>
+          <button class="seg" type="button" data-v="EUR" title="Евро">€</button>
+          <button class="seg" type="button" data-v="RUB" title="Рубль">₽</button>
+        </div>
+        <button class="tb main" type="button" id="numGo">→ словами</button>
       </div>
+      <label class="mini numbr" id="numBrWrap" hidden><input type="checkbox" id="numBr"> оставить цифры, слова — в скобках</label>
       <div class="numhint" id="numHint"></div>
     </div>
     <div class="tgroup fr" data-g="replace">
@@ -316,7 +341,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.1';
+const APP_VERSION = '2026-11-12.2';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -509,78 +534,220 @@ function countText(t) {
   if (!t) return { chars: 0, words: 0, lines: 0 };
   return { chars: t.length, words: (t.match(/[\p{L}\p{N}]+(?:['’\-.][\p{L}\p{N}]+)*/gu) || []).length, lines: t.split('\n').length };
 }
-/* ---------- числа словами (русский, все падежи) ---------- */
-// падежи: 0 им, 1 род, 2 дат, 3 вин (неодушевл.), 4 твор, 5 пред
+/* ---------- числа словами: русский и украинский, все падежи ---------- */
+// падежи: 0 им, 1 род, 2 дат, 3 вин (неодушевл.), 4 твор, 5 пред (місцевий)
 const CASES = ['nom', 'gen', 'dat', 'acc', 'ins', 'pre'];
-const N_ONE = { m: ['один', 'одного', 'одному', 'один', 'одним', 'одном'], f: ['одна', 'одной', 'одной', 'одну', 'одной', 'одной'], n: ['одно', 'одного', 'одному', 'одно', 'одним', 'одном'] };
-const N_TWO = { m: ['два', 'двух', 'двум', 'два', 'двумя', 'двух'], f: ['две', 'двух', 'двум', 'две', 'двумя', 'двух'] };
-const softN = st => [st + 'ь', st + 'и', st + 'и', st + 'ь', st + 'ью', st + 'и'];
-const N_SMALL = {
-  0: ['ноль', 'нуля', 'нулю', 'ноль', 'нулём', 'нуле'],
-  3: ['три', 'трёх', 'трём', 'три', 'тремя', 'трёх'], 4: ['четыре', 'четырёх', 'четырём', 'четыре', 'четырьмя', 'четырёх'],
-  5: softN('пят'), 6: softN('шест'), 7: softN('сем'), 8: ['восемь', 'восьми', 'восьми', 'восемь', 'восемью', 'восьми'],
-  9: softN('девят'), 10: softN('десят'), 11: softN('одиннадцат'), 12: softN('двенадцат'), 13: softN('тринадцат'),
-  14: softN('четырнадцат'), 15: softN('пятнадцат'), 16: softN('шестнадцат'), 17: softN('семнадцат'), 18: softN('восемнадцат'), 19: softN('девятнадцат')
+const ruSoft = st => [st + 'ь', st + 'и', st + 'и', st + 'ь', st + 'ью', st + 'и'];
+const uaSoft = st => [st + 'ь', st + 'и', st + 'и', st + 'ь', st + 'ьма', st + 'и'];
+const hund6 = (nom, gen, dat, ins, pre) => [nom, gen, dat, nom, ins, pre];
+const NL = {
+  ru: {
+    one: { m: ['один', 'одного', 'одному', 'один', 'одним', 'одном'], f: ['одна', 'одной', 'одной', 'одну', 'одной', 'одной'], n: ['одно', 'одного', 'одному', 'одно', 'одним', 'одном'] },
+    two: { m: ['два', 'двух', 'двум', 'два', 'двумя', 'двух'], f: ['две', 'двух', 'двум', 'две', 'двумя', 'двух'] },
+    small: { 0: ['ноль', 'нуля', 'нулю', 'ноль', 'нулём', 'нуле'], 3: ['три', 'трёх', 'трём', 'три', 'тремя', 'трёх'], 4: ['четыре', 'четырёх', 'четырём', 'четыре', 'четырьмя', 'четырёх'],
+      5: ruSoft('пят'), 6: ruSoft('шест'), 7: ruSoft('сем'), 8: ['восемь', 'восьми', 'восьми', 'восемь', 'восемью', 'восьми'], 9: ruSoft('девят'), 10: ruSoft('десят'),
+      11: ruSoft('одиннадцат'), 12: ruSoft('двенадцат'), 13: ruSoft('тринадцат'), 14: ruSoft('четырнадцат'), 15: ruSoft('пятнадцат'), 16: ruSoft('шестнадцат'),
+      17: ruSoft('семнадцат'), 18: ruSoft('восемнадцат'), 19: ruSoft('девятнадцат') },
+    tens: { 2: ruSoft('двадцат'), 3: ruSoft('тридцат'), 4: ['сорок', 'сорока', 'сорока', 'сорок', 'сорока', 'сорока'],
+      5: ['пятьдесят', 'пятидесяти', 'пятидесяти', 'пятьдесят', 'пятьюдесятью', 'пятидесяти'], 6: ['шестьдесят', 'шестидесяти', 'шестидесяти', 'шестьдесят', 'шестьюдесятью', 'шестидесяти'],
+      7: ['семьдесят', 'семидесяти', 'семидесяти', 'семьдесят', 'семьюдесятью', 'семидесяти'], 8: ['восемьдесят', 'восьмидесяти', 'восьмидесяти', 'восемьдесят', 'восемьюдесятью', 'восьмидесяти'],
+      9: ['девяносто', 'девяноста', 'девяноста', 'девяносто', 'девяноста', 'девяноста'] },
+    hund: { 1: ['сто', 'ста', 'ста', 'сто', 'ста', 'ста'], 2: hund6('двести', 'двухсот', 'двумстам', 'двумястами', 'двухстах'), 3: hund6('триста', 'трёхсот', 'трёмстам', 'тремястами', 'трёхстах'),
+      4: hund6('четыреста', 'четырёхсот', 'четырёмстам', 'четырьмястами', 'четырёхстах'), 5: hund6('пятьсот', 'пятисот', 'пятистам', 'пятьюстами', 'пятистах'),
+      6: hund6('шестьсот', 'шестисот', 'шестистам', 'шестьюстами', 'шестистах'), 7: hund6('семьсот', 'семисот', 'семистам', 'семьюстами', 'семистах'),
+      8: hund6('восемьсот', 'восьмисот', 'восьмистам', 'восемьюстами', 'восьмистах'), 9: hund6('девятьсот', 'девятисот', 'девятистам', 'девятьюстами', 'девятистах') },
+    big: { 1: { one: ['тысяча', 'тысячи', 'тысяче', 'тысячу', 'тысячей', 'тысяче'], many: ['тысяч', 'тысяч', 'тысячам', 'тысяч', 'тысячами', 'тысячах'], few: 'тысячи', g: 'f' },
+      2: { one: ['миллион', 'миллиона', 'миллиону', 'миллион', 'миллионом', 'миллионе'], many: ['миллионов', 'миллионов', 'миллионам', 'миллионов', 'миллионами', 'миллионах'], few: 'миллиона', g: 'm' },
+      3: { one: ['миллиард', 'миллиарда', 'миллиарду', 'миллиард', 'миллиардом', 'миллиарде'], many: ['миллиардов', 'миллиардов', 'миллиардам', 'миллиардов', 'миллиардами', 'миллиардах'], few: 'миллиарда', g: 'm' } },
+    whole: { one: ['целая', 'целой', 'целой', 'целую', 'целой', 'целой'], many: ['целых', 'целых', 'целым', 'целых', 'целыми', 'целых'] },
+    den: ['десят', 'сот', 'тысячн', 'десятитысячн', 'стотысячн', 'миллионн'],
+    adjOne: ['ая', 'ой', 'ой', 'ую', 'ой', 'ой'], adjMany: ['ых', 'ых', 'ым', 'ых', 'ыми', 'ых'],
+    ord: { 0: 'нулев', 1: 'перв', 2: 'втор', 3: 'трет', 4: 'четвёрт', 5: 'пят', 6: 'шест', 7: 'седьм', 8: 'восьм', 9: 'девят', 10: 'десят', 11: 'одиннадцат', 12: 'двенадцат',
+      13: 'тринадцат', 14: 'четырнадцат', 15: 'пятнадцат', 16: 'шестнадцат', 17: 'семнадцат', 18: 'восемнадцат', 19: 'девятнадцат', 20: 'двадцат', 30: 'тридцат', 40: 'сороков',
+      50: 'пятидесят', 60: 'шестидесят', 70: 'семидесят', 80: 'восьмидесят', 90: 'девяност', 100: 'сот', 200: 'двухсот', 300: 'трёхсот', 400: 'четырёхсот', 500: 'пятисот',
+      600: 'шестисот', 700: 'семисот', 800: 'восьмисот', 900: 'девятисот' },
+    ordBig: { 1: 'тысячн', 2: 'миллионн', 3: 'миллиардн' },
+    ordOi: new Set(['нулев', 'втор', 'шест', 'седьм', 'восьм', 'сороков']),
+    ordEnd: { m: ['ый', 'ого', 'ому', 'ый', 'ым', 'ом'], f: ['ая', 'ой', 'ой', 'ую', 'ой', 'ой'], n: ['ое', 'ого', 'ому', 'ое', 'ым', 'ом'], p: ['ые', 'ых', 'ым', 'ые', 'ыми', 'ых'] },
+    third: { m: ['третий', 'третьего', 'третьему', 'третий', 'третьим', 'третьем'], f: ['третья', 'третьей', 'третьей', 'третью', 'третьей', 'третьей'],
+      n: ['третье', 'третьего', 'третьему', 'третье', 'третьим', 'третьем'], p: ['третьи', 'третьих', 'третьим', 'третьи', 'третьими', 'третьих'] },
+    pre1: 'одно', pre90: 'девяносто',
+    cur: { UAH: { g: 'f', w: ['гривна', 'гривны', 'гривен'], s: ['копейка', 'копейки', 'копеек'] }, USD: { g: 'm', w: ['доллар', 'доллара', 'долларов'], s: ['цент', 'цента', 'центов'] },
+      EUR: { g: 'm', w: ['евро', 'евро', 'евро'], s: ['цент', 'цента', 'центов'] }, RUB: { g: 'm', w: ['рубль', 'рубля', 'рублей'], s: ['копейка', 'копейки', 'копеек'] } }
+  },
+  ua: {
+    one: { m: ['один', 'одного', 'одному', 'один', 'одним', 'одному'], f: ['одна', 'однієї', 'одній', 'одну', 'однією', 'одній'], n: ['одне', 'одного', 'одному', 'одне', 'одним', 'одному'] },
+    two: { m: ['два', 'двох', 'двом', 'два', 'двома', 'двох'], f: ['дві', 'двох', 'двом', 'дві', 'двома', 'двох'] },
+    small: { 0: ['нуль', 'нуля', 'нулю', 'нуль', 'нулем', 'нулі'], 3: ['три', 'трьох', 'трьом', 'три', 'трьома', 'трьох'], 4: ['чотири', 'чотирьох', 'чотирьом', 'чотири', 'чотирма', 'чотирьох'],
+      5: uaSoft("п'ят"), 6: ['шість', 'шести', 'шести', 'шість', 'шістьма', 'шести'], 7: ['сім', 'семи', 'семи', 'сім', 'сьома', 'семи'], 8: ['вісім', 'восьми', 'восьми', 'вісім', 'вісьмома', 'восьми'],
+      9: uaSoft("дев'ят"), 10: uaSoft('десят'), 11: uaSoft('одинадцят'), 12: uaSoft('дванадцят'), 13: uaSoft('тринадцят'), 14: uaSoft('чотирнадцят'), 15: uaSoft("п'ятнадцят"),
+      16: uaSoft('шістнадцят'), 17: uaSoft('сімнадцят'), 18: uaSoft('вісімнадцят'), 19: uaSoft("дев'ятнадцят") },
+    tens: { 2: uaSoft('двадцят'), 3: uaSoft('тридцят'), 4: ['сорок', 'сорока', 'сорока', 'сорок', 'сорока', 'сорока'],
+      5: ["п'ятдесят", "п'ятдесяти", "п'ятдесяти", "п'ятдесят", "п'ятдесятьма", "п'ятдесяти"], 6: ['шістдесят', 'шістдесяти', 'шістдесяти', 'шістдесят', 'шістдесятьма', 'шістдесяти'],
+      7: ['сімдесят', 'сімдесяти', 'сімдесяти', 'сімдесят', 'сімдесятьма', 'сімдесяти'], 8: ['вісімдесят', 'вісімдесяти', 'вісімдесяти', 'вісімдесят', 'вісімдесятьма', 'вісімдесяти'],
+      9: ["дев'яносто", "дев'яноста", "дев'яноста", "дев'яносто", "дев'яноста", "дев'яноста"] },
+    hund: { 1: ['сто', 'ста', 'ста', 'сто', 'ста', 'ста'], 2: hund6('двісті', 'двохсот', 'двомстам', 'двомастами', 'двохстах'), 3: hund6('триста', 'трьохсот', 'трьомстам', 'трьомастами', 'трьохстах'),
+      4: hund6('чотириста', 'чотирьохсот', 'чотирьомстам', 'чотирмастами', 'чотирьохстах'), 5: hund6("п'ятсот", "п'ятисот", "п'ятистам", "п'ятьмастами", "п'ятистах"),
+      6: hund6('шістсот', 'шестисот', 'шестистам', 'шістьмастами', 'шестистах'), 7: hund6('сімсот', 'семисот', 'семистам', 'сьомастами', 'семистах'),
+      8: hund6('вісімсот', 'восьмисот', 'восьмистам', 'вісьмомастами', 'восьмистах'), 9: hund6("дев'ятсот", "дев'ятисот", "дев'ятистам", "дев'ятьмастами", "дев'ятистах") },
+    big: { 1: { one: ['тисяча', 'тисячі', 'тисячі', 'тисячу', 'тисячею', 'тисячі'], many: ['тисяч', 'тисяч', 'тисячам', 'тисяч', 'тисячами', 'тисячах'], few: 'тисячі', g: 'f' },
+      2: { one: ['мільйон', 'мільйона', 'мільйону', 'мільйон', 'мільйоном', 'мільйоні'], many: ['мільйонів', 'мільйонів', 'мільйонам', 'мільйонів', 'мільйонами', 'мільйонах'], few: 'мільйони', g: 'm' },
+      3: { one: ['мільярд', 'мільярда', 'мільярду', 'мільярд', 'мільярдом', 'мільярді'], many: ['мільярдів', 'мільярдів', 'мільярдам', 'мільярдів', 'мільярдами', 'мільярдах'], few: 'мільярди', g: 'm' } },
+    whole: { one: ['ціла', 'цілої', 'цілій', 'цілу', 'цілою', 'цілій'], many: ['цілих', 'цілих', 'цілим', 'цілих', 'цілими', 'цілих'] },
+    den: ['десят', 'сот', 'тисячн', 'десятитисячн', 'стотисячн', 'мільйонн'],
+    adjOne: ['а', 'ої', 'ій', 'у', 'ою', 'ій'], adjMany: ['их', 'их', 'им', 'их', 'ими', 'их'],
+    ord: { 0: 'нульов', 1: 'перш', 2: 'друг', 3: 'трет', 4: 'четверт', 5: "п'ят", 6: 'шост', 7: 'сьом', 8: 'восьм', 9: "дев'ят", 10: 'десят', 11: 'одинадцят', 12: 'дванадцят',
+      13: 'тринадцят', 14: 'чотирнадцят', 15: "п'ятнадцят", 16: 'шістнадцят', 17: 'сімнадцят', 18: 'вісімнадцят', 19: "дев'ятнадцят", 20: 'двадцят', 30: 'тридцят', 40: 'сороков',
+      50: "п'ятдесят", 60: 'шістдесят', 70: 'сімдесят', 80: 'вісімдесят', 90: "дев'яност", 100: 'сот', 200: 'двохсот', 300: 'трьохсот', 400: 'чотирьохсот', 500: "п'ятисот",
+      600: 'шестисот', 700: 'семисот', 800: 'восьмисот', 900: "дев'ятисот" },
+    ordBig: { 1: 'тисячн', 2: 'мільйонн', 3: 'мільярдн' },
+    ordOi: new Set(),
+    ordEnd: { m: ['ий', 'ого', 'ому', 'ий', 'им', 'ому'], f: ['а', 'ої', 'ій', 'у', 'ою', 'ій'], n: ['е', 'ого', 'ому', 'е', 'им', 'ому'], p: ['і', 'их', 'им', 'і', 'ими', 'их'] },
+    third: { m: ['третій', 'третього', 'третьому', 'третій', 'третім', 'третьому'], f: ['третя', 'третьої', 'третій', 'третю', 'третьою', 'третій'],
+      n: ['третє', 'третього', 'третьому', 'третє', 'третім', 'третьому'], p: ['треті', 'третіх', 'третім', 'треті', 'третіми', 'третіх'] },
+    pre1: 'одно', pre90: "дев'яносто",
+    cur: { UAH: { g: 'f', w: ['гривня', 'гривні', 'гривень'], s: ['копійка', 'копійки', 'копійок'] }, USD: { g: 'm', w: ['долар', 'долари', 'доларів'], s: ['цент', 'центи', 'центів'] },
+      EUR: { g: 'm', w: ['євро', 'євро', 'євро'], s: ['цент', 'центи', 'центів'] }, RUB: { g: 'm', w: ['рубль', 'рублі', 'рублів'], s: ['копійка', 'копійки', 'копійок'] } }
+  }
 };
-const N_TENS = { 2: softN('двадцат'), 3: softN('тридцат'), 4: ['сорок', 'сорока', 'сорока', 'сорок', 'сорока', 'сорока'],
-  5: ['пятьдесят', 'пятидесяти', 'пятидесяти', 'пятьдесят', 'пятьюдесятью', 'пятидесяти'],
-  6: ['шестьдесят', 'шестидесяти', 'шестидесяти', 'шестьдесят', 'шестьюдесятью', 'шестидесяти'],
-  7: ['семьдесят', 'семидесяти', 'семидесяти', 'семьдесят', 'семьюдесятью', 'семидесяти'],
-  8: ['восемьдесят', 'восьмидесяти', 'восьмидесяти', 'восемьдесят', 'восемьюдесятью', 'восьмидесяти'],
-  9: ['девяносто', 'девяноста', 'девяноста', 'девяносто', 'девяноста', 'девяноста'] };
-const hundN = (nom, st, dat, ins, pre) => [nom, st, dat, nom, ins, pre];
-const N_HUND = { 1: ['сто', 'ста', 'ста', 'сто', 'ста', 'ста'],
-  2: hundN('двести', 'двухсот', 'двумстам', 'двумястами', 'двухстах'), 3: hundN('триста', 'трёхсот', 'трёмстам', 'тремястами', 'трёхстах'),
-  4: hundN('четыреста', 'четырёхсот', 'четырёмстам', 'четырьмястами', 'четырёхстах'), 5: hundN('пятьсот', 'пятисот', 'пятистам', 'пятьюстами', 'пятистах'),
-  6: hundN('шестьсот', 'шестисот', 'шестистам', 'шестьюстами', 'шестистах'), 7: hundN('семьсот', 'семисот', 'семистам', 'семьюстами', 'семистах'),
-  8: hundN('восемьсот', 'восьмисот', 'восьмистам', 'восемьюстами', 'восьмистах'), 9: hundN('девятьсот', 'девятисот', 'девятистам', 'девятьюстами', 'девятистах') };
-// формы «тысяча / миллион / миллиард»: [ед. число по падежам], [мн. число по падежам], [им./вин. при 2–4]
-const N_BIG = {
-  1: { one: ['тысяча', 'тысячи', 'тысяче', 'тысячу', 'тысячей', 'тысяче'], many: ['тысяч', 'тысяч', 'тысячам', 'тысяч', 'тысячами', 'тысячах'], few: 'тысячи', g: 'f' },
-  2: { one: ['миллион', 'миллиона', 'миллиону', 'миллион', 'миллионом', 'миллионе'], many: ['миллионов', 'миллионов', 'миллионам', 'миллионов', 'миллионами', 'миллионах'], few: 'миллиона', g: 'm' },
-  3: { one: ['миллиард', 'миллиарда', 'миллиарду', 'миллиард', 'миллиардом', 'миллиарде'], many: ['миллиардов', 'миллиардов', 'миллиардам', 'миллиардов', 'миллиардами', 'миллиардах'], few: 'миллиарда', g: 'm' }
-};
-function smallWords(n, c, g) {
-  if (n === 1) return N_ONE[g][c];
-  if (n === 2) return N_TWO[g === 'f' ? 'f' : 'm'][c];
-  return N_SMALL[n][c];
+const LN = l => NL[l] || NL.ru;
+// 0 — «один», 1 — «два-четыре», 2 — «пять и больше» (по последним двум цифрам)
+function plural3(d) {
+  const r100 = +String(d).slice(-2), r10 = r100 % 10;
+  if (r10 === 1 && r100 !== 11) return 0;
+  if (r10 >= 2 && r10 <= 4 && (r100 < 12 || r100 > 14)) return 1;
+  return 2;
 }
-function tripletWords(v, c, g) {
+function smallWords(L, n, c, g) {
+  if (n === 1) return L.one[g === 'f' || g === 'n' ? g : 'm'][c];
+  if (n === 2) return L.two[g === 'f' ? 'f' : 'm'][c];
+  return L.small[n][c];
+}
+function tripletWords(L, v, c, g) {
   const w = [], hd = Math.floor(v / 100), r = v % 100;
-  if (hd) w.push(N_HUND[hd][c]);
-  if (r >= 20) { w.push(N_TENS[Math.floor(r / 10)][c]); if (r % 10) w.push(smallWords(r % 10, c, g)); }
-  else if (r) w.push(smallWords(r, c, g));
+  if (hd) w.push(L.hund[hd][c]);
+  if (r >= 20) { w.push(L.tens[Math.floor(r / 10)][c]); if (r % 10) w.push(smallWords(L, r % 10, c, g)); }
+  else if (r) w.push(smallWords(L, r, c, g));
   return w;
 }
-function bigNoun(k, v, c) {
-  const B = N_BIG[k], r10 = v % 10, r100 = v % 100;
-  const one = r10 === 1 && r100 !== 11, few = r10 >= 2 && r10 <= 4 && (r100 < 12 || r100 > 14);
-  if (one) return B.one[c];
-  if ((c === 0 || c === 3) && few) return B.few;
+function bigNoun(L, k, v, c) {
+  const B = L.big[k], p = plural3(v);
+  if (p === 0) return B.one[c];
+  if ((c === 0 || c === 3) && p === 1) return B.few;
   return B.many[c];
 }
-// digits — строка из цифр; caseName — nom/gen/dat/acc/ins/pre; g — m/f/n. Возвращает null, если число слишком большое
-function numberToWords(digits, caseName, g) {
-  const c = Math.max(0, CASES.indexOf(caseName)), d = String(digits).replace(/^0+(?=\d)/, '');
+const groupsOf = d => { const gs = []; for (let i = d.length; i > 0; i -= 3) gs.push(+d.slice(Math.max(0, i - 3), i)); return gs; };
+// digits — строка цифр; formal — «одна тысяча», «один миллион» (как в документах). null — число слишком большое
+function numberToWords(digits, caseName, g, lang, formal) {
+  const L = LN(lang), c = Math.max(0, CASES.indexOf(caseName)), d = String(digits).replace(/^0+(?=\d)/, '');
   if (d.length > 12) return null;
-  if (/^0+$/.test(d)) return N_SMALL[0][c];
-  const groups = [];
-  for (let i = d.length; i > 0; i -= 3) groups.push(+d.slice(Math.max(0, i - 3), i));
-  const words = [];
-  for (let k = groups.length - 1; k >= 0; k--) {
-    const v = groups[k];
+  if (/^0+$/.test(d)) return L.small[0][c];
+  const gs = groupsOf(d), words = [];
+  for (let k = gs.length - 1; k >= 0; k--) {
+    const v = gs[k];
     if (!v) continue;
-    if (k === 0) { words.push(...tripletWords(v, c, g || 'm')); continue; }
-    if (v !== 1) words.push(...tripletWords(v, c, N_BIG[k].g));       // ровно 1000 — «тысяча», без «одна»
-    words.push(bigNoun(k, v, c));
+    if (k === 0) { words.push(...tripletWords(L, v, c, g || 'm')); continue; }
+    if (v !== 1 || formal) words.push(...tripletWords(L, v, c, L.big[k].g));
+    words.push(bigNoun(L, k, v, c));
   }
   return words.join(' ');
 }
-// Меняются только отдельные числа; обозначения (М8, АБВГ.123456.001), даты, время, дроби, номера с нулём впереди — не трогаются
-const NUM_RE = /(?<![\p{L}\p{N}_.,:\/\-№#])\d+(?![\p{L}\p{N}_%°]|[.,:\/\-]\p{N})/gu;
+// 3,5 → три целых пять десятых
+function fractionWords(intD, fracD, caseName, lang) {
+  const L = LN(lang), c = Math.max(0, CASES.indexOf(caseName));
+  if (!fracD || fracD.length > L.den.length) return null;
+  const a = numberToWords(intD, caseName, 'f', lang), b = numberToWords(fracD, caseName, 'f', lang);
+  if (a == null || b == null) return null;
+  const one = s => plural3(s.replace(/^0+(?=\d)/, '')) === 0;
+  return a + ' ' + (one(intD) ? L.whole.one[c] : L.whole.many[c]) + ' ' + b + ' ' + L.den[fracD.length - 1] + (one(fracD) ? L.adjOne[c] : L.adjMany[c]);
+}
+// основа для сложных порядковых: 5000 → «пяти», 21000 → «двадцатиодно», 100000 → «сто»
+function compPrefix(L, v) {
+  const w = [], hd = Math.floor(v / 100), r = v % 100;
+  if (hd) w.push(hd === 1 ? 'сто' : L.hund[hd][1]);
+  const t = r >= 20 ? Math.floor(r / 10) : 0, u = r >= 20 ? r % 10 : r;
+  if (t) w.push(t === 9 ? L.pre90 : L.tens[t][1]);
+  if (u) w.push(u === 1 ? L.pre1 : L.small[u] ? L.small[u][1] : L.two.m[1]);
+  return w.join('');
+}
+function ordEnding(L, stem, c, g) {
+  const gg = ['m', 'f', 'n', 'p'].includes(g) ? g : 'm';
+  if (stem === 'трет') return L.third[gg][c];
+  let e = L.ordEnd[gg][c];
+  if (gg === 'm' && (c === 0 || c === 3) && L.ordOi.has(stem)) e = 'ой';
+  return stem + e;
+}
+// 125 → сто двадцать пятый; 2000 → двухтысячный; g: m/f/n/p (мн. число)
+function ordinalWords(digits, caseName, g, lang) {
+  const L = LN(lang), c = Math.max(0, CASES.indexOf(caseName)), d = String(digits).replace(/^0+(?=\d)/, '');
+  if (d.length > 12) return null;
+  const n = +d;
+  if (!n) return ordEnding(L, L.ord[0], c, g);
+  let stem, rest;
+  const r100 = n % 100, r10 = n % 10;
+  if (r100 > 0 && r100 < 20) { stem = L.ord[r100]; rest = n - r100; }
+  else if (r10) { stem = L.ord[r10]; rest = n - r10; }
+  else if (r100) { stem = L.ord[r100]; rest = n - r100; }
+  else if (n % 1000) { stem = L.ord[n % 1000]; rest = n - n % 1000; }
+  else {
+    let k = 1, v = Math.floor(n / 1000) % 1000;
+    while (!v) { k++; v = Math.floor(n / Math.pow(1000, k)) % 1000; }
+    stem = (v === 1 ? '' : compPrefix(L, v)) + L.ordBig[k];
+    rest = n - v * Math.pow(1000, k);
+  }
+  const pre = rest ? numberToWords(String(rest), 'nom', 'm', lang) + ' ' : '';
+  return pre + ordEnding(L, stem, c, g);
+}
+// 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек
+function moneyWords(intD, kopD, cur, lang) {
+  const L = LN(lang), C = L.cur[cur] || L.cur.UAH, d = String(intD).replace(/\D/g, '');
+  const w = numberToWords(d, 'nom', C.g, lang, true);
+  if (w == null) return null;
+  const k = ((kopD || '') + '00').slice(0, 2);
+  return w + ' ' + C.w[plural3(d)] + ' ' + k + ' ' + C.s[plural3(k)];
+}
+// --- поиск чисел в тексте. Не трогаются: обозначения (М8, АБВГ.123456.001), даты, время, проценты, №5, 007, 5-7
+const NB = '(?<![\\p{L}\\p{N}_.,:\\/\\-№#$€₴₽])';
+const INT = '(\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+|\\d+)';     // 1 250 000 — с пробелами между тысячами
+const CARD_RE = new RegExp(NB + INT + '(?:[.,](\\d{1,6}))?(?![\\p{L}\\p{N}_%°]|[.,:\\/\\-]\\p{N}|-\\p{L})', 'gu');
+const ORD_RE = new RegExp(NB + INT + "(-[а-яёіїєґ']{1,3})?(?![\\p{L}\\p{N}_%°]|[.,:\\/\\-]\\p{N})", 'gu');
+const CUR_WORDS = "грн(?:\\.(?=\\s+[\\p{Ll}\\d]))?|гривен|гривны|гривна|гривень|гривні|гривня|UAH|₴|USD|\\$|долл(?:\\.(?=\\s+[\\p{Ll}\\d]))?|долларов|доллара|доллар|доларів|долари|долар|EUR|€|евро|євро|RUB|₽|руб(?:\\.(?=\\s+[\\p{Ll}\\d]))?|рублей|рубля|рубль|рублів|рублі";
+const MONEY_RE = new RegExp('(?<![\\p{L}\\p{N}_.,:\\/\\-№#])([$€₴₽][ \\u00a0]?)?(\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+|\\d+)(?:[.,](\\d{1,2}))?(?![\\p{N}]|[.,:\\/\\-]\\p{N})([ \\u00a0]?(?:' + CUR_WORDS + '))?(?![\\p{L}\\p{N}_%°])', 'gu');
+function curOf(s) {
+  if (/грн|грив|UAH|₴/i.test(s)) return 'UAH';
+  if (/\$|USD|долл|долар/i.test(s)) return 'USD';
+  if (/€|EUR|евро|євро/i.test(s)) return 'EUR';
+  if (/₽|RUB|руб/i.test(s)) return 'RUB';
+  return null;
+}
+const zeroLed = s => s.length > 1 && s[0] === '0';
+// p: { m: card|ord|money, l: ru|ua, c: падеж, g: m|f|n|p, cur: UAH|USD|EUR|RUB, br: цифры + слова в скобках }
 function numbersToWords(t, p) {
-  const o = p || {};
-  return t.replace(NUM_RE, m => (m.length > 1 && m[0] === '0') ? m : (numberToWords(m, o.c || 'nom', o.g || 'm') || m));
+  const o = p || {}, l = o.l === 'ua' ? 'ua' : 'ru', c = o.c || 'nom', g = o.g || 'm';
+  // Порядковые и суммы: если в тексте есть числа с окончанием (5-й) или с валютой (грн, $), меняются только они
+  if (o.m === 'ord') {
+    const only = [...t.matchAll(ORD_RE)].some(x => x[2]);
+    return t.replace(ORD_RE, (m, d, suf) => {
+      const digits = d.replace(/\D/g, '');
+      if (zeroLed(digits) || (only && !suf)) return m;
+      return ordinalWords(digits, c, g, l) || m;
+    });
+  }
+  if (o.m === 'money') {
+    const only = [...t.matchAll(MONEY_RE)].some(x => x[1] || x[4]);
+    return t.replace(MONEY_RE, (m, pre, d, kop, post) => {
+      const digits = d.replace(/\D/g, '');
+      if (zeroLed(digits) || (only && !pre && !post)) return m;
+      const w = moneyWords(digits, kop, curOf((pre || '') + (post || '')) || o.cur || 'UAH', l);
+      if (w == null) return m;
+      return o.br ? m + ' (' + w + ')' : w;
+    });
+  }
+  return t.replace(CARD_RE, (m, d, fr) => {
+    const digits = d.replace(/\D/g, '');
+    if (zeroLed(digits)) return m;
+    return (fr ? fractionWords(digits, fr, c, l) : numberToWords(digits, c, g === 'p' ? 'm' : g, l)) || m;
+  });
 }
 /*CORE-END*/
 
@@ -588,7 +755,7 @@ function numbersToWords(t, p) {
 const TABS = ['layout', 'case', 'clean', 'replace', 'num'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { toasts: 'all', order: TABS.slice() }, num: { c: 'nom', g: 'm' } });
+  ui: { toasts: 'all', order: TABS.slice() }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num'];
 function load() {
@@ -601,7 +768,8 @@ function load() {
         text: typeof s.text === 'string' ? s.text : '',
         steps: Array.isArray(s.steps) ? s.steps.filter(x => x && STEP_TYPES.includes(x.type)) : [],
         prot: { ...d.prot, ...(s.prot || {}) }, fr: { ...d.fr, ...(s.fr || {}) },
-        num: { c: s.num && CASES.includes(s.num.c) ? s.num.c : 'nom', g: s.num && ['m', 'f', 'n'].includes(s.num.g) ? s.num.g : 'm' },
+        num: (() => { const n = s.num || {}; return { m: ['card', 'ord', 'money'].includes(n.m) ? n.m : 'card', l: n.l === 'ua' ? 'ua' : 'ru',
+          c: CASES.includes(n.c) ? n.c : 'nom', g: ['m', 'f', 'n', 'p'].includes(n.g) ? n.g : 'm', cur: ['UAH', 'USD', 'EUR', 'RUB'].includes(n.cur) ? n.cur : 'UAH', br: !!n.br }; })(),
         ui: { toasts: s.ui && s.ui.toasts === 'warn' ? 'warn' : 'all', order: fixOrder(s.ui && s.ui.order) } };
     }
   } catch (e) { /* пусто или повреждено */ }
@@ -667,10 +835,16 @@ const NAMES = {
   clean: { all: 'Очистка: всё', spaces: 'Двойные пробелы', empty: 'Пустые строки', join: 'Склеить строки', hyphen: 'Переносы слов', trim: 'Пробелы по краям' }
 };
 const cut = (s, n) => { s = String(s).replace(/\n/g, '↵'); return s.length > n ? s.slice(0, n) + '…' : s; };
-const CASE_SHORT = { nom: 'им.', gen: 'род.', dat: 'дат.', acc: 'вин.', ins: 'тв.', pre: 'пр.' }, GEN_SHORT = { m: 'м.р.', f: 'ж.р.', n: 'ср.р.' };
+const CASE_SHORT = { nom: 'им.', gen: 'род.', dat: 'дат.', acc: 'вин.', ins: 'тв.', pre: 'пр.' }, GEN_SHORT = { m: 'м.р.', f: 'ж.р.', n: 'ср.р.', p: 'мн.ч.' };
+const CUR_SHORT = { UAH: 'грн', USD: '$', EUR: '€', RUB: '₽' };
+function numLabel(p) {
+  const ua = p.l === 'ua' ? ' · укр' : '';
+  if (p.m === 'money') return 'Сумма прописью, ' + (CUR_SHORT[p.cur] || 'грн') + (p.br ? ', в скобках' : '') + ua;
+  return (p.m === 'ord' ? 'Порядковые, ' : 'Числа словами, ') + (CASE_SHORT[p.c] || 'им.') + ' ' + (GEN_SHORT[p.g] || 'м.р.') + ua;
+}
 function stepLabel(s) {
   const base = s.type === 'replace' ? '«' + cut(s.p.find, 14) + '» → «' + cut(s.p.repl, 14) + '»'
-    : s.type === 'num' ? 'Числа словами, ' + (CASE_SHORT[s.p.c] || 'им.') + ' ' + (GEN_SHORT[s.p.g] || 'м.р.')
+    : s.type === 'num' ? numLabel(s.p)
     : ((NAMES[s.type] && NAMES[s.type][s.p]) || s.type);
   return Array.isArray(s.r) ? base + ' · кусок' : base;
 }
@@ -784,17 +958,29 @@ function bindCmd(b, run) {
 }
 document.querySelectorAll('#tools .tb[data-t]').forEach(b => bindCmd(b, sel => doOp(b.dataset.t, b.dataset.p, sel)));
 
-/* ---------- числа словами: выбор падежа и рода ---------- */
+/* ---------- числа словами: режим, язык, падеж, род, валюта ---------- */
+const numParams = () => {
+  const n = state.num;
+  return { m: n.m, l: n.l, c: n.m === 'money' ? 'nom' : n.c, g: n.m === 'ord' ? n.g : (n.g === 'p' ? 'm' : n.g), cur: n.cur, br: !!n.br };
+};
 function updNum() {
-  document.querySelectorAll('#numCase .seg').forEach(b => b.classList.toggle('on', b.dataset.v === state.num.c));
-  document.querySelectorAll('#numGen .seg').forEach(b => b.classList.toggle('on', b.dataset.v === state.num.g));
-  $('#numHint').textContent = 'Пример: 1 → ' + numberToWords('1', state.num.c, state.num.g) + ', 22 → ' + numberToWords('22', state.num.c, state.num.g) + ', 1500 → ' + numberToWords('1500', state.num.c, state.num.g);
+  const n = state.num, P = numParams();
+  const mark = (id, v) => document.querySelectorAll(id + ' .seg').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  mark('#numMode', n.m); mark('#numLang', n.l); mark('#numCase', P.c); mark('#numGen', P.g); mark('#numCur', n.cur);
+  const money = n.m === 'money';
+  $('#numGen').hidden = money; $('#numCur').hidden = !money; $('#numBrWrap').hidden = !money;
+  $('#numGen .seg[data-v="p"]').hidden = n.m !== 'ord';
+  document.querySelectorAll('#numCase .seg').forEach(b => { b.disabled = money; });
+  $('#numBr').checked = !!n.br;
+  const ex = n.m === 'money' ? ['1250,50'] : n.m === 'ord' ? ['1', '22', '2000'] : ['1', '22', '3,5'];
+  $('#numHint').textContent = (money ? 'Сумма всегда в им. падеже. ' : '') + 'Пример: ' + ex.map(x => x + ' → ' + numbersToWords(x, { ...P, br: false })).join(', ');
 }
-[['#numCase', 'c'], ['#numGen', 'g']].forEach(([id, key]) => document.querySelectorAll(id + ' .seg').forEach(b => {
+[['#numMode', 'm'], ['#numLang', 'l'], ['#numCase', 'c'], ['#numGen', 'g'], ['#numCur', 'cur']].forEach(([id, key]) => document.querySelectorAll(id + ' .seg').forEach(b => {
   b.addEventListener('mousedown', e => e.preventDefault());       // выделение в тексте не пропадает
   b.addEventListener('click', () => { state.num[key] = b.dataset.v; updNum(); save(); });
 }));
-bindCmd($('#numGo'), sel => doOp('num', { c: state.num.c, g: state.num.g }, sel));
+$('#numBr').addEventListener('change', e => { state.num.br = e.target.checked; save(); });
+bindCmd($('#numGo'), sel => doOp('num', numParams(), sel));
 updNum();
 
 /* ---------- вкладки команд (телефон) ---------- */
@@ -972,7 +1158,10 @@ function helpSheet() {
         h('li', { text: 'Раскладка меняет только слова, в которых есть буквы «не той» раскладки. Опечатки она не исправляет.' }),
         h('li', { text: '«Склеить строки» соединяет строки внутри абзаца (как после копирования из PDF); абзацы и пункты списков остаются.' }),
         h('li', { text: 'В регулярных выражениях замена понимает $1 и \\n.' }),
-        h('li', { text: '«Числа»: выберите падеж и род (род нужен для 1 и 2: один/одна/одно, два/две) и нажмите «Числа → словами». Меняются только отдельно стоящие числа; обозначения (М8, АБВГ.123456.001), даты, время, дроби и проценты остаются цифрами. До 999 миллиардов.' }),
+        h('li', { text: '«Числа», режим «пять»: 5 → пять, 3,5 → три целых пять десятых. Выберите падеж и род (род нужен для 1 и 2: один/одна/одно).' }),
+        h('li', { text: 'Режим «пятый» — порядковые: 5 → пятый, 2000 → двухтысячный; «мн» — пятые. Если в тексте есть числа с окончанием (5-й, 21-го), меняются только они.' }),
+        h('li', { text: 'Режим «сумма» — прописью, как в документах: 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек. Валюта берётся из текста (грн, $, €, ₽, USD…), иначе — выбранная. Если в тексте есть суммы с валютой, меняются только они. «В скобках» оставляет цифры и добавляет слова в скобках.' }),
+        h('li', { text: '«рус / укр» — язык числительных. Обозначения (М8, АБВГ.123456.001), даты, время, проценты, №5, 007, 5-7 остаются цифрами. До 999 миллиардов.' }),
         h('li', { text: 'Тема, подсказки, порядок групп команд и исключения регистра — в ⋮ → «Оформление и настройки».' }),
         h('li', { text: 'Текст и настройки хранятся только в этом браузере и никуда не отправляются.' })),
       h('div', { class: 'btns' }, btn('Понятно', () => api.close(), 'primary')));
