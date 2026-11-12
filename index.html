@@ -130,6 +130,9 @@ button{font:inherit;color:inherit;cursor:pointer}
   .tabbed .tb{flex:none;white-space:nowrap;padding:2px 16px}
   .tabbed .numrow{grid-template-columns:auto auto;justify-content:start}
   .tabbed #numGo{padding:2px 28px}
+  /* вкладок много — на компьютере они переносятся на следующую строку, а не уезжают за край */
+  .tabbed .ttabs{flex-wrap:wrap;overflow:visible;row-gap:3px}
+  .tabbed .ttabmenu{display:none}
 }
 .tabbed .ttabs{display:flex}
 .tabbed .tgroup{display:none;border:2px solid var(--accent);border-radius:0 0 14px 14px;box-shadow:none}
@@ -644,7 +647,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.21';
+const APP_VERSION = '2026-11-12.22';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
