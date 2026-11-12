@@ -681,7 +681,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.38';
+const APP_VERSION = '2026-11-12.39';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1699,7 +1699,14 @@ function fixMojiWord(w) {
   return null;
 }
 function fixEncoding(t) {
-  return t.replace(/[^\s\d.,;:!?()\[\]{}"'/\\<>=+_|@#$%^&*~`]+/gu, w => fixMojiWord(w) ?? w);
+  let hit = false;
+  t = t.replace(/[^\s\d.,;:!?()\[\]{}"'/\\<>=+_|@#$%^&*~`]+/gu, w => { const r = fixMojiWord(w); if (r != null) { hit = true; return r; } return w; });
+  // однобуквенные слова (к, с, в, і) — если рядом уже были кракозябры из Windows-1251: «ê» → «к», «³» → «і»
+  if (hit) {
+    const T = cpTables();
+    t = t.replace(/(?<![\p{L}\p{N}])[\u00A8-\u00FF](?![\p{L}\p{N}])/gu, c => { const b = T.w1252.from.get(c), r = b != null ? T.w1251.to[b] : c; return /[\u0400-\u04FF]/.test(r) ? r : c; });
+  }
+  return t;
 }
 // буквы, сдвинутые на постоянное число позиций (PDF из некоторых программ): ɉɪɢɜɟɬ → Привет
 // Частоты букв (русский + украинский) — по ним выбирается сдвиг, при котором получаются нормальные слова
