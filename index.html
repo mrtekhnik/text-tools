@@ -37,7 +37,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 /* --- шапка --- */
 .top{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:env(safe-area-inset-top,0px);border-bottom:1px solid var(--line)}
 .bar{display:flex;align-items:center;gap:8px;padding:8px 0}
-.bar h1{font-size:20px;margin:0;letter-spacing:-.01em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar h1{font-size:22px;margin:0;letter-spacing:-.01em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hdr-btns{display:flex;gap:6px;flex:none}
 .iconbtn{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--surface);
   font-size:22px;line-height:1;color:var(--muted);flex:none}
@@ -237,9 +237,9 @@ button{font:inherit;color:inherit;cursor:pointer}
   .top{position:static;flex:none}
   .bar{padding:5px 0;gap:6px}
   /* название остаётся; «Править» и «✕» поднимаются в шапку, счётчик — в угол поля */
-  .bar h1{font-size:15px;line-height:1.12;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;text-overflow:clip}
+  .bar h1{font-size:17px;line-height:1.1;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;text-overflow:clip}
   .hdr-btns{gap:4px}
-  .iconbtn{width:38px;height:38px;border-radius:12px;font-size:19px}
+  .iconbtn{width:36px;height:38px;border-radius:12px;font-size:18px}
   .pane.in>.phead{display:none}
   .pane.in{position:relative}
   .cntover{position:absolute;right:8px;bottom:4px;flex:none;font-size:11px;padding:1px 6px;border-radius:8px;background:var(--surface);opacity:.9;pointer-events:none;max-width:70%}
@@ -283,7 +283,7 @@ button{font:inherit;color:inherit;cursor:pointer}
   body.editing .steps,body.editing #actbar,body.editing .pane.out{display:none}
   body.editing .app{grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"in" "tools"}
 }
-@media (max-width:370px){.iconbtn{width:34px;height:34px;font-size:17px}.bar h1{font-size:14px}.hdr-btns{gap:3px}}
+@media (max-width:370px){.iconbtn{width:33px;height:36px;font-size:16px}.bar h1{font-size:15.5px}.hdr-btns{gap:3px}}
 @media (min-width:900px){.frrow{display:flex;align-items:center;gap:8px}.frrow .frinfo{flex:1}}
 
 /* --- окна --- */
@@ -644,7 +644,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.20';
+const APP_VERSION = '2026-11-12.21';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
