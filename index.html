@@ -57,7 +57,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 /* --- окна текста и результата --- */
 .app{display:grid;gap:14px;padding:12px 12px 24px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  grid-template-areas:"in out" "steps steps" "bar bar" "tools tools"}
+  grid-template-areas:"in out" "steps steps" "tools tools"}
 .pane.in{grid-area:in}.tools{grid-area:tools}.steps{grid-area:steps}.pane.out{grid-area:out}
 .area{min-height:42vh}
 #actbar{display:none}
@@ -192,8 +192,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .rowlbl{grid-column:1/-1;flex:none;align-self:center;font-size:12.5px;font-weight:700;color:var(--muted);padding-right:2px}
 .tgroup .tbtns+.tbtns{margin-top:6px}
 .numback{margin-top:8px}
-.toolsbar{display:none;grid-area:bar}
-@media (min-width:900px){.toolsbar{display:flex;justify-content:flex-end;gap:16px;margin:-8px 0 -6px}.toolsbar:has(+ .tools.tabbed){display:none}}
+.iconbtn svg{display:block;margin:auto}
+.hsep{width:1px;height:28px;background:var(--line);margin:0 4px;flex:none}
+@media (max-width:899px){.deskonly{display:none!important}}
 .dwhich{margin-top:8px;align-items:center;position:relative}
 .dpick{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
 .dprev{font-size:17px;font-weight:700;padding:10px 12px;border-radius:12px;background:var(--accent-soft);word-break:break-word}
@@ -348,6 +349,9 @@ body.modal-lock{overflow:hidden}
     <div class="bar">
       <h1>Текстовые инструменты</h1>
       <div class="hdr-btns">
+        <button class="iconbtn deskonly" id="topBtn" type="button" aria-label="Наверх" title="Наверх"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14M12 20V9M7 13l5-5 5 5"/></svg></button>
+        <button class="iconbtn deskonly" id="foldBtn" type="button" aria-label="Свернуть все группы" title="Свернуть все группы"></button>
+        <span class="hsep deskonly" aria-hidden="true"></span>
         <button class="iconbtn" id="palBtn" type="button" aria-label="Найти команду" title="Найти команду (Ctrl+K)">🔍</button>
         <button class="iconbtn" id="undoBtn" type="button" aria-label="Отменить" title="Отменить (Ctrl+Z)">↶</button>
         <button class="iconbtn" id="redoBtn" type="button" aria-label="Повторить" title="Повторить (Ctrl+Y)">↷</button>
@@ -386,10 +390,6 @@ body.modal-lock{overflow:hidden}
 
   <section class="steps" id="steps" aria-live="polite"></section>
 
-  <div class="toolsbar" id="toolsBar">
-    <button class="linkbtn" type="button" id="collapseAll" title="Свернуть все группы команд">▸ Свернуть все</button>
-    <button class="linkbtn" type="button" id="expandAll" title="Развернуть все группы команд">▾ Развернуть все</button>
-  </div>
   <section class="tools" id="tools">
     <div class="ttabs" role="tablist">
       <button class="ttabmenu" id="tabMenuBtn" type="button" aria-label="Все вкладки" aria-expanded="false" title="Все вкладки списком">▲</button>
@@ -671,7 +671,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.25';
+const APP_VERSION = '2026-11-12.26';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -3282,8 +3282,22 @@ function manageDateTpls() {
 renderDateIns();
 
 /* ---------- свернуть / развернуть все группы (компьютер, «Все группы сразу») ---------- */
-$('#collapseAll').addEventListener('click', () => { state.ui.collapsed = TABS.slice(); applyCollapsed(); relayout(); save(); });
-$('#expandAll').addEventListener('click', () => { state.ui.collapsed = []; applyCollapsed(); relayout(); save(); });
+// одна кнопка в шапке: если развёрнута хоть одна группа — свернуть все, иначе развернуть все
+const foldBtn = $('#foldBtn');
+const SVG_FOLD = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l5 5 5-5M7 20l5-5 5 5"/></svg>';
+const SVG_UNFOLD = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9l5-5 5 5M7 15l5 5 5-5"/></svg>';
+const anyOpen = () => TABS.some(g => !state.ui.collapsed.includes(g) && !state.ui.hidden.includes(g));
+function updFold() {
+  const open = anyOpen(), t = open ? 'Свернуть все группы' : 'Развернуть все группы';
+  foldBtn.innerHTML = open ? SVG_FOLD : SVG_UNFOLD;
+  foldBtn.title = t; foldBtn.setAttribute('aria-label', t);
+  foldBtn.hidden = $('#tools').classList.contains('tabbed');       // во вкладках сворачивать нечего
+}
+foldBtn.addEventListener('click', () => { state.ui.collapsed = anyOpen() ? TABS.slice() : []; applyCollapsed(); relayout(); save(); });
+$('#topBtn').addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+// значок следит за состоянием: свернули группу вручную или переключили режим — обновится сам
+new MutationObserver(updFold).observe($('#tools'), { subtree: true, attributes: true, attributeFilter: ['class'] });
+updFold();
 
 /* ---------- запуск ---------- */
 applyTheme();
