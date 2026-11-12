@@ -113,7 +113,14 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tgroup.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .tgroup.on>.tlbl.gtitle{background:var(--accent);color:var(--accent-ink)}
 /* вкладками (телефон всегда, компьютер — по настройке): активная вкладка залита цветом, панель её команд — в цветной рамке */
-.tabbed{display:flex!important;flex-direction:column;gap:0!important}
+.tabbed{display:flex!important;flex-direction:column;gap:0!important;align-items:stretch!important}
+@media (min-width:900px){
+  /* вкладками на компьютере: команды строкой слева направо, кнопки по ширине текста */
+  .tabbed .tbtns{display:flex;flex-wrap:wrap;gap:6px}
+  .tabbed .tb{flex:none;white-space:nowrap;padding:2px 16px}
+  .tabbed .numrow{grid-template-columns:auto auto;justify-content:start}
+  .tabbed #numGo{padding:2px 28px}
+}
 .tabbed .ttabs{display:flex}
 .tabbed .tgroup{display:none;border:2px solid var(--accent);border-radius:0 0 14px 14px;box-shadow:none}
 .tabbed .tgroup.on{display:block;box-shadow:none}
@@ -410,7 +417,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.11';
+const APP_VERSION = '2026-11-12.12';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
