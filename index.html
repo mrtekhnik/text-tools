@@ -192,6 +192,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .rowlbl{grid-column:1/-1;flex:none;align-self:center;font-size:12.5px;font-weight:700;color:var(--muted);padding-right:2px}
 .tgroup .tbtns+.tbtns{margin-top:6px}
 .numback{margin-top:8px}
+.dwhich{margin-top:8px;align-items:center;position:relative}
+.dpick{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
+.dprev{font-size:17px;font-weight:700;padding:10px 12px;border-radius:12px;background:var(--accent-soft);word-break:break-word}
 .tbtns.wide{grid-template-columns:repeat(auto-fill,minmax(178px,1fr))}
 .tbtns.wide .tb{white-space:nowrap;font-variant-numeric:tabular-nums}
 .fnrow{display:grid;grid-template-columns:minmax(0,1fr) 76px auto;gap:6px;margin-bottom:5px}
@@ -479,13 +482,22 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="dim" data-p="m2mm" title="1,5 м → 1500 мм">м → мм</button>
       </div>
       <div class="tbtns">
-        <span class="rowlbl">Даты</span>
+        <span class="rowlbl">Даты в тексте</span>
         <button class="tb" type="button" data-t="date" data-p="dmy" title="Любые даты → ДД.ММ.ГГГГ">12.11.2026</button>
         <button class="tb" type="button" data-t="date" data-p="iso" title="Любые даты → ГГГГ-ММ-ДД (удобно в именах файлов)">2026-11-12</button>
         <button class="tb" type="button" data-t="date" data-p="slash" title="Любые даты → ДД/ММ/ГГГГ">12/11/2026</button>
         <button class="tb" type="button" data-t="date" data-p="ru" title="Любые даты → словами по-русски">12 ноября 2026 г.</button>
         <button class="tb" type="button" data-t="date" data-p="ua" title="Любые даты → словами по-украински">12 листопада 2026 р.</button>
       </div>
+      <div class="srow dwhich" id="dateWhich">
+        <span class="rowlbl">Вставить дату:</span>
+        <button class="seg" type="button" data-v="today">Сегодня</button>
+        <button class="seg" type="button" data-v="yest">Вчера</button>
+        <button class="seg" type="button" data-v="tom">Завтра</button>
+        <button class="seg" type="button" data-v="custom" title="Выбрать дату в календаре">📅 Дата…</button>
+        <input type="date" id="datePick" class="dpick" tabindex="-1" aria-hidden="true">
+      </div>
+      <div class="tbtns" id="dateIns"></div>
     </div>
     <div class="tgroup" data-g="cols">
       <div class="tlbl gtitle">Столбцы</div>
@@ -653,7 +665,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.23';
+const APP_VERSION = '2026-11-12.24';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1600,13 +1612,32 @@ function translateNumerals(t, p) {
   });
 }
 function numWordsOp(t, p) { return p === 'digits' ? wordsToDigits(t) : translateNumerals(t, p); }
+/* ---------- дата по шаблону ---------- */
+const MON_RU_N = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+const MON_UA_N = ['січень', 'лютий', 'березень', 'квітень', 'травень', 'червень', 'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень'];
+const WD_RU = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+const WD_UA = ['неділя', 'понеділок', 'вівторок', 'середа', 'четвер', "п'ятниця", 'субота'];
+// {ДД} {Д} {ММ} {М} {ГГГГ} {ГГ} {чч} {мин} — цифрами; {месяц} {месяц-им} {місяць} {місяць-наз} {день} {день-ua} — словами
+// (с заглавной буквы в шаблоне — с заглавной в тексте: {Месяц}, {День})
+function dateByTpl(tpl, d) {
+  const num = { 'ДД': pad(d.getDate(), 2), 'Д': String(d.getDate()), 'ММ': pad(d.getMonth() + 1, 2), 'М': String(d.getMonth() + 1),
+    'ГГГГ': String(d.getFullYear()), 'ГГ': pad(d.getFullYear() % 100, 2), 'чч': pad(d.getHours(), 2), 'мин': pad(d.getMinutes(), 2) };
+  const word = { 'месяц': MON_RU[d.getMonth()], 'месяц-им': MON_RU_N[d.getMonth()], 'місяць': MON_UA[d.getMonth()], 'місяць-наз': MON_UA_N[d.getMonth()],
+    'день': WD_RU[d.getDay()], 'день-ua': WD_UA[d.getDay()] };
+  return String(tpl).replace(/\{([^{}]+)\}/g, (m, k) => {
+    if (k in num) return num[k];
+    const w = word[k.toLowerCase()];
+    if (w == null) return m;
+    return k[0] !== k[0].toLowerCase() ? w[0].toUpperCase() + w.slice(1) : w;
+  });
+}
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
 const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'format', 'phone', 'fname', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'dense', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'dense', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, dateWhich: 'today', dateCustom: '', dateTpls: [], hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
   sets: [], presets: [], hist: [], num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw'];
@@ -1630,7 +1661,9 @@ function load() {
             affix: { pre: String((u.affix || {}).pre || ''), suf: String((u.affix || {}).suf || '') },
             fname: { tpl: typeof (u.fname || {}).tpl === 'string' ? u.fname.tpl : d.ui.fname.tpl, start: (u.fname || {}).start ?? 1, us: !!(u.fname || {}).us },
             histOn: u.histOn !== false, diffMode: u.diffMode === 'lines' ? 'lines' : 'words',
-            deskWidth: u.deskWidth === 0 ? 0 : Math.max(900, Math.min(2560, +u.deskWidth || 1240)), hl: !!u.hl, joinSep: typeof u.joinSep === 'string' ? u.joinSep : ', ', splitSep: typeof u.splitSep === 'string' && u.splitSep ? u.splitSep : ',',
+            deskWidth: u.deskWidth === 0 ? 0 : Math.max(900, Math.min(2560, +u.deskWidth || 1240)), hl: !!u.hl,
+            dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '',
+            dateTpls: Array.isArray(u.dateTpls) ? u.dateTpls.filter(x => x && typeof x.tpl === 'string').map(x => ({ id: String(x.id || uid0()), tpl: x.tpl })).slice(0, 30) : [], joinSep: typeof u.joinSep === 'string' ? u.joinSep : ', ', splitSep: typeof u.splitSep === 'string' && u.splitSep ? u.splitSep : ',',
             colSpec: typeof u.colSpec === 'string' ? u.colSpec : '', colSep: ['auto', 'tab', 'semi', 'comma', 'bar', 'sp'].includes(u.colSep) ? u.colSep : 'auto', exUniq: u.exUniq !== false,
             freq: u.freq && typeof u.freq === 'object' && !Array.isArray(u.freq) ? Object.fromEntries(Object.entries(u.freq).filter(([, v]) => Array.isArray(v) && v.length === 2 && isFinite(v[0]) && isFinite(v[1])).slice(0, 80)) : {} }; })(),
         sets: Array.isArray(s.sets) ? s.sets.filter(x => x && typeof x.name === 'string' && Array.isArray(x.rules)).map(x => ({ id: x.id || uid0(), name: x.name, rules: x.rules.filter(r => r && typeof r.find === 'string') })) : [],
@@ -2767,7 +2800,7 @@ const KW = {
   'lines:affix': 'префикс суффикс начало конец строки добавить', typo: 'типографика', 'typo:q-ru': 'кавычки елочки', 'typo:q-en': 'кавычки прямые',
   'typo:dash': 'тире дефис', 'typo:hyph': 'тире дефис', 'typo:dec-dot': 'запятая точка десятичная дробь', 'typo:dec-comma': 'точка запятая десятичная дробь',
   nfmt: 'разряды тысячи пробелы число', date: 'дата даты формат', phone: 'телефон номер мобильный', 'fname:go': 'имена файлов шаблон dxf нумерация',
-  'num:go': 'числа словами прописью сумма падеж', 'replace:go': 'найти заменить',
+  dins: 'вставить дату сегодня время число календарь', 'num:go': 'числа словами прописью сумма падеж', 'replace:go': 'найти заменить',
   cols: 'столбцы колонки excel таблица csv', 'cols:stats': 'сумма итоги посчитать', 'cols:sum': 'сумма итого', extract: 'извлечь выписать найти список',
   numw: 'числа словами цифры числительные перевод украинский русский прописью обратно', 'numw:digits': 'цифрами', 'numw:ru-ua': 'украинский перевод', 'numw:ua-ru': 'русский перевод',
   fio: 'фио инициалы фамилия имя отчество', dim: 'размеры', 'dim:x': 'умножить крестик размер', 'dim:dia': 'диаметр', 'dim:sym': 'плюс минус градус допуск',
@@ -2783,9 +2816,10 @@ function allCommands() {
       const id = b.dataset.id || cmdId(b), t = b.dataset.t, txt = b.textContent.trim();
       let label = (t && NAMES[t] && NAMES[t][b.dataset.p]) || txt;
       if (id === 'num:go') label = numLabel(numParams());
+      else if (id.startsWith('dins:')) label = 'Вставить дату: ' + txt;
       else if (id === 'fname:go') label = 'Имена файлов: ' + (fn.tpl.value || '{text}');
       else if (id === 'replace:go') { if (!fr.find.value) return; label = 'Заменить «' + cut(fr.find.value, 16) + '» → «' + cut(fr.repl.value, 16) + '»'; }
-      list.push({ id, label, group: GROUP_NAMES[g], hint: (txt !== label ? txt + ' ' : '') + (b.title || ''), kw: (KW[id] || '') + ' ' + (KW[t || ''] || '') + ' ' + (KW[g] || ''), run: sel => { pressSel = sel; b.click(); } });
+      list.push({ id, label, group: GROUP_NAMES[g], hint: (txt !== label ? txt + ' ' : '') + (b.title || ''), kw: (KW[id] || '') + ' ' + (KW[id.split(':')[0]] || '') + ' ' + (KW[t || ''] || '') + ' ' + (KW[g] || ''), run: sel => { pressSel = sel; b.click(); } });
     });
   });
   state.sets.forEach(s => list.push({ id: 'set:' + s.id, label: 'Набор «' + s.name + '»', group: 'Замена', hint: s.rules.map(r => r.find + ' → ' + r.repl).join('; '), kw: 'набор правил', run: sel => runSet(s, sel) }));
@@ -3135,6 +3169,89 @@ function applyWidth() {
   if (!narrow.matches) relayout();
 }
 applyWidth();
+
+/* ---------- вставить дату по шаблону (в место курсора, как знак) ---------- */
+const DATE_TPLS = [['dmy', '{ДД}.{ММ}.{ГГГГ}'], ['iso', '{ГГГГ}-{ММ}-{ДД}'], ['ru', '{Д} {месяц} {ГГГГ} г.'], ['ua', '{Д} {місяць} {ГГГГ} р.'],
+  ['doc', '«{ДД}» {месяц} {ГГГГ} г.'], ['wd', '{День}, {Д} {месяц}'], ['dt', '{ДД}.{ММ}.{ГГГГ} {чч}:{мин}']];
+const DATE_TOKENS = [['{ДД}', 'день 05'], ['{Д}', 'день 5'], ['{ММ}', 'месяц 03'], ['{М}', 'месяц 3'], ['{ГГГГ}', 'год 2026'], ['{ГГ}', 'год 26'],
+  ['{месяц}', 'ноября'], ['{месяц-им}', 'ноябрь'], ['{місяць}', 'листопада'], ['{місяць-наз}', 'листопад'], ['{день}', 'четверг'], ['{день-ua}', 'четвер'], ['{чч}', 'часы'], ['{мин}', 'минуты']];
+const datePick = $('#datePick');
+function insDate() {
+  const now = new Date(), w = state.ui.dateWhich;
+  if (w === 'custom' && /^\d{4}-\d{2}-\d{2}$/.test(state.ui.dateCustom)) {
+    const [y, m, d] = state.ui.dateCustom.split('-').map(Number);
+    return new Date(y, m - 1, d, now.getHours(), now.getMinutes());
+  }
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + (w === 'yest' ? -1 : w === 'tom' ? 1 : 0), now.getHours(), now.getMinutes());
+}
+var dateMin = '';
+function renderDateIns() {
+  const d = insDate(), hc = new Set(state.ui.hiddenCmd);
+  dateMin = new Date().toDateString() + new Date().getMinutes();
+  document.querySelectorAll('#dateWhich .seg').forEach(b => b.classList.toggle('on', b.dataset.v === state.ui.dateWhich));
+  const pk = $('#dateWhich .seg[data-v="custom"]');
+  pk.textContent = state.ui.dateWhich === 'custom' && state.ui.dateCustom ? '📅 ' + dateByTpl('{ДД}.{ММ}.{ГГГГ}', d) : '📅 Дата…';
+  const mk = (id, tpl) => {
+    const b = keepFocus(h('button', { class: 'tb', type: 'button', 'data-id': id, title: 'Вставить в место курсора. Шаблон: ' + tpl, onclick() { insertSym(dateByTpl(tpl, insDate())); } }, dateByTpl(tpl, d)));
+    b.hidden = hc.has(id);
+    return b;
+  };
+  const user = state.ui.dateTpls || [];
+  $('#dateIns').replaceChildren(h('span', { class: 'rowlbl', text: 'Вставить' }),
+    ...DATE_TPLS.map(([k, tpl]) => mk('dins:' + k, tpl)),
+    ...user.map(u => mk('dins:u' + u.id, u.tpl)),
+    h('button', { class: 'tb', type: 'button', title: 'Свой шаблон даты', onclick() { editDateTpl(null); } }, '＋ шаблон'),
+    user.length ? h('button', { class: 'tb', type: 'button', title: 'Изменить или удалить свои шаблоны', onclick: manageDateTpls }, '✎') : '');
+  if (!touch) relayout();
+}
+document.querySelectorAll('#dateWhich .seg').forEach(b => keepFocus(b).addEventListener('click', () => {
+  if (b.dataset.v === 'custom') {
+    datePick.value = state.ui.dateCustom || todayISO();
+    try { datePick.showPicker(); } catch (e) { datePick.focus(); datePick.click(); }
+    return;
+  }
+  state.ui.dateWhich = b.dataset.v; save(); renderDateIns();
+}));
+datePick.addEventListener('change', () => { if (!datePick.value) return; state.ui.dateCustom = datePick.value; state.ui.dateWhich = 'custom'; save(); renderDateIns(); });
+// подписи кнопок — живые: меняются с датой и временем
+setInterval(() => { if (!document.hidden && dateMin !== new Date().toDateString() + new Date().getMinutes()) renderDateIns(); }, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) renderDateIns(); });
+function editDateTpl(u) {
+  openModal((box, api) => {
+    const inp = h('input', { class: 'field', type: 'text', value: u ? u.tpl : '{ДД}.{ММ}.{ГГГГ}', autocomplete: 'off', spellcheck: 'false' });
+    const prev = h('div', { class: 'dprev' });
+    const upd = () => { prev.textContent = dateByTpl(inp.value, insDate()) || '—'; };
+    inp.addEventListener('input', upd);
+    const chips = h('div', { class: 'srow', style: 'flex-wrap:wrap' }, ...DATE_TOKENS.map(([t, hint]) => keepFocus(h('button', { class: 'seg', type: 'button', title: hint,
+      onclick() { inp.setRangeText(t, inp.selectionStart, inp.selectionEnd, 'end'); inp.focus(); upd(); } }, t))));
+    box.append(h('h2', { text: u ? 'Шаблон даты' : 'Новый шаблон даты' }),
+      h('p', { class: 'msg', text: 'Метки в фигурных скобках заменяются частями даты, остальное остаётся как написано. {Месяц}, {День} с заглавной — слово с заглавной.' }),
+      inp, chips, h('div', { class: 'uilbl', text: 'Будет вставлено' }), prev,
+      h('div', { class: 'btns', style: 'margin-top:12px' },
+        btn('Сохранить', () => {
+          const tpl = inp.value.trim(); if (!tpl) { toast('Шаблон пустой', true); return; }
+          const list = state.ui.dateTpls || (state.ui.dateTpls = []);
+          if (u) u.tpl = tpl; else list.push({ id: uid(), tpl });
+          save(); api.close(); renderDateIns(); toast('✓ Шаблон сохранён');
+        }, 'primary'),
+        btn('Отмена', () => api.close(), 'ghost')));
+    upd();
+    setTimeout(() => inp.focus(), 30);
+  });
+}
+function manageDateTpls() {
+  openModal((box, api) => {
+    const list = h('div', {});
+    const draw = () => list.replaceChildren(...(state.ui.dateTpls || []).map((u, i) => h('div', { class: 'hitem' },
+      h('div', { class: 'hprev', text: dateByTpl(u.tpl, insDate()) }), h('div', { class: 'hmeta', text: u.tpl }),
+      h('div', { class: 'thm', style: 'margin-top:6px' },
+        btn('✎ Изменить', () => { api.close(); editDateTpl(u); }),
+        btn('✕ Удалить', () => { state.ui.dateTpls.splice(i, 1); save(); renderDateIns(); draw(); if (!state.ui.dateTpls.length) api.close(); })))));
+    draw();
+    box.append(h('h2', { text: 'Свои шаблоны даты' }), list, h('div', { class: 'btns', style: 'margin-top:12px' }, btn('Закрыть', () => api.close(), 'primary')));
+  });
+}
+renderDateIns();
 
 /* ---------- запуск ---------- */
 applyTheme();
