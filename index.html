@@ -190,6 +190,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tgroup .tbtns+.tbtns{margin-top:6px}
 .numback{margin-top:8px}
 .iconbtn svg{display:block;margin:auto}
+.iconbtn.away{display:none}
 .hsep{width:1px;height:28px;background:var(--line);margin:0 4px;flex:none}
 @media (max-width:899px){.deskonly{display:none!important}}
 .dwhich{margin-top:8px;align-items:center;position:relative}
@@ -668,7 +669,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.27';
+const APP_VERSION = '2026-11-12.28';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -3280,7 +3281,12 @@ function updFold() {
   foldBtn.hidden = $('#tools').classList.contains('tabbed');       // во вкладках сворачивать нечего
 }
 foldBtn.addEventListener('click', () => { state.ui.collapsed = anyOpen() ? TABS.slice() : []; applyCollapsed(); relayout(); save(); });
-$('#topBtn').addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+const topBtn = $('#topBtn');
+topBtn.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+// «Наверх» видна, только когда страница прокручена вниз
+const updTop = () => topBtn.classList.toggle('away', scrollY < 300);
+addEventListener('scroll', updTop, { passive: true });
+updTop();
 // значок следит за состоянием: свернули группу вручную или переключили режим — обновится сам
 new MutationObserver(updFold).observe($('#tools'), { subtree: true, attributes: true, attributeFilter: ['class'] });
 updFold();
