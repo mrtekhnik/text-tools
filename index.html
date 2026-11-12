@@ -77,7 +77,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .selhint .linkbtn{color:var(--ink);font-size:14px}
 
 /* --- инструменты --- */
-.tools{display:grid;gap:10px;grid-template-columns:repeat(3,minmax(0,1fr))}
+.tools{display:grid;gap:10px;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}
 .tools .fr{grid-column:span 2}
 .ttabs{display:none;overflow-x:auto;gap:3px;padding:4px 4px 0;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;scrollbar-width:none}
 .ttabs::-webkit-scrollbar{display:none}
@@ -86,6 +86,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tgroup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px}
 /* все группы сразу (компьютер): у каждой группы цветная шапка, текущая (где была последняя команда) — в рамке */
 .tgroup>.tlbl.gtitle{margin:-10px -10px 10px;padding:7px 12px;background:var(--accent-soft);color:var(--ink);border-radius:13px 13px 0 0;font-size:14px}
+/* все группы сразу: шапка группы сворачивает и разворачивает её; состояние запоминается */
+.tools:not(.tabbed) .tgroup>.gtitle{cursor:pointer;user-select:none}
+.tools:not(.tabbed) .tgroup>.gtitle::before{content:'▾';width:12px}
+.tools:not(.tabbed) .tgroup.collapsed>.gtitle::before{content:'▸'}
+.tools:not(.tabbed) .tgroup.collapsed>:not(.gtitle){display:none!important}
+.tools:not(.tabbed) .tgroup.collapsed>.gtitle{margin-bottom:-10px;border-radius:13px}
 .tgroup.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .tgroup.on>.tlbl.gtitle{background:var(--accent);color:var(--accent-ink)}
 /* вкладками (телефон всегда, компьютер — по настройке): активная вкладка залита цветом, панель её команд — в цветной рамке */
@@ -386,7 +392,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.9';
+const APP_VERSION = '2026-11-12.10';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -902,7 +908,7 @@ function translit(t, p) {
 const TABS = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, collapsed: [] }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit'];
 function load() {
@@ -920,7 +926,7 @@ function load() {
         ui: (() => { const u = s.ui || {}, strs = a => (Array.isArray(a) ? a.filter(x => typeof x === 'string') : []);
           const hidden = strs(u.hidden).filter(x => TABS.includes(x));
           return { toasts: u.toasts === 'warn' ? 'warn' : 'all', order: fixOrder(u.order), hidden: hidden.length >= TABS.length ? [] : hidden,
-            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs, symCat: Math.max(0, Math.min(6, +u.symCat || 0)) }; })() };
+            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs, collapsed: strs(u.collapsed).filter(x => TABS.includes(x)), symCat: Math.max(0, Math.min(6, +u.symCat || 0)) }; })() };
     }
   } catch (e) { /* пусто или повреждено */ }
   return d;
@@ -1451,6 +1457,7 @@ function helpSheet() {
         h('li', { text: '«Транслит»: RU → Lat — практичная схема (Щукин → Shchukin, Юрий → Yuriy), UA → Lat — официальная схема КМУ № 55, как в загранпаспорте (Сергій → Serhii, Київ → Kyiv). Обратно, из латиницы, — приблизительно: латиница не различает е/э, и/й и мягкий знак, проверяйте результат.' }),
         h('li', { text: '«Раскладка» RU → UA и UA → RU — это не перевод, а исправление текста, набранного не на той клавиатуре: ы ↔ і, э ↔ є, ъ ↔ ї.' }),
         h('li', { text: '«рус / укр» — язык числительных. Обозначения (М8, АБВГ.123456.001), даты, время, проценты, №5, 007, 5-7 остаются цифрами. До 999 миллиардов.' }),
+        h('li', { text: 'На компьютере в режиме «Все группы сразу» нажатие на шапку группы сворачивает или разворачивает её; состояние запоминается.' }),
         h('li', { text: 'Тема, подсказки, порядок групп команд и исключения регистра — в ⋮ → «Оформление и настройки».' }),
         h('li', { text: 'Текст и настройки хранятся только в этом браузере и никуда не отправляются.' })),
       h('div', { class: 'btns' }, btn('Понятно', () => api.close(), 'primary')));
@@ -1580,6 +1587,27 @@ applyGroupOrder();
 showTab(state.tab);
 applyVisibility();
 applyDeskTabs();
+// сворачивание групп в режиме «Все группы сразу» (компьютер)
+function applyCollapsed() {
+  document.querySelectorAll('.tgroup').forEach(t => {
+    const c = state.ui.collapsed.includes(t.dataset.g), hd = t.querySelector(':scope > .gtitle');
+    t.classList.toggle('collapsed', c);
+    if (hd) hd.setAttribute('aria-expanded', String(!c));
+  });
+}
+document.querySelectorAll('.tgroup > .gtitle').forEach(hd => {
+  const g = hd.parentNode.dataset.g;
+  hd.setAttribute('role', 'button'); hd.tabIndex = 0; hd.title = 'Свернуть или развернуть группу';
+  const toggle = () => {
+    if ($('#tools').classList.contains('tabbed') || narrow.matches) return;
+    const c = state.ui.collapsed;
+    state.ui.collapsed = c.includes(g) ? c.filter(x => x !== g) : [...c, g];
+    applyCollapsed(); save();
+  };
+  hd.addEventListener('click', toggle);
+  hd.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+});
+applyCollapsed();
 src.value = state.text;
 commit();
 after();
