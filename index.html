@@ -110,6 +110,20 @@ button{font:inherit;color:inherit;cursor:pointer}
   .tabbed .ttabs{flex-wrap:wrap;overflow:visible;row-gap:3px}
   .tabbed .ttabmenu{display:none}
 }
+/* «Числа» на широком мониторе — по ширине в две строки:
+   [что писать | язык] [падеж | род | валюта]
+   [параметры, → словами] [пример]  [Обратно …]          (телефон не затрагивается) */
+@media (min-width:1100px){
+  .tabbed .tgroup[data-g="num"].on{display:grid;grid-template-columns:auto minmax(0,1fr) auto;
+    grid-template-areas:"mode opts opts" "go hint back";column-gap:16px;row-gap:10px;align-items:center}
+  .tabbed .tgroup[data-g="num"]>.srow{grid-area:mode}
+  .tabbed .tgroup[data-g="num"]>#numOpts{grid-area:opts;border-left:1px solid var(--line);padding-left:16px;align-self:stretch;display:flex;align-items:center;gap:6px 16px;flex-wrap:wrap}
+  .tabbed .tgroup[data-g="num"]>#numOpts[hidden]{display:none}
+  .tabbed .tgroup[data-g="num"]>#numOpts .numbr{margin:0}
+  .tabbed .tgroup[data-g="num"]>.numrow{grid-area:go}
+  .tabbed .tgroup[data-g="num"]>#numHint{grid-area:hint;margin:0}
+  .tabbed .tgroup[data-g="num"]>.numback{grid-area:back;margin:0;flex-wrap:nowrap}
+}
 .tabbed .ttabs{display:flex}
 .tabbed .tgroup{display:none;border:2px solid var(--accent);border-radius:0 0 14px 14px;box-shadow:none}
 .tabbed .tgroup.on{display:block;box-shadow:none}
@@ -648,7 +662,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.31';
+const APP_VERSION = '2026-11-12.32';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
