@@ -681,7 +681,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.40';
+const APP_VERSION = '2026-11-12.41';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1703,6 +1703,9 @@ function fixEncoding(t) {
   t = t.replace(/[^\s\d.,;:!?()\[\]{}"'/\\<>=+_|@#$%^&*~`]+/gu, w => { const r = fixMojiWord(w); if (r != null) { hit = true; return r; } return w; });
   // русская «х» между числами в старой кодировке: 15õ19 → 15х19 (размеры, сечения)
   t = t.replace(/(\d)([õÕ])(?=\d)/g, (m, d, c) => d + (c === 'õ' ? 'х' : 'Х'));
+  // одиночная буква старой кодировки перед числом: Í14 → Н14 (поле допуска), Ì8 → М8
+  { const T = cpTables();
+    t = t.replace(/(?<![\p{L}\p{N}])([\u00C0-\u00DF])(?=\d)/gu, (m, c) => { const b = T.w1252.from.get(c), r = b != null ? T.w1251.to[b] : c; return /[\u0410-\u042F]/.test(r) ? r : c; }); }
   // однобуквенные слова (к, с, в, і) — если рядом уже были кракозябры из Windows-1251: «ê» → «к», «³» → «і»
   if (hit) {
     const T = cpTables();
