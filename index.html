@@ -110,6 +110,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 .numbr{margin:0 0 4px}
 .numhint{font-size:12.5px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tgroup.off{display:none!important}
+.symchars .seg{min-width:44px;padding:0 6px;font-size:18px;font-weight:500}
+#symCats .seg{min-height:34px;font-size:13px;border-radius:999px}
+#symCats .seg.on{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
 .gset{border-bottom:1px solid var(--line);padding:2px 0 8px}
 .gset .orow{border:0;padding:0}
 .cmdchips{display:flex;flex-wrap:wrap;gap:4px;padding-left:32px}
@@ -262,6 +265,7 @@ body.modal-lock{overflow:hidden}
       <button class="ttab" type="button" role="tab" data-g="replace">Замена</button>
       <button class="ttab" type="button" role="tab" data-g="num">Числа</button>
       <button class="ttab" type="button" role="tab" data-g="translit">Транслит</button>
+      <button class="ttab" type="button" role="tab" data-g="sym">Знаки</button>
     </div>
     <div class="tgroup" data-g="layout">
       <div class="tlbl gtitle">Раскладка</div>
@@ -292,6 +296,11 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="clean" data-p="hyphen" title="сло-↵во → слово">Переносы слов</button>
         <button class="tb" type="button" data-t="clean" data-p="trim">Пробелы по краям</button>
       </div>
+    </div>
+    <div class="tgroup" data-g="sym">
+      <div class="tlbl gtitle">Знаки</div>
+      <div class="srow" id="symCats" role="tablist" aria-label="Набор знаков"></div>
+      <div class="srow symchars" id="symChars"></div>
     </div>
     <div class="tgroup" data-g="translit">
       <div class="tlbl gtitle">Транслитерация</div>
@@ -377,7 +386,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.8';
+const APP_VERSION = '2026-11-12.9';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -890,10 +899,10 @@ function translit(t, p) {
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
-const TABS = ['layout', 'case', 'clean', 'replace', 'num', 'translit'];
+const TABS = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit'];
 function load() {
@@ -911,7 +920,7 @@ function load() {
         ui: (() => { const u = s.ui || {}, strs = a => (Array.isArray(a) ? a.filter(x => typeof x === 'string') : []);
           const hidden = strs(u.hidden).filter(x => TABS.includes(x));
           return { toasts: u.toasts === 'warn' ? 'warn' : 'all', order: fixOrder(u.order), hidden: hidden.length >= TABS.length ? [] : hidden,
-            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs }; })() };
+            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs, symCat: Math.max(0, Math.min(6, +u.symCat || 0)) }; })() };
     }
   } catch (e) { /* пусто или повреждено */ }
   return d;
@@ -1167,6 +1176,46 @@ $('#numOptBtn').addEventListener('click', () => { state.ui.numOpen = !state.ui.n
 bindCmd($('#numGo'), sel => doOp('num', numParams(), sel));
 updNum();
 
+/* ---------- панель знаков (наборы как в «Моих шаблонах») ---------- */
+const SYM_SETS = [
+  ['Техн.', 'Ø ⌀ ° ± × ÷ ² ³ ½ ¼ ¾ ≈ ≠ ≤ ≥ ∠ ⊥ ∥ ⌒ ∞ √ ‰ µ Ω ′ ″ № §'],
+  ['Стрелки', '→ ← ↑ ↓ ↔ ↕ ⇒ ⇐ ⇔ ↗ ↘ ↖ ↙ ➜ ▶ ◀ ▲ ▼ ↩ ↪ ⟳'],
+  ['Знаки', '• ◦ ▪ — – … « » „ “ ” ‘ ’ © ® ™ ¶ † ‡ · ¦ ¬ ~ ^ | \\ ¿ ¡'],
+  ['Отметки', '✓ ✔ ✗ ✘ ★ ☆ ☐ ☑ ☒ ● ○ ■ □ ◆ ◇ ⚠ ❗ ❓ ✉ ☎ ✎ ♥'],
+  ['Валюты', '₴ $ € £ ¥ ₽ ₸ zł Kč ¢ ₿'],
+  ['Греч.', 'α β γ δ ε θ λ μ π ρ σ τ φ ω Δ Σ Ω Φ Π Λ'],
+  ['Индексы', '⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ⁺ ⁻ ⁿ ₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉ ₊ ₋']
+];
+const keepFocus = b => { b.addEventListener('mousedown', e => e.preventDefault()); return b; };   // курсор и клавиатура остаются в поле
+$('#symCats').append(...SYM_SETS.map(([n], i) => keepFocus(h('button', { class: 'seg', type: 'button', role: 'tab', 'data-id': 'sym:' + n, 'data-i': i,
+  onclick() { state.ui.symCat = i; renderSym(); save(); } }, n))));
+function renderSym() {
+  const cats = [...document.querySelectorAll('#symCats .seg')], vis = cats.filter(b => !b.hidden);
+  let ci = +state.ui.symCat || 0;
+  if (vis.length && !vis.some(b => +b.dataset.i === ci)) ci = +vis[0].dataset.i;
+  cats.forEach(b => { const on = +b.dataset.i === ci; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
+  $('#symChars').replaceChildren(...SYM_SETS[ci][1].split(' ').map(ch => keepFocus(h('button', { class: 'seg', type: 'button', title: 'Вставить ' + ch, onclick() { insertSym(ch); } }, ch))));
+  $('#symChars').scrollLeft = 0;
+}
+// Знак вставляется туда, где курсор: в поле «Найти»/«Заменить на», если вы в нём, иначе в текст.
+// Если курсор в тексте не ставили — в конец текста
+function insertSym(ch) {
+  const el = document.activeElement;
+  if (el === fr.find || el === fr.repl) { el.setRangeText(ch, el.selectionStart, el.selectionEnd, 'end'); el.dispatchEvent(new Event('input')); return; }
+  flushTyping();
+  const inField = el === src || caretKnown;
+  const a = inField ? src.selectionStart : src.value.length, b = inField ? src.selectionEnd : a, delta = ch.length - (b - a);
+  src.setRangeText(ch, a, b, 'end');
+  caretKnown = true; state.text = src.value;
+  state.steps.forEach(x => {                       // шаги «кусок» сдвигаются вместе с текстом
+    if (!Array.isArray(x.r)) return;
+    if (x.r[0] >= b) { x.r[0] += delta; x.r[1] += delta; } else if (x.r[1] > a) x.r[1] = Math.max(x.r[0], x.r[1] + delta);
+  });
+  commit(); after();
+  // на компьютере и в режиме «Править» возвращаем курсор в поле, чтобы можно было печатать дальше
+  if (!touch || !src.readOnly) { const pos = a + ch.length; src.focus(); try { src.setSelectionRange(pos, pos); } catch (e) { /* ничего */ } }
+}
+
 /* ---------- вкладки команд: телефон всегда, компьютер — по настройке ---------- */
 function applyDeskTabs() { $('#tools').classList.toggle('tabbed', !!state.ui.deskTabs && !narrow.matches); }
 narrow.addEventListener('change', applyDeskTabs);
@@ -1398,6 +1447,7 @@ function helpSheet() {
         h('li', { text: 'Режим «пятый» — порядковые: 5 → пятый, 2000 → двухтысячный; «мн» — пятые. Если в тексте есть числа с окончанием (5-й, 21-го), меняются только они.' }),
         h('li', { text: 'Режим «5-й» — порядковые сокращённо, окончание по падежу и роду: 5 → 5-й, 21 в род. → 21-го, 3 в ж.р. → 3-я; по-украински 5 в ж.р. → 5-та. Если в тексте уже есть 5-го, 21-й и т.п., меняются только они — так можно исправить окончания.' }),
         h('li', { text: 'Режим «сумма» — прописью, как в документах: 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек. Валюта берётся из текста (грн, $, €, ₽, USD…), иначе — выбранная. Если в тексте есть суммы с валютой, меняются только они. «В скобках» оставляет цифры и добавляет слова в скобках.' }),
+        h('li', { text: '«Знаки»: Ø, °, ±, стрелки, кавычки, индексы и др. — те же наборы, что в «Моих шаблонах». Знак вставляется в текст туда, где курсор (нажмите в нужное место текста; если не нажимали — в конец). В режиме «✎ Править» клавиатура при этом не закрывается. Если курсор в поле «Найти» или «Заменить на», знак вставится туда.' }),
         h('li', { text: '«Транслит»: RU → Lat — практичная схема (Щукин → Shchukin, Юрий → Yuriy), UA → Lat — официальная схема КМУ № 55, как в загранпаспорте (Сергій → Serhii, Київ → Kyiv). Обратно, из латиницы, — приблизительно: латиница не различает е/э, и/й и мягкий знак, проверяйте результат.' }),
         h('li', { text: '«Раскладка» RU → UA и UA → RU — это не перевод, а исправление текста, набранного не на той клавиатуре: ы ↔ і, э ↔ є, ъ ↔ ї.' }),
         h('li', { text: '«рус / укр» — язык числительных. Обозначения (М8, АБВГ.123456.001), даты, время, проценты, №5, 007, 5-7 остаются цифрами. До 999 миллиардов.' }),
@@ -1407,13 +1457,14 @@ function helpSheet() {
   });
 }
 /* ---------- оформление и настройки (блоки сворачиваются) ---------- */
-const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит' };
+const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', sym: 'Знаки' };
 const NUM_MODE_NAMES = { card: 'пять', ord: 'пятый', abbr: '5-й', money: 'сумма' };
 // какие группы и команды показывать — хранится в этом браузере, на каждом устройстве своё
-const cmdId = b => (b.dataset.t ? b.dataset.t + ':' + b.dataset.p : 'num:' + b.dataset.v);
+const cmdId = b => b.dataset.id || (b.dataset.t ? b.dataset.t + ':' + b.dataset.p : 'num:' + b.dataset.v);
 function cmdButtons(g) {
   const el = document.querySelector('.tgroup[data-g="' + g + '"]');
   if (!el) return [];
+  if (g === 'sym') return [...el.querySelectorAll('#symCats .seg')];
   return g === 'num' ? [...el.querySelectorAll('#numMode .seg')] : [...el.querySelectorAll('.tb[data-t]')];
 }
 function applyVisibility() {
@@ -1423,6 +1474,7 @@ function applyVisibility() {
   TABS.forEach(g => cmdButtons(g).forEach(b => { b.hidden = hc.has(cmdId(b)); }));
   const modes = cmdButtons('num').filter(b => !b.hidden);
   if (modes.length && !modes.some(b => b.dataset.v === state.num.m)) { state.num.m = modes[0].dataset.v; updNum(); }
+  renderSym();
   if (hid.has(state.tab)) showTab(state.ui.order.find(g => !hid.has(g)) || TABS[0]);
 }
 function applyGroupOrder() {
