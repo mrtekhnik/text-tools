@@ -187,6 +187,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .rowlbl{grid-column:1/-1;flex:none;align-self:center;font-size:12.5px;font-weight:700;color:var(--muted);padding-right:2px}
 .tgroup .tbtns+.tbtns{margin-top:6px}
 .numback{margin-top:8px}
+.pane.hasmarks{position:relative}
+.srcmarks{position:absolute;pointer-events:none;overflow:hidden;z-index:2}
+.srcmarks-in{white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;color:transparent;box-sizing:border-box;width:100%}
+.srcmarks mark{color:transparent;border-radius:3px;background:rgba(255,166,0,.45);box-shadow:0 2px 0 0 #e08a00}
+.srcmarks mark.mz{background:rgba(220,60,60,.35);box-shadow:0 2px 0 0 #c03030}
 .iconbtn svg{display:block;margin:auto}
 .iconbtn.away{display:none}
 #topBtn.away+.hsep{display:none}
@@ -444,8 +449,8 @@ body.modal-lock{overflow:hidden}
       <div class="tbtns">
         <span class="rowlbl">Починить</span>
         <button class="tb main" type="button" data-t="fix" data-p="pdf" title="Всё сразу для текста, скопированного из PDF, Word, сайтов: кракозябры, сдвинутые буквы, латиница в русских словах, буквы через пробел, невидимые символы, лигатуры">Текст из PDF</button>
-        <button class="tb" type="button" data-t="fix" data-p="enc" title="Текст в неверной кодировке: Ðîçì³ðè → Розміри, РџСЂРёРІРµС‚ → Привет, Ð¿Ñ€Ð¸Ð²ÐµÑ‚ → привет, ɉɪɢɜɟɬ → Привет">Кракозябры</button>
-        <button class="tb" type="button" data-t="fix" data-p="mixed" title="Латинские буквы-двойники в русских и украинских словах и наоборот: Бoлт (o латинская) → Болт, AБВГ → АБВГ">Смешанные буквы</button>
+        <button class="tb" type="button" data-t="fix" data-p="enc" title="Нечитаемые знаки вместо букв (неверная кодировка): Ðîçì³ðè → Розміри, РџСЂРёРІРµС‚ → Привет, Ð¿Ñ€Ð¸Ð²ÐµÑ‚ → привет, ǋǱǭ ǰǶǱǰǼ → Вид знизу">Кодировка</button>
+        <button class="tb" type="button" data-t="fix" data-p="mixed" title="Латинские буквы-двойники в русских и украинских словах и наоборот: Бoлт (o латинская) → Болт, AБВГ → АБВГ; ноль вместо О: Б0ЛТ → БОЛТ. Такие места подсвечены в окне «Текст»">Смешанные буквы</button>
         <button class="tb" type="button" data-t="fix" data-p="invis" title="Мягкие переносы и нулевые пробелы — убрать, неразрывные пробелы — в обычные, лигатуры ﬁ ﬂ — в fi fl">Невидимые символы</button>
       </div>
     </div>
@@ -681,7 +686,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.41';
+const APP_VERSION = '2026-11-13.1';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1761,12 +1766,36 @@ function fixShift(t) {
 const LAT2CYR = { A: 'А', B: 'В', C: 'С', E: 'Е', H: 'Н', K: 'К', M: 'М', O: 'О', P: 'Р', T: 'Т', X: 'Х', I: 'І', a: 'а', c: 'с', e: 'е', o: 'о', p: 'р', x: 'х', y: 'у', i: 'і' };
 const CYR2LAT = Object.fromEntries(Object.entries(LAT2CYR).map(([l, c]) => [c, l]));
 function fixMixed(t) {
-  return t.replace(/\p{L}+/gu, w => {
+  t = t.replace(/\p{L}+/gu, w => {
     const cyr = (w.match(/[Ѐ-ӿ]/g) || []).length, lat = (w.match(/[A-Za-z]/g) || []).length;
     if (!cyr || !lat) return w;
     if (cyr >= lat) { const r = w.replace(/[A-Za-z]/g, c => LAT2CYR[c] || c); return /[A-Za-z]/.test(r) ? w : r; }
     const r = w.replace(/[Ѐ-ӿ]/g, c => CYR2LAT[c] || c); return /[Ѐ-ӿ]/.test(r) ? w : r;
   });
+  // ноль вместо буквы О внутри слова: Б0ЛТ → БОЛТ; и буква О вместо нуля внутри числа: 2О19 → 2019
+  t = t.replace(ZERO_IN_WORD, (m, off, str) => zeroAsLetter(str, off));
+  return t.replace(/(?<=\d)[OoОо](?=\d)/g, '0');
+}
+const ZERO_IN_WORD = /(?<=\p{L})0(?=\p{L})|(?<![\p{L}\p{N}])0(?=\p{L}{2,})|(?<=\p{L}{2,})0(?![\p{L}\p{N}])/gu;
+function zeroAsLetter(str, off) {
+  const near = (str[off - 1] && /\p{L}/u.test(str[off - 1]) ? str[off - 1] : '') + (str[off + 1] && /\p{L}/u.test(str[off + 1]) ? str[off + 1] : '');
+  const cyr = /[Ѐ-ӿ]/.test(near), up = near === near.toUpperCase() && (near.length < 2 || near[0] === near[0].toUpperCase());
+  const nx = str[off + 1] && /\p{L}/u.test(str[off + 1]) ? str[off + 1] : str[off - 1];
+  const upper = nx && nx === nx.toUpperCase() && nx !== nx.toLowerCase();
+  return cyr ? (upper ? 'О' : 'о') : (upper ? 'O' : 'o');
+}
+// подозрительные места для подсветки: [начало, конец, вид]
+function suspectRanges(t) {
+  const out = [];
+  for (const m of t.matchAll(/\p{L}+/gu)) {
+    const w = m[0], cyr = (w.match(/[Ѐ-ӿ]/g) || []).length, lat = (w.match(/[A-Za-z]/g) || []).length;
+    if (!cyr || !lat) continue;
+    const minority = cyr >= lat ? /[A-Za-z]/ : /[Ѐ-ӿ]/;
+    [...w].forEach((c, i) => { if (minority.test(c)) out.push([m.index + i, m.index + i + 1, 'mx']); });
+  }
+  for (const m of t.matchAll(ZERO_IN_WORD)) out.push([m.index, m.index + 1, 'mz']);
+  for (const m of t.matchAll(/(?<=\d)[OoОо](?=\d)/g)) out.push([m.index, m.index + 1, 'mz']);
+  return out.sort((a, b) => a[0] - b[0]);
 }
 // невидимые и «особые» символы: мягкий перенос, нулевые пробелы, неразрывные пробелы, лигатуры
 const LIGS = { 'ﬀ': 'ff', 'ﬁ': 'fi', 'ﬂ': 'fl', 'ﬃ': 'ffi', 'ﬄ': 'ffl', 'ﬅ': 'st', 'ﬆ': 'st' };
@@ -1924,7 +1953,7 @@ const NAMES = {
   date: { dmy: 'Даты 12.11.2026', iso: 'Даты 2026-11-12', slash: 'Даты 12/11/2026', ru: 'Даты 12 ноября 2026 г.', ua: 'Даты 12 листопада 2026 р.' },
   nfmt: { grp: 'Разряды 1 234 567', ungrp: 'Без разрядов' },
   roman: { 'to-ar': 'Римские → арабские', 'to-rom': 'Арабские → римские' },
-  fix: { pdf: 'Починить текст из PDF', enc: 'Кракозябры → текст', mixed: 'Смешанные буквы', invis: 'Невидимые символы' },
+  fix: { pdf: 'Починить текст из PDF', enc: 'Исправить кодировку', mixed: 'Смешанные буквы', invis: 'Невидимые символы' },
   numw: { digits: 'Словами → цифрами', 'ru-ua': 'Числительные RU → UA', 'ua-ru': 'Числительные UA → RU' },
   fio: { short: 'ФИО → Шевченко Т. Г.', 'ini-first': 'ФИО → Т. Г. Шевченко' },
   dim: { x: 'Размеры x → ×', dia: 'd20 → Ø20', sym: '+/- → ±, гр. → °', mm2m: 'мм → м', m2mm: 'м → мм' },
@@ -1968,7 +1997,7 @@ function recompute() {
   $('#cntOut').textContent = state.steps.length ? fmtCount(t) : (t ? 'без изменений' : '');
   $('#acceptBtn').disabled = $('#acceptBtn2').disabled = !state.steps.length;
   updFrInfo();
-  scheduleCounts(); scheduleHl();
+  scheduleCounts(); scheduleHl(); try { scheduleMarks(); } catch (e) { /* ещё не готово */ }
 }
 const currentOutput = () => lastOut;
 function fmtCount(t) {
@@ -3450,6 +3479,39 @@ topBtn.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }))
 const updTop = () => topBtn.classList.toggle('away', scrollY < 300);
 addEventListener('scroll', updTop, { passive: true });
 updTop();
+
+/* ---------- подсветка подозрительных символов в окне «Текст»: латиница в русских словах и наоборот, 0 вместо О ---------- */
+const srcPane = src.parentNode;
+srcPane.classList.add('hasmarks');
+const marksBox = h('div', { class: 'srcmarks', 'aria-hidden': 'true' }), marksIn = h('div', { class: 'srcmarks-in' });
+marksBox.append(marksIn);
+src.after(marksBox);
+var marksT = 0, marksN = 0;
+function placeMarks() {
+  const cs = getComputedStyle(src);
+  Object.assign(marksBox.style, { left: src.offsetLeft + parseFloat(cs.borderLeftWidth) + 'px', top: src.offsetTop + parseFloat(cs.borderTopWidth) + 'px',
+    width: src.clientWidth + 'px', height: src.clientHeight + 'px', borderRadius: cs.borderRadius });
+  Object.assign(marksIn.style, { font: cs.font, letterSpacing: cs.letterSpacing, lineHeight: cs.lineHeight, padding: cs.padding, tabSize: cs.tabSize,
+    transform: 'translate(' + (-src.scrollLeft) + 'px,' + (-src.scrollTop) + 'px)' });
+}
+function renderMarks() {
+  const t = src.value, rs = t.length > 200000 ? [] : suspectRanges(t);
+  marksN = rs.length;
+  marksBox.hidden = !rs.length;
+  if (!rs.length) { marksIn.replaceChildren(); return; }
+  const f = document.createDocumentFragment();
+  let last = 0;
+  rs.forEach(([a, b, kind]) => { f.append(t.slice(last, a), h('mark', { class: kind, text: t.slice(a, b) })); last = b; });
+  f.append(t.slice(last) + '\n');
+  marksIn.replaceChildren(f);
+  placeMarks();
+}
+function scheduleMarks() { clearTimeout(marksT); marksT = setTimeout(renderMarks, 150); }
+src.addEventListener('input', scheduleMarks);
+src.addEventListener('scroll', () => { if (!marksBox.hidden) marksIn.style.transform = 'translate(' + (-src.scrollLeft) + 'px,' + (-src.scrollTop) + 'px)'; });
+if ('ResizeObserver' in window) new ResizeObserver(() => { if (!marksBox.hidden) placeMarks(); }).observe(src);
+addEventListener('resize', () => { if (!marksBox.hidden) placeMarks(); });
+renderMarks();
 
 /* ---------- запуск ---------- */
 applyTheme();
