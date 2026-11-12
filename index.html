@@ -162,6 +162,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .diffout ins{background:rgba(13,107,91,.18);color:var(--accent);text-decoration:none;border-bottom:2px solid var(--accent);border-radius:3px}
 .rowlbl{grid-column:1/-1;flex:none;align-self:center;font-size:12.5px;font-weight:700;color:var(--muted);padding-right:2px}
 .tgroup .tbtns+.tbtns{margin-top:6px}
+.tbtns.wide{grid-template-columns:repeat(auto-fill,minmax(178px,1fr))}
+.tbtns.wide .tb{white-space:nowrap;font-variant-numeric:tabular-nums}
 .fnrow{display:grid;grid-template-columns:minmax(0,1fr) 76px auto;gap:6px;margin-bottom:5px}
 .fnrow .field{padding:9px 10px}
 .setrow{display:flex;align-items:center;gap:6px;margin-top:8px}
@@ -328,6 +330,7 @@ body.modal-lock{overflow:hidden}
       <button class="ttab" type="button" role="tab" data-g="sym">Знаки</button>
       <button class="ttab" type="button" role="tab" data-g="lines">Строки</button>
       <button class="ttab" type="button" role="tab" data-g="format">Формат</button>
+      <button class="ttab" type="button" role="tab" data-g="phone">Телефоны</button>
       <button class="ttab" type="button" role="tab" data-g="fname">Имена файлов</button>
       <button class="ttab" type="button" role="tab" data-g="presets">Пресеты</button>
     </div>
@@ -397,6 +400,25 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="date" data-p="ru" title="Любые даты → словами по-русски">12 ноября 2026 г.</button>
         <button class="tb" type="button" data-t="date" data-p="ua" title="Любые даты → словами по-украински">12 листопада 2026 р.</button>
       </div>
+    </div>
+    <div class="tgroup" data-g="phone">
+      <div class="tlbl gtitle">Телефоны</div>
+      <div class="tbtns wide">
+        <span class="rowlbl">С кодом страны</span>
+        <button class="tb" type="button" data-t="phone" data-p="intl" title="Слитно, для контактов, Viber, Telegram">+380671234567</button>
+        <button class="tb" type="button" data-t="phone" data-p="e123" title="Международная запись">+380 67 123 45 67</button>
+        <button class="tb" type="button" data-t="phone" data-p="intl-sp">+38 067 123 45 67</button>
+        <button class="tb" type="button" data-t="phone" data-p="intl-br">+38 (067) 123-45-67</button>
+        <button class="tb" type="button" data-t="phone" data-p="d380" title="Без плюса — для ссылок wa.me/… и форм, где «+» не принимается">380671234567</button>
+      </div>
+      <div class="tbtns wide">
+        <span class="rowlbl">Внутри страны</span>
+        <button class="tb" type="button" data-t="phone" data-p="loc">0671234567</button>
+        <button class="tb" type="button" data-t="phone" data-p="loc-sp">067 123 45 67</button>
+        <button class="tb" type="button" data-t="phone" data-p="loc-br">(067) 123-45-67</button>
+        <button class="tb" type="button" data-t="phone" data-p="loc-dash">067-123-45-67</button>
+      </div>
+      <div class="numhint">Находит украинские номера в любой записи: 0671234567, 380…, +38 (067)…, 8 067…, несколько номеров через пробел. Даты, обозначения и другие числа не трогает.</div>
     </div>
     <div class="tgroup" data-g="fname">
       <div class="tlbl gtitle">Имена файлов</div>
@@ -509,7 +531,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.14';
+const APP_VERSION = '2026-11-12.15';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -701,6 +723,7 @@ function applyWhole(t, s, prot) {
     case 'date': return fmtDate(t, s.p);
     case 'nfmt': return fmtNum(t, s.p);
     case 'rules': return applyRules(t, s.p);
+    case 'phone': return phoneFmt(t, s.p);
   }
   return t;
 }
@@ -1165,16 +1188,61 @@ function diffTexts(x, y, mode) {
   if (mode === 'lines') return diffSeq(tokLines(x), tokLines(y));
   return diffSeq(tokWords(x), tokWords(y)) || diffSeq(tokLines(x), tokLines(y));
 }
+/* ---------- телефоны (Украина) ---------- */
+// Номер из цифр с пробелами, дефисами и скобками; 0671234567, 380671234567, +38 (067) 123-45-67, 8 067 …
+const PHONE_RE = /(?<![\p{L}\p{N}_\/.,+\-])\+?\(?\d(?:[ \t \-()]{0,2}\d){8,40}\)?(?![\p{L}\p{N}_]|[.,\/\-]\p{N})/gu;
+function phoneNorm(s) {
+  if (/[^\d+ \t \-()]/.test(s)) return null;
+  const d = s.replace(/\D/g, '');
+  const n = d.length === 12 && d.startsWith('380') ? d.slice(2) : d.length === 11 && d.startsWith('80') ? '0' + d.slice(2) : d.length === 10 && d[0] === '0' ? d : null;
+  return n && /^0[3-9]/.test(n) ? n : null;
+}
+function phoneOut(n, p) {
+  const k = n.slice(0, 3), c = n.slice(1, 3), a = n.slice(3, 6), b = n.slice(6, 8), e = n.slice(8);
+  switch (p) {
+    case 'intl': return '+38' + n;
+    case 'e123': return '+380 ' + c + ' ' + a + ' ' + b + ' ' + e;
+    case 'intl-sp': return '+38 ' + k + ' ' + a + ' ' + b + ' ' + e;
+    case 'intl-br': return '+38 (' + k + ') ' + a + '-' + b + '-' + e;
+    case 'loc': return n;
+    case 'loc-sp': return k + ' ' + a + ' ' + b + ' ' + e;
+    case 'loc-br': return '(' + k + ') ' + a + '-' + b + '-' + e;
+    case 'loc-dash': return k + '-' + a + '-' + b + '-' + e;
+    case 'd380': return '38' + n;
+  }
+  return n;
+}
+// Несколько номеров подряд через пробел разбираются по одному
+function phoneFmt(t, p) {
+  return t.replace(PHONE_RE, m => {
+    const ch = m.split(/([ \t ]+)/);
+    let out = '', i = 0;
+    while (i < ch.length) {
+      let best = -1, bn = null;
+      for (let j = i; j < ch.length; j += 2) {
+        const seg = ch.slice(i, j + 1).join('');
+        if (seg.replace(/\D/g, '').length > 12) break;
+        const n = phoneNorm(seg.replace(/^\((?=[^)]*$)|(?<=^[^(]*)\)$/g, ''));
+        if (n) { best = j; bn = n; }
+      }
+      if (best < 0) { out += ch[i] + (ch[i + 1] || ''); i += 2; continue; }
+      const seg = ch.slice(i, best + 1).join('');
+      const lead = /^\((?=[^)]*$)/.test(seg) ? '(' : '', tail = /^[^(]*\)$/.test(seg) ? ')' : '';
+      out += lead + phoneOut(bn, p) + tail + (ch[best + 1] || ''); i = best + 2;
+    }
+    return out;
+  });
+}
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
-const TABS = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'format', 'fname', 'presets'];
+const TABS = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'format', 'phone', 'fname', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
   ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'dense', collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words' },
   sets: [], presets: [], hist: [], num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
-const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules'];
+const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone'];
 const uid0 = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 function load() {
   const d = DEF();
@@ -1264,6 +1332,7 @@ const NAMES = {
   typo: { 'q-ru': '«Ёлочки»', 'q-en': '"Прямые" кавычки', dash: 'Дефис → тире', hyph: 'Тире → дефис', 'dec-dot': '1,5 → 1.5', 'dec-comma': '1.5 → 1,5' },
   date: { dmy: 'Даты 12.11.2026', iso: 'Даты 2026-11-12', slash: 'Даты 12/11/2026', ru: 'Даты 12 ноября 2026 г.', ua: 'Даты 12 листопада 2026 р.' },
   nfmt: { grp: 'Разряды 1 234 567', ungrp: 'Без разрядов' },
+  phone: { intl: 'Тел. +380671234567', e123: 'Тел. +380 67 123 45 67', 'intl-sp': 'Тел. +38 067 123 45 67', 'intl-br': 'Тел. +38 (067) 123-45-67', d380: 'Тел. 380671234567', loc: 'Тел. 0671234567', 'loc-sp': 'Тел. 067 123 45 67', 'loc-br': 'Тел. (067) 123-45-67', 'loc-dash': 'Тел. 067-123-45-67' },
   clean: { all: 'Очистка: всё', spaces: 'Двойные пробелы', empty: 'Пустые строки', join: 'Склеить строки', hyphen: 'Переносы слов', trim: 'Пробелы по краям' }
 };
 const cut = (s, n) => { s = String(s).replace(/\n/g, '↵'); return s.length > n ? s.slice(0, n) + '…' : s; };
@@ -1986,12 +2055,13 @@ function helpSheet() {
         h('li', { text: 'Режим «сумма» — прописью, как в документах: 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек. Валюта берётся из текста (грн, $, €, ₽, USD…), иначе — выбранная. Если в тексте есть суммы с валютой, меняются только они. «В скобках» оставляет цифры и добавляет слова в скобках.' }),
         h('li', { text: '«Строки»: сортировка А→Я и Я→А (числа по значению: Деталь-2 раньше Деталь-10), без дублей, обратный порядок, нумерация и её снятие, префикс и суффикс для каждой строки.' }),
         h('li', { text: '«Формат»: кавычки «ёлочки» и "прямые", дефис ↔ тире, десятичная запятая ↔ точка, разряды 1 234 567, любые даты → 12.11.2026, 2026-11-12, 12/11/2026 или словами. Обозначения вроде АБВГ.123456.001 не трогаются.' }),
+        h('li', { text: '«Телефоны»: все украинские номера в тексте приводятся к одному виду — +380671234567, +38 (067) 123-45-67, 067 123 45 67 и другие. Номер можно записать как угодно: слитно, с 380, с +38, со скобками и дефисами.' }),
         h('li', { text: '«Имена файлов»: каждая строка становится именем по шаблону. {text} — строка, {n} — номер, {n:3} — номер с нулями (001), {date} — сегодняшняя дата. Запрещённые в Windows знаки \\ / : * ? " < > | заменяются на _.' }),
         h('li', { text: '«Замена» → «Наборы»: несколько пар «что → на что» под одним названием, применяются одной кнопкой. «＋ набор» — создать, ✎ — изменить или удалить.' }),
         h('li', { text: '«Пресеты»: цепочка шагов под названием. Сделайте шаги и нажмите «★ В пресет» в строке шагов; потом весь набор шагов — одной кнопкой во вкладке «Пресеты».' }),
         h('li', { text: '⇄ у окна «Результат» — сравнение: что изменилось между текстом и результатом (или любыми двумя текстами), удалённое красным, добавленное зелёным. 🕘 — история последних 30 скопированных результатов.' }),
         h('li', { text: '«Знаки»: Ø, °, ±, стрелки, кавычки, индексы и др. — те же наборы, что в «Моих шаблонах». Знак вставляется в текст туда, где курсор (нажмите в нужное место текста; если не нажимали — в конец). В режиме «✎ Править» клавиатура при этом не закрывается. Если курсор в поле «Найти» или «Заменить на», знак вставится туда.' }),
-        h('li', { text: '«Транслит»: RU → Lat — практичная схема (Щукин → Shchukin, Юрий → Yuriy), UA → Lat — официальная схема КМУ № 55, как в загранпаспорте (Сергій → Serhii, Київ → Kyiv). Обратно, из латиницы, — приблизительно: латиница не различает е/э, и/й и мягкий знак, проверяйте результат.' }),
+        h('li', { text: '«Транслит»: RU → Lat — практичная схема (Щукин → Shchukin, Юрий → Yuriy), UA → Lat — официальная схема КМУ № 55, по ней пишут имена в загранпаспорте, ID-карте и водительском (Сергій → Serhii, Олексій → Oleksii, Юлія → Yuliia, Київ → Kyiv, Згурівка → Zghurivka). Обратно, из латиницы, — приблизительно: латиница не различает е/э, и/й и мягкий знак, проверяйте результат.' }),
         h('li', { text: '«Раскладка» RU → UA и UA → RU — это не перевод, а исправление текста, набранного не на той клавиатуре: ы ↔ і, э ↔ є, ъ ↔ ї.' }),
         h('li', { text: '«рус / укр» — язык числительных. Обозначения (М8, АБВГ.123456.001), даты, время, проценты, №5, 007, 5-7 остаются цифрами. До 999 миллиардов.' }),
         h('li', { text: 'На компьютере в режиме «Все группы сразу» нажатие на шапку группы сворачивает или разворачивает её; состояние запоминается. Группу можно перетащить мышью за шапку (⠿) на другое место. Способ укладки групп (плотно, ровными рядами, в одну строку) — в ⋮ → «Оформление и настройки» → «Вид команд на компьютере».' }),
@@ -2001,7 +2071,7 @@ function helpSheet() {
   });
 }
 /* ---------- оформление и настройки (блоки сворачиваются) ---------- */
-const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', sym: 'Знаки', lines: 'Строки', format: 'Формат', fname: 'Имена файлов', presets: 'Пресеты' };
+const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', sym: 'Знаки', lines: 'Строки', format: 'Формат', phone: 'Телефоны', fname: 'Имена файлов', presets: 'Пресеты' };
 const NUM_MODE_NAMES = { card: 'пять', ord: 'пятый', abbr: '5-й', money: 'сумма' };
 // какие группы и команды показывать — хранится в этом браузере, на каждом устройстве своё
 const cmdId = b => b.dataset.id || (b.dataset.t ? b.dataset.t + ':' + b.dataset.p : 'num:' + b.dataset.v);
