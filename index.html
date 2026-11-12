@@ -141,6 +141,31 @@ button{font:inherit;color:inherit;cursor:pointer}
 .numbr{margin:0 0 4px}
 .numhint{font-size:12.5px;color:var(--muted);margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tgroup.off{display:none!important}
+.flbl{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;font-size:14px;font-weight:600}
+.sheet.wide{max-width:920px}
+.rules{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}
+.rule{display:grid;grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}
+.rule .rt{grid-column:2/-1;display:flex;gap:4px;flex-wrap:wrap}
+.rule .rn{color:var(--muted);font-size:13px;min-width:22px}
+.rule .ra{color:var(--muted)}
+.rule .field{padding:8px 10px}
+.rule .seg{min-height:32px;font-size:13px}
+.hitem{border-top:1px solid var(--line);padding:8px 0}
+.hmeta{font-size:12.5px;color:var(--muted)}
+.hprev{white-space:pre-wrap;max-height:4.3em;overflow:hidden;font-size:14px;margin:4px 0 6px;word-break:break-word}
+.hitem .thm{margin-bottom:0}
+.diffin{display:grid;gap:10px;grid-template-columns:1fr 1fr;margin-bottom:6px}
+.diffin textarea{resize:vertical}
+@media (max-width:640px){.diffin{grid-template-columns:1fr}}
+.diffout{white-space:pre-wrap;border:1px solid var(--line);border-radius:12px;padding:10px 12px;max-height:45vh;overflow:auto;background:var(--bg);line-height:1.55;font-size:15px;word-break:break-word}
+.diffout del{background:rgba(179,38,30,.16);color:var(--danger);text-decoration:line-through;border-radius:3px}
+.diffout ins{background:rgba(13,107,91,.18);color:var(--accent);text-decoration:none;border-bottom:2px solid var(--accent);border-radius:3px}
+.rowlbl{grid-column:1/-1;flex:none;align-self:center;font-size:12.5px;font-weight:700;color:var(--muted);padding-right:2px}
+.tgroup .tbtns+.tbtns{margin-top:6px}
+.fnrow{display:grid;grid-template-columns:minmax(0,1fr) 76px auto;gap:6px;margin-bottom:5px}
+.fnrow .field{padding:9px 10px}
+.setrow{display:flex;align-items:center;gap:6px;margin-top:8px}
+.setrow .tbtns{flex:1;min-width:0}
 .symchars .seg{min-width:44px;padding:0 6px;font-size:18px;font-weight:500}
 #symCats .seg{min-height:34px;font-size:13px;border-radius:999px}
 #symCats .seg.on{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
@@ -280,6 +305,8 @@ body.modal-lock{overflow:hidden}
 
   <section class="pane out">
     <div class="phead"><span class="ptitle">Результат</span><span class="cnt" id="cntOut"></span>
+      <button class="hb" id="diffBtn" type="button" title="Сравнить текст и результат (или два любых текста)" aria-label="Сравнить">⇄</button>
+      <button class="hb" id="histBtn" type="button" title="История скопированных результатов" aria-label="История">🕘</button>
       <button class="hb" id="acceptBtn2" type="button" title="Результат станет текстом, шаги сбросятся">↑ В текст</button></div>
     <textarea class="field area" id="out" readonly placeholder="Здесь будет результат" spellcheck="false"></textarea>
     <div class="pbtns wide-only">
@@ -299,6 +326,10 @@ body.modal-lock{overflow:hidden}
       <button class="ttab" type="button" role="tab" data-g="num">Числа</button>
       <button class="ttab" type="button" role="tab" data-g="translit">Транслит</button>
       <button class="ttab" type="button" role="tab" data-g="sym">Знаки</button>
+      <button class="ttab" type="button" role="tab" data-g="lines">Строки</button>
+      <button class="ttab" type="button" role="tab" data-g="format">Формат</button>
+      <button class="ttab" type="button" role="tab" data-g="fname">Имена файлов</button>
+      <button class="ttab" type="button" role="tab" data-g="presets">Пресеты</button>
     </div>
     <div class="tgroup" data-g="layout">
       <div class="tlbl gtitle">Раскладка</div>
@@ -329,6 +360,64 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="clean" data-p="hyphen" title="сло-↵во → слово">Переносы слов</button>
         <button class="tb" type="button" data-t="clean" data-p="trim">Пробелы по краям</button>
       </div>
+    </div>
+    <div class="tgroup" data-g="lines">
+      <div class="tlbl gtitle">Строки</div>
+      <div class="tbtns">
+        <button class="tb" type="button" data-t="lines" data-p="sort" title="По алфавиту, числа по значению: Деталь-2 раньше Деталь-10. Пустые строки убираются">А → Я</button>
+        <button class="tb" type="button" data-t="lines" data-p="sortd" title="В обратном алфавитном порядке. Пустые строки убираются">Я → А</button>
+        <button class="tb" type="button" data-t="lines" data-p="uniq" title="Повторяющиеся строки убираются, остаётся первая">Без дублей</button>
+        <button class="tb" type="button" data-t="lines" data-p="rev" title="Последняя строка становится первой">Обратный порядок</button>
+        <button class="tb" type="button" data-t="lines" data-p="num" title="1. 2. 3. — пустые строки не нумеруются">Нумерация</button>
+        <button class="tb" type="button" data-t="lines" data-p="unnum" title="Убрать «1.», «2)», «- », «•» в начале строк">Без нумерации</button>
+        <button class="tb" type="button" id="affixBtn" data-id="lines:affix" title="Добавить текст в начало и/или конец каждой строки">Префикс / суффикс…</button>
+      </div>
+    </div>
+    <div class="tgroup" data-g="format">
+      <div class="tlbl gtitle">Формат</div>
+      <div class="tbtns">
+        <span class="rowlbl">Кавычки</span>
+        <button class="tb" type="button" data-t="typo" data-p="q-ru" title="&quot;…&quot; и “…” → «…», вложенные → „…“">«ёлочки»</button>
+        <button class="tb" type="button" data-t="typo" data-p="q-en" title="«…», „…“ → &quot;…&quot;">"прямые"</button>
+        <button class="tb" type="button" data-t="typo" data-p="dash" title="слово - слово → слово — слово (пункты списков «- » не трогаются)">дефис → тире</button>
+        <button class="tb" type="button" data-t="typo" data-p="hyph" title="— и – → -">тире → дефис</button>
+      </div>
+      <div class="tbtns">
+        <span class="rowlbl">Числа</span>
+        <button class="tb" type="button" data-t="typo" data-p="dec-dot" title="Десятичная запятая → точка (даты и обозначения не трогаются)">1,5 → 1.5</button>
+        <button class="tb" type="button" data-t="typo" data-p="dec-comma" title="Десятичная точка → запятая (даты, версии и обозначения не трогаются)">1.5 → 1,5</button>
+        <button class="tb" type="button" data-t="nfmt" data-p="grp" title="Разряды неразрывным пробелом в числах от 5 цифр (годы не трогаются)">1 234 567</button>
+        <button class="tb" type="button" data-t="nfmt" data-p="ungrp" title="Убрать пробелы между разрядами">1234567</button>
+      </div>
+      <div class="tbtns">
+        <span class="rowlbl">Даты</span>
+        <button class="tb" type="button" data-t="date" data-p="dmy" title="Любые даты → ДД.ММ.ГГГГ">12.11.2026</button>
+        <button class="tb" type="button" data-t="date" data-p="iso" title="Любые даты → ГГГГ-ММ-ДД (удобно в именах файлов)">2026-11-12</button>
+        <button class="tb" type="button" data-t="date" data-p="slash" title="Любые даты → ДД/ММ/ГГГГ">12/11/2026</button>
+        <button class="tb" type="button" data-t="date" data-p="ru" title="Любые даты → словами по-русски">12 ноября 2026 г.</button>
+        <button class="tb" type="button" data-t="date" data-p="ua" title="Любые даты → словами по-украински">12 листопада 2026 р.</button>
+      </div>
+    </div>
+    <div class="tgroup" data-g="fname">
+      <div class="tlbl gtitle">Имена файлов</div>
+      <div class="fnrow">
+        <input class="field" id="fnTpl" type="text" placeholder="Шаблон, например {n:3}_{text}.dxf" autocomplete="off" spellcheck="false" title="Из каждой строки текста — имя файла по шаблону">
+        <input class="field" id="fnStart" type="number" min="0" inputmode="numeric" title="С какого номера начинать {n}">
+        <button class="tb main" type="button" id="fnGo" data-id="fname:go">Создать</button>
+      </div>
+      <div class="srow" id="fnPh">
+        <button class="seg" type="button" data-v="{text}" title="Строка текста">{text}</button>
+        <button class="seg" type="button" data-v="{n}" title="Номер: 1, 2, 3">{n}</button>
+        <button class="seg" type="button" data-v="{n:3}" title="Номер с нулями: 001, 002">{n:3}</button>
+        <button class="seg" type="button" data-v="{date}" title="Сегодняшняя дата ГГГГ-ММ-ДД">{date}</button>
+        <label class="mini"><input type="checkbox" id="fnUs"> пробелы → _</label>
+      </div>
+      <div class="numhint" id="fnHint"></div>
+    </div>
+    <div class="tgroup" data-g="presets">
+      <div class="tlbl gtitle">Пресеты</div>
+      <div class="tbtns" id="presetList"></div>
+      <div class="numhint" id="presetHint"></div>
     </div>
     <div class="tgroup" data-g="sym">
       <div class="tlbl gtitle">Знаки</div>
@@ -403,6 +492,7 @@ body.modal-lock{overflow:hidden}
         <label class="mini"><input type="checkbox" id="frRe"> рег. выражение</label>
       </div>
       <div class="frrow"><div class="frinfo" id="frInfo"></div><button class="btn primary" id="frGo" type="button">Заменить все</button></div>
+      <div class="setrow"><span class="rowlbl">Наборы:</span><div class="tbtns" id="setList"></div></div>
     </div>
   </section>
 </main>
@@ -419,7 +509,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.13';
+const APP_VERSION = '2026-11-12.14';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -606,6 +696,11 @@ function applyWhole(t, s, prot) {
     case 'replace': { const r = makeRegex(s.p); return r.rx ? t.replace(r.rx, r.repl) : t; }
     case 'num': return numbersToWords(t, s.p);
     case 'translit': return translit(t, s.p);
+    case 'lines': return linesOp(t, s.p);
+    case 'typo': return typo(t, s.p);
+    case 'date': return fmtDate(t, s.p);
+    case 'nfmt': return fmtNum(t, s.p);
+    case 'rules': return applyRules(t, s.p);
   }
   return t;
 }
@@ -929,15 +1024,158 @@ function translit(t, p) {
   if (p === 'lat-ua') return latToCyr(t, 'ua');
   return t;
 }
+/* ---------- строки ---------- */
+const COLL = (() => {
+  try { return new Intl.Collator(['ru', 'uk', 'en'], { numeric: true, sensitivity: 'base' }); }
+  catch (e) { return { compare: (a, b) => (a < b ? -1 : a > b ? 1 : 0) }; }
+})();
+// Запрещённые в именах файлов Windows символы
+const BAD_FN = /[\\/:*?"<>|\u0000-\u001f]+/g;
+function pad(n, w) { const s = String(n); return w > s.length ? '0'.repeat(w - s.length) + s : s; }
+function todayISO() { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1, 2) + '-' + pad(d.getDate(), 2); }
+// Имена файлов по шаблону: {text} — строка, {n} или {n:3} — номер (с нулями), {date} — сегодняшняя дата
+function fileNames(lines, o) {
+  let n = Number.isFinite(+o.start) ? +o.start : 1;
+  const tpl = o.tpl || '{text}';
+  return lines.map(line => {
+    const text = line.trim();
+    if (!text) return line;
+    let name = tpl.replace(/\{(text|n|date)(?::(\d))?\}/g, (m, k, w) => (k === 'text' ? text : k === 'date' ? todayISO() : pad(n, +w || 0)));
+    n++;
+    if (o.safe !== false) name = name.replace(BAD_FN, '_');
+    if (o.us) name = name.replace(/\s+/g, '_');
+    return name.replace(/[ .]+$/, '');
+  }).join('\n');
+}
+function linesOp(t, p) {
+  const o = typeof p === 'string' ? { k: p } : (p || {});
+  const L = t.split('\n'), filled = L.filter(x => x.trim() !== '');
+  switch (o.k) {
+    case 'sort': return filled.slice().sort((a, b) => COLL.compare(a.trim(), b.trim())).join('\n');
+    case 'sortd': return filled.slice().sort((a, b) => COLL.compare(b.trim(), a.trim())).join('\n');
+    case 'uniq': { const seen = new Set(); return L.filter(x => { const k = x.trim(); if (!k) return true; if (seen.has(k)) return false; seen.add(k); return true; }).join('\n'); }
+    case 'rev': return L.slice().reverse().join('\n');
+    case 'num': { let n = 0; return L.map(x => (x.trim() ? (++n) + '. ' + x : x)).join('\n'); }
+    case 'unnum': return L.map(x => x.replace(/^(\s*)(?:\d{1,4}[.)]|[-–—•·▪*])\s+/, '$1')).join('\n');
+    case 'affix': return L.map(x => (x.trim() ? (o.pre || '') + x + (o.suf || '') : x)).join('\n');
+    case 'fname': return fileNames(L, o);
+  }
+  return t;
+}
+
+/* ---------- кавычки, тире, запятая/точка ---------- */
+// "прямые" и “английские” кавычки → «ёлочки», вложенные → „лапки“
+function toGuillemets(t) {
+  let depth = 0, out = '';
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (ch !== '"' && ch !== '“' && ch !== '”' && ch !== '„') { out += ch; continue; }
+    const prev = i ? t[i - 1] : '';
+    const open = ch === '„' || ch === '“' ? true : ch === '”' ? false : (!prev || /[\s(\[{«„—–\-\/]/.test(prev) || depth === 0 && !/[\p{L}\p{N}.,!?…)]/u.test(prev));
+    if (open) { out += depth === 0 ? '«' : '„'; depth++; }
+    else { depth = Math.max(0, depth - 1); out += depth === 0 ? '»' : '“'; }
+  }
+  return out;
+}
+function typo(t, p) {
+  switch (p) {
+    case 'q-ru': return toGuillemets(t);
+    case 'q-en': return t.replace(/[«»„“”]/g, '"');
+    case 'dash': return t.replace(/(\S)[  ]+(?:-{1,2}|–)[  ]+/g, '$1 — ');     // слово - слово → слово — слово (пункты списков «- » в начале строки не трогаются)
+    case 'hyph': return t.replace(/[—–]/g, '-');
+    case 'dec-dot': return t.replace(/(?<![\p{L}\d.,])(\d+),(\d+)(?![.,]?\d)/gu, '$1.$2');
+    case 'dec-comma': return t.replace(/(?<![\p{L}\d.,])(\d+)\.(\d+)(?![.,]?\d)/gu, '$1,$2');
+  }
+  return t;
+}
+
+/* ---------- даты и разряды ---------- */
+const MON_RU = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const MON_UA = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
+const MON_ALL = [...MON_RU, ...MON_UA];
+const DATE_RE = new RegExp(
+  '(?<![\\p{L}\\p{N}.,/\\-])(?:' +
+  '(\\d{1,2})([./])(\\d{1,2})\\2(\\d{4}|\\d{2})' +                       // 12.11.2026, 12/11/26
+  '|(\\d{4})-(\\d{1,2})-(\\d{1,2})' +                                    // 2026-11-12
+  '|(\\d{1,2})[ \\u00a0]+(' + MON_ALL.join('|') + ')[ \\u00a0]+(\\d{4})(?:[ \\u00a0]*(?:г\\.|года|року|р\\.))?' +   // 12 ноября 2026 г.
+  ')(?![\\p{L}\\p{N}]|[.,/\\-]\\p{N})', 'giu');
+function fmtDate(t, p) {
+  return t.replace(DATE_RE, (m, d1, sep, m1, y1, y2, m2, d2, d3, mw, y3) => {
+    let d, mo, y;
+    if (d1) { d = +d1; mo = +m1; y = y1.length === 2 ? 2000 + +y1 : +y1; }
+    else if (y2) { d = +d2; mo = +m2; y = +y2; }
+    else { d = +d3; mo = MON_ALL.indexOf(mw.toLowerCase()) % 12 + 1; y = +y3; }
+    if (!(mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return m;
+    switch (p) {
+      case 'dmy': return pad(d, 2) + '.' + pad(mo, 2) + '.' + y;
+      case 'iso': return y + '-' + pad(mo, 2) + '-' + pad(d, 2);
+      case 'slash': return pad(d, 2) + '/' + pad(mo, 2) + '/' + y;
+      case 'ru': return d + ' ' + MON_RU[mo - 1] + ' ' + y + ' г.';
+      case 'ua': return d + ' ' + MON_UA[mo - 1] + ' ' + y + ' р.';
+    }
+    return m;
+  });
+}
+// Разряды: 1234567 → 1 234 567 (неразрывный пробел; числа из 4 цифр, в том числе годы, не делятся). Обратно — пробелы убираются
+function fmtNum(t, p) {
+  if (p === 'grp') {
+    return t.replace(/(?<![\p{L}\p{N}_.,:\/\-№#])(\d{5,})(?=(?:[.,]\d+)?(?![\p{L}\p{N}_]|[.,:\/\-]\p{N}))/gu,
+      d => d.replace(/\B(?=(\d{3})+(?!\d))/g, ' '));
+  }
+  if (p === 'ungrp') return t.replace(/(?<![\p{N}.,])(\d{1,3})((?:[   ]\d{3})+)(?![\p{N}])/gu, (m, a, b) => a + b.replace(/[   ]/g, ''));
+  return t;
+}
+
+/* ---------- набор правил замены ---------- */
+function applyRules(t, p) {
+  for (const r of (p && p.rules) || []) { const x = makeRegex(r); if (x.rx) t = t.replace(x.rx, x.repl); }
+  return t;
+}
+
+/* ---------- сравнение двух текстов ---------- */
+// Токены: слова, пробелы, отдельные знаки. Сначала отрезается общее начало и конец, середина сравнивается по LCS
+const tokWords = s => s.match(/\s+|[\p{L}\p{N}_]+|[^\s\p{L}\p{N}_]/gu) || [];
+const tokLines = s => s.match(/[^\n]*\n|[^\n]+$/g) || [];
+function diffSeq(a, b) {
+  let s = 0;
+  while (s < a.length && s < b.length && a[s] === b[s]) s++;
+  let ea = a.length, eb = b.length;
+  while (ea > s && eb > s && a[ea - 1] === b[eb - 1]) { ea--; eb--; }
+  const A = a.slice(s, ea), B = b.slice(s, eb), n = A.length, m = B.length;
+  const ops = [];
+  if (s) ops.push([0, a.slice(0, s).join('')]);
+  if (n * m > 4e6) return null;                            // слишком велико для подробного сравнения
+  const W = m + 1, L = new Uint16Array((n + 1) * W);
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    L[i * W + j] = A[i] === B[j] ? L[(i + 1) * W + j + 1] + 1 : Math.max(L[(i + 1) * W + j], L[i * W + j + 1]);
+  let i = 0, j = 0;
+  const push = (k, x) => { const last = ops[ops.length - 1]; if (last && last[0] === k) last[1] += x; else ops.push([k, x]); };
+  while (i < n && j < m) {
+    if (A[i] === B[j]) { push(0, A[i]); i++; j++; }
+    else if (L[(i + 1) * W + j] >= L[i * W + j + 1]) { push(-1, A[i]); i++; }
+    else { push(1, B[j]); j++; }
+  }
+  while (i < n) push(-1, A[i++]);
+  while (j < m) push(1, B[j++]);
+  if (ea < a.length) push(0, a.slice(ea).join(''));
+  return ops;
+}
+// mode: 'words' | 'lines'. Возвращает [[0|−1|1, текст], …] или null
+function diffTexts(x, y, mode) {
+  if (mode === 'lines') return diffSeq(tokLines(x), tokLines(y));
+  return diffSeq(tokWords(x), tokWords(y)) || diffSeq(tokLines(x), tokLines(y));
+}
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
-const TABS = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym'];
+const TABS = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'format', 'fname', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'dense', collapsed: [] }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'dense', collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words' },
+  sets: [], presets: [], hist: [], num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
-const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit'];
+const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules'];
+const uid0 = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 function load() {
   const d = DEF();
   try {
@@ -953,7 +1191,13 @@ function load() {
         ui: (() => { const u = s.ui || {}, strs = a => (Array.isArray(a) ? a.filter(x => typeof x === 'string') : []);
           const hidden = strs(u.hidden).filter(x => TABS.includes(x));
           return { toasts: u.toasts === 'warn' ? 'warn' : 'all', order: fixOrder(u.order), hidden: hidden.length >= TABS.length ? [] : hidden,
-            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs, deskLayout: ['dense', 'rows', 'line'].includes(u.deskLayout) ? u.deskLayout : 'dense', collapsed: strs(u.collapsed).filter(x => TABS.includes(x)), symCat: Math.max(0, Math.min(6, +u.symCat || 0)) }; })() };
+            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs, deskLayout: ['dense', 'rows', 'line'].includes(u.deskLayout) ? u.deskLayout : 'dense', collapsed: strs(u.collapsed).filter(x => TABS.includes(x)), symCat: Math.max(0, Math.min(6, +u.symCat || 0)),
+            affix: { pre: String((u.affix || {}).pre || ''), suf: String((u.affix || {}).suf || '') },
+            fname: { tpl: typeof (u.fname || {}).tpl === 'string' ? u.fname.tpl : d.ui.fname.tpl, start: (u.fname || {}).start ?? 1, us: !!(u.fname || {}).us },
+            histOn: u.histOn !== false, diffMode: u.diffMode === 'lines' ? 'lines' : 'words' }; })(),
+        sets: Array.isArray(s.sets) ? s.sets.filter(x => x && typeof x.name === 'string' && Array.isArray(x.rules)).map(x => ({ id: x.id || uid0(), name: x.name, rules: x.rules.filter(r => r && typeof r.find === 'string') })) : [],
+        presets: Array.isArray(s.presets) ? s.presets.filter(x => x && typeof x.name === 'string' && Array.isArray(x.steps)).map(x => ({ id: x.id || uid0(), name: x.name, steps: x.steps.filter(st => st && STEP_TYPES.includes(st.type)) })) : [],
+        hist: Array.isArray(s.hist) ? s.hist.filter(x => x && typeof x.t === 'string').slice(0, 30) : [] };
     }
   } catch (e) { /* пусто или повреждено */ }
   return d;
@@ -963,7 +1207,7 @@ let saveT = 0;
 function saveNow() {
   clearTimeout(saveT); saveT = 0;
   try { localStorage.setItem(KEY, JSON.stringify(state)); }
-  catch (e) { try { localStorage.setItem(KEY, JSON.stringify({ ...state, text: '' })); } catch (e2) { /* нет места */ } }
+  catch (e) { try { localStorage.setItem(KEY, JSON.stringify({ ...state, text: '', hist: state.hist.slice(0, 3) })); } catch (e2) { /* нет места */ } }
 }
 const save = () => { clearTimeout(saveT); saveT = setTimeout(saveNow, 300); };
 window.addEventListener('pagehide', saveNow);
@@ -1016,6 +1260,10 @@ const NAMES = {
   layout: { 'en-ru': 'EN → RU', 'ru-en': 'RU → EN', 'ru-ua': 'RU → UA', 'ua-ru': 'UA → RU' },
   case: { upper: 'ВЕРХНИЙ', lower: 'нижний', sentence: 'Как в предложении', title: 'Каждое Слово', invert: 'иНВЕРСИЯ' },
   translit: { 'ru-lat': 'Транслит RU → Lat', 'ua-lat': 'Транслит UA → Lat', 'lat-ru': 'Транслит Lat → RU', 'lat-ua': 'Транслит Lat → UA' },
+  lines: { sort: 'Строки А→Я', sortd: 'Строки Я→А', uniq: 'Без дублей', rev: 'Обратный порядок', num: 'Нумерация', unnum: 'Без нумерации' },
+  typo: { 'q-ru': '«Ёлочки»', 'q-en': '"Прямые" кавычки', dash: 'Дефис → тире', hyph: 'Тире → дефис', 'dec-dot': '1,5 → 1.5', 'dec-comma': '1.5 → 1,5' },
+  date: { dmy: 'Даты 12.11.2026', iso: 'Даты 2026-11-12', slash: 'Даты 12/11/2026', ru: 'Даты 12 ноября 2026 г.', ua: 'Даты 12 листопада 2026 р.' },
+  nfmt: { grp: 'Разряды 1 234 567', ungrp: 'Без разрядов' },
   clean: { all: 'Очистка: всё', spaces: 'Двойные пробелы', empty: 'Пустые строки', join: 'Склеить строки', hyphen: 'Переносы слов', trim: 'Пробелы по краям' }
 };
 const cut = (s, n) => { s = String(s).replace(/\n/g, '↵'); return s.length > n ? s.slice(0, n) + '…' : s; };
@@ -1029,6 +1277,9 @@ function numLabel(p) {
 function stepLabel(s) {
   const base = s.type === 'replace' ? '«' + cut(s.p.find, 14) + '» → «' + cut(s.p.repl, 14) + '»'
     : s.type === 'num' ? numLabel(s.p)
+    : s.type === 'rules' ? 'Набор «' + cut(s.p.name, 18) + '»'
+    : s.type === 'lines' && s.p && s.p.k === 'affix' ? 'Префикс «' + cut(s.p.pre, 8) + '» / суффикс «' + cut(s.p.suf, 8) + '»'
+    : s.type === 'lines' && s.p && s.p.k === 'fname' ? 'Имена файлов: ' + cut(s.p.tpl, 20)
     : ((NAMES[s.type] && NAMES[s.type][s.p]) || s.type);
   return Array.isArray(s.r) ? base + ' · кусок' : base;
 }
@@ -1061,6 +1312,7 @@ function renderSteps() {
     kids.push(h('span', { class: 'step' }, h('span', { text: stepLabel(s), title: stepLabel(s) }),
       h('button', { type: 'button', 'aria-label': 'Убрать шаг ' + stepLabel(s), title: 'Убрать этот шаг', onclick() { flushTyping(); state.steps.splice(i, 1); commit(); after(); } }, '✕')));
   });
+  kids.push(h('button', { class: 'linkbtn', type: 'button', style: 'flex:none', title: 'Сохранить эти шаги как пресет', onclick() { savePreset(); } }, '★ В пресет'));
   kids.push(h('button', { class: 'linkbtn', type: 'button', style: 'flex:none', onclick() { flushTyping(); state.steps = []; commit(); after(); } }, 'Сбросить'));
   stepsEl.replaceChildren(...kids);
   stepsEl.scrollLeft = stepsEl.scrollWidth;
@@ -1077,7 +1329,7 @@ function updSel() {
   if (sel) $('#selText').textContent = 'Выделено ' + (sel.b - sel.a) + ' симв. — команда изменит только их (видно в «Результате»)';
   updFrInfo();
 }
-function after() { recompute(); renderSteps(); updCounts(); updSel(); updUndo(); save(); }
+function after() { recompute(); renderSteps(); updCounts(); updSel(); updUndo(); save(); try { updFn(); } catch (e) { /* ещё не готово */ } }
 
 /* ---------- отмена и повтор: текст + шаги ---------- */
 const hist = [];
@@ -1103,10 +1355,11 @@ function updUndo() {
 /* ---------- действия ---------- */
 // sel — выделение, снятое в момент нажатия кнопки (или null)
 function doOp(type, p, sel) {
-  if (TABS.includes(type) && state.tab !== type) showTab(type);      // группа последней команды — текущая
+  const tg = type === 'lines' && p && p.k === 'fname' ? 'fname' : ({ typo: 'format', date: 'format', nfmt: 'format', rules: 'replace' }[type] || type);
+  if (TABS.includes(tg) && state.tab !== tg) showTab(tg);      // группа последней команды — текущая
   if (state.text !== src.value) { state.text = src.value; }
   flushTyping();
-  const step = { type, p: typeof p === 'object' ? { ...p } : p };
+  const step = { type, p: typeof p === 'object' ? JSON.parse(JSON.stringify(p)) : p };
   if (!state.text) { toast('Сначала вставьте или введите текст', true); return; }
   // выделенный кусок: шаг действует только на него, изменение видно в «Результате», исходный текст не меняется.
   // Позиции считаются по тексту результата, поэтому при уже имеющихся шагах выделять нужно в «Результате».
@@ -1248,6 +1501,230 @@ function insertSym(ch) {
   // на компьютере и в режиме «Править» возвращаем курсор в поле, чтобы можно было печатать дальше
   if (!touch || !src.readOnly) { const pos = a + ch.length; src.focus(); try { src.setSelectionRange(pos, pos); } catch (e) { /* ничего */ } }
 }
+
+
+/* ================= этапы 2 и 3: интерфейс ================= */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+// окно с полями: resolve — объект значений или null
+function formDialog(title, fields, okLabel, extra) {
+  return new Promise(res => openModal((box, api) => {
+    const inputs = {};
+    const done = v => { api.close(); res(v); };
+    api.dismiss = () => done(null);
+    box.append(h('h2', { text: title }), ...(extra && extra.msg ? [h('p', { class: 'msg', text: extra.msg })] : []),
+      ...fields.map(f => {
+        if (f.type === 'check') { const c = h('input', { type: 'checkbox' }); c.checked = !!f.value; inputs[f.key] = c; return h('label', { class: 'chk' }, c, h('span', { text: f.label })); }
+        const inp = h('input', { class: 'field', type: f.type || 'text', value: f.value == null ? '' : f.value, placeholder: f.placeholder || '', autocomplete: 'off', spellcheck: 'false' });
+        inputs[f.key] = inp;
+        return h('label', { class: 'flbl' }, h('span', { text: f.label }), inp);
+      }),
+      h('div', { class: 'btns', style: 'margin-top:10px' },
+        btn(okLabel || 'OK', () => { const v = {}; for (const [k, el] of Object.entries(inputs)) v[k] = el.type === 'checkbox' ? el.checked : el.value; done(v); }, 'primary'),
+        btn('Отмена', () => done(null), 'ghost')));
+    const first = Object.values(inputs).find(el => el.type !== 'checkbox');
+    if (first && !touch) setTimeout(() => first.focus(), 30);
+  }));
+}
+
+/* ---------- Строки: префикс и суффикс ---------- */
+bindCmd($('#affixBtn'), async sel => {
+  const v = await formDialog('Префикс и суффикс', [
+    { key: 'pre', label: 'В начало каждой строки', value: state.ui.affix.pre, placeholder: 'например: - ' },
+    { key: 'suf', label: 'В конец каждой строки', value: state.ui.affix.suf, placeholder: 'например: ;' }], 'Добавить',
+    { msg: 'Пустые строки не трогаются. Пробелы учитываются: «- » — дефис и пробел.' });
+  if (!v || (!v.pre && !v.suf)) return;
+  state.ui.affix = { pre: v.pre, suf: v.suf }; save();
+  doOp('lines', { k: 'affix', pre: v.pre, suf: v.suf }, sel);
+});
+
+/* ---------- Имена файлов ---------- */
+const fn = { tpl: $('#fnTpl'), start: $('#fnStart'), us: $('#fnUs') };
+fn.tpl.value = state.ui.fname.tpl; fn.start.value = state.ui.fname.start; fn.us.checked = !!state.ui.fname.us;
+const fnParams = () => ({ k: 'fname', tpl: fn.tpl.value || '{text}', start: parseInt(fn.start.value, 10) || 1, us: fn.us.checked, safe: true });
+function updFn() {
+  const p = fnParams(), first = (currentOutput().split('\n').find(x => x.trim()) || 'Кронштейн левый').trim();
+  $('#fnHint').textContent = 'Пример: ' + fileNames([first], p).trim();
+}
+Object.values(fn).forEach(el => el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
+  state.ui.fname = { tpl: fn.tpl.value, start: fn.start.value, us: fn.us.checked }; save(); updFn();
+}));
+document.querySelectorAll('#fnPh .seg').forEach(b => {
+  b.addEventListener('mousedown', e => e.preventDefault());
+  b.addEventListener('click', () => { const el = fn.tpl, a = el.selectionStart ?? el.value.length, z = el.selectionEnd ?? a; el.setRangeText(b.dataset.v, a, z, 'end'); el.dispatchEvent(new Event('input')); });
+});
+bindCmd($('#fnGo'), sel => doOp('lines', fnParams(), sel));
+updFn();
+
+/* ---------- Наборы правил замены ---------- */
+function renderSets() {
+  const box = $('#setList');
+  box.replaceChildren(
+    ...state.sets.map(s => {
+      const b = h('button', { class: 'tb', type: 'button', title: s.rules.length + ' прав.: ' + s.rules.map(r => r.find + ' → ' + r.repl).join('; ') }, s.name);
+      bindCmd(b, sel => doOp('rules', { name: s.name, rules: s.rules }, sel));
+      return b;
+    }),
+    h('button', { class: 'tb', type: 'button', title: 'Новый набор правил', onclick() { editSet(null); } }, '＋ набор'),
+    state.sets.length ? h('button', { class: 'tb', type: 'button', title: 'Изменить или удалить наборы', onclick() { pickSet(); } }, '✎') : '');
+}
+function pickSet() {
+  openModal((box, api) => {
+    box.append(h('h2', { text: 'Наборы правил' }),
+      h('div', { class: 'btns' }, ...state.sets.map(s => btn('✎ ' + s.name + ' (' + s.rules.length + ')', () => { api.close(); editSet(s.id); })), btn('Закрыть', () => api.close(), 'ghost')));
+  });
+}
+function editSet(id) {
+  const src0 = state.sets.find(s => s.id === id);
+  const work = src0 ? JSON.parse(JSON.stringify(src0)) : { id: uid(), name: '', rules: [] };
+  if (!work.rules.length) work.rules.push({ find: fr.find.value || '', repl: fr.find.value ? fr.repl.value : '', cs: fr.cs.checked, ww: fr.ww.checked, re: fr.re.checked });
+  openModal((box, api) => {
+    box.classList.add('wide');
+    const name = h('input', { class: 'field', value: work.name, placeholder: 'Название набора, например: Обозначения', autocomplete: 'off' });
+    const list = h('div', { class: 'rules' });
+    const tog = (r, key, label, title) => { const b = h('button', { class: 'seg' + (r[key] ? ' on' : ''), type: 'button', title }, label); b.onclick = () => { r[key] = !r[key]; b.classList.toggle('on', r[key]); }; return b; };
+    const draw = () => list.replaceChildren(...work.rules.map((r, i) => {
+      const f = h('input', { class: 'field', value: r.find, placeholder: 'что', spellcheck: 'false' }); f.oninput = () => { r.find = f.value; };
+      const t = h('input', { class: 'field', value: r.repl, placeholder: 'на что', spellcheck: 'false' }); t.oninput = () => { r.repl = t.value; };
+      return h('div', { class: 'rule' }, h('span', { class: 'rn', text: (i + 1) + '.' }), f, h('span', { class: 'ra', text: '→' }), t,
+        h('div', { class: 'rt' }, tog(r, 'cs', 'Aa', 'Учитывать регистр'), tog(r, 'ww', 'слово', 'Целые слова'), tog(r, 're', '.*', 'Регулярное выражение'),
+          h('button', { class: 'seg', type: 'button', title: 'Удалить правило', onclick() { work.rules.splice(i, 1); draw(); } }, '✕')));
+    }));
+    draw();
+    box.append(h('h2', { text: src0 ? 'Набор правил' : 'Новый набор правил' }), name,
+      h('p', { class: 'msg', text: 'Правила применяются сверху вниз одной кнопкой. Например: «d» → «Ø», «гр.» → «°», «  » → « ».' }),
+      list,
+      h('div', { class: 'thm' },
+        btn('＋ правило', () => { work.rules.push({ find: '', repl: '', cs: false, ww: false, re: false }); draw(); }),
+        btn('＋ из полей поиска', () => { if (!fr.find.value) { toast('Поле «Найти» пустое', true); return; } work.rules.push({ find: fr.find.value, repl: fr.repl.value, cs: fr.cs.checked, ww: fr.ww.checked, re: fr.re.checked }); draw(); })),
+      h('div', { class: 'btns' },
+        btn('Сохранить', () => {
+          work.name = name.value.trim() || 'Набор ' + (state.sets.length + (src0 ? 0 : 1));
+          work.rules = work.rules.filter(r => r.find);
+          if (!work.rules.length) { toast('Добавьте хотя бы одно правило', true); return; }
+          const bad = work.rules.find(r => makeRegex(r).err);
+          if (bad) { toast('Ошибка в выражении: ' + bad.find, true); return; }
+          if (src0) Object.assign(src0, work); else state.sets.push(work);
+          save(); renderSets(); api.close(); toast('Набор «' + work.name + '» сохранён');
+        }, 'primary'),
+        src0 ? btn('Удалить набор', async () => {
+          const v = await askDialog('Удалить набор «' + src0.name + '»?', '', [['ok', 'Удалить', 'primary']], 'Больше не спрашивать', () => {});
+          if (v !== 'ok') return;
+          state.sets = state.sets.filter(s => s.id !== src0.id); save(); renderSets(); api.close();
+        }) : null,
+        btn('Отмена', () => api.close(), 'ghost')));
+    if (!touch && !src0) setTimeout(() => name.focus(), 30);
+  });
+}
+renderSets();
+
+/* ---------- Пресеты: сохранённые цепочки шагов ---------- */
+function renderPresets() {
+  const box = $('#presetList');
+  box.replaceChildren(
+    ...state.presets.map(pr => {
+      const b = h('button', { class: 'tb', type: 'button', title: pr.steps.map(stepLabel).join(' → ') }, pr.name);
+      b.addEventListener('click', () => applyPreset(pr));
+      return b;
+    }),
+    h('button', { class: 'tb', type: 'button', title: 'Сохранить текущие шаги как пресет', onclick() { savePreset(); } }, '＋ из шагов'),
+    state.presets.length ? h('button', { class: 'tb', type: 'button', title: 'Переименовать или удалить пресеты', onclick() { managePresets(); } }, '✎') : '');
+  $('#presetHint').textContent = state.presets.length
+    ? 'Пресет добавляет свои шаги к текущим. Новый пресет — из текущих шагов.'
+    : 'Пресетов пока нет. Сделайте нужные шаги (например: Очистка → Как в предложении → Замена) и нажмите «＋ из шагов» или ★ рядом с шагами.';
+}
+function applyPreset(pr) {
+  if (!state.text) { toast('Сначала вставьте или введите текст', true); return; }
+  flushTyping();
+  if (state.tab !== 'presets') showTab('presets');
+  state.steps.push(...JSON.parse(JSON.stringify(pr.steps)));
+  commit(); after();
+  toast('✓ Пресет «' + pr.name + '»: ' + pr.steps.length + ' шаг.');
+}
+async function savePreset() {
+  const steps = state.steps.filter(s => !Array.isArray(s.r));
+  if (!steps.length) { toast('Нет шагов для сохранения: сначала нажмите нужные команды', true); return; }
+  const v = await formDialog('Сохранить шаги как пресет', [{ key: 'name', label: 'Название', placeholder: 'например: Из PDF в чистовик' }], 'Сохранить',
+    { msg: steps.map(stepLabel).join(' → ') + (steps.length < state.steps.length ? '\nШаги «кусок» в пресет не входят.' : '') });
+  if (!v) return;
+  state.presets.push({ id: uid(), name: v.name.trim() || 'Пресет ' + (state.presets.length + 1), steps: JSON.parse(JSON.stringify(steps)) });
+  save(); renderPresets(); toast('Пресет сохранён — вкладка «Пресеты»');
+}
+function managePresets() {
+  openModal((box, api) => {
+    const draw = () => box.replaceChildren(h('h2', { text: 'Пресеты' }),
+      ...state.presets.map((pr, i) => h('div', { class: 'orow' },
+        h('span', { text: pr.name, title: pr.steps.map(stepLabel).join(' → ') }),
+        h('button', { class: 'hb', type: 'button', title: 'Выше', disabled: i === 0, onclick() { const a = state.presets; [a[i - 1], a[i]] = [a[i], a[i - 1]]; save(); renderPresets(); draw(); } }, '↑'),
+        h('button', { class: 'hb', type: 'button', title: 'Переименовать', async onclick() {
+          const v = await formDialog('Переименовать', [{ key: 'name', label: 'Название', value: pr.name }], 'Сохранить');
+          if (v && v.name.trim()) { pr.name = v.name.trim(); save(); renderPresets(); draw(); } } }, '✎'),
+        h('button', { class: 'hb', type: 'button', title: 'Удалить', onclick() { state.presets.splice(i, 1); save(); renderPresets(); draw(); toast('Пресет удалён'); } }, '✕'))),
+      h('div', { class: 'btns', style: 'margin-top:12px' }, btn('Готово', () => api.close(), 'primary')));
+    draw();
+  });
+}
+renderPresets();
+
+/* ---------- История скопированных результатов ---------- */
+function addHistory(t) {
+  if (!state.ui.histOn || !t) return;
+  const H = state.hist;
+  if (H[0] && H[0].t === t) { H[0].at = Date.now(); return; }
+  H.unshift({ t: t.length > 50000 ? t.slice(0, 50000) : t, at: Date.now() });
+  if (H.length > 30) H.length = 30;
+}
+function fmtTime(ms) {
+  const d = new Date(ms), now = new Date(), hm = pad(d.getHours(), 2) + ':' + pad(d.getMinutes(), 2);
+  return d.toDateString() === now.toDateString() ? 'сегодня ' + hm : pad(d.getDate(), 2) + '.' + pad(d.getMonth() + 1, 2) + ' ' + hm;
+}
+function historySheet() {
+  openModal((box, api) => {
+    const draw = () => box.replaceChildren(h('h2', { text: 'История результатов' }),
+      h('p', { class: 'msg', text: state.ui.histOn ? 'Последние 30 скопированных результатов. Хранятся только в этом браузере.' : 'История выключена (⋮ → Оформление и настройки → Вставка и очистка).' }),
+      ...(state.hist.length ? state.hist.map((x, i) => h('div', { class: 'hitem' },
+        h('div', { class: 'hmeta', text: fmtTime(x.at) + ' · ' + x.t.length + ' симв.' }),
+        h('div', { class: 'hprev', text: x.t.slice(0, 400) }),
+        h('div', { class: 'thm' },
+          btn('Копировать', async () => { const ok = await copyText(x.t); toast(ok ? '✓ Скопировано' : 'Не удалось скопировать', !ok); }),
+          btn('В поле текста', () => { flushTyping(); src.value = x.t; state.text = x.t; state.steps = state.steps.filter(s => !Array.isArray(s.r)); caretKnown = false; commit(); after(); api.close(); toast('Текст из истории (↶ вернёт)'); }),
+          btn('✕', () => { state.hist.splice(i, 1); save(); draw(); })))) : [h('p', { class: 'msg', text: 'Пока пусто: результат попадает сюда при «Копировать результат».' })]),
+      h('div', { class: 'btns', style: 'margin-top:12px' },
+        state.hist.length ? btn('Очистить историю', () => { state.hist = []; save(); draw(); }) : null,
+        btn('Закрыть', () => api.close(), 'primary')));
+    draw();
+  });
+}
+$('#histBtn').addEventListener('click', historySheet);
+
+/* ---------- Сравнение двух текстов ---------- */
+function diffSheet() {
+  openModal((box, api) => {
+    box.classList.add('wide');
+    const a = h('textarea', { class: 'field', rows: 4, spellcheck: 'false', value: state.text });
+    const b = h('textarea', { class: 'field', rows: 4, spellcheck: 'false', value: currentOutput() });
+    const outEl = h('div', { class: 'diffout' }), stat = h('div', { class: 'msg', style: 'margin:6px 0' });
+    let mode = state.ui.diffMode || 'words';
+    const modes = h('div', { class: 'thm' });
+    const run = () => {
+      modes.replaceChildren(...[['words', 'По словам'], ['lines', 'По строкам']].map(([k, n]) => btn(n, () => { mode = state.ui.diffMode = k; save(); run(); }, mode === k ? 'primary' : '')));
+      const ops = diffTexts(a.value, b.value, mode);
+      if (!ops) { outEl.replaceChildren(h('span', { text: 'Тексты слишком большие или слишком разные для подробного сравнения.' })); stat.textContent = ''; return; }
+      let del = 0, ins = 0;
+      outEl.replaceChildren(...ops.map(([k, x]) => { if (k < 0) del++; if (k > 0) ins++; return k === 0 ? document.createTextNode(x) : h(k < 0 ? 'del' : 'ins', { text: x }); }));
+      stat.textContent = del || ins ? 'Удалено мест: ' + del + ', добавлено: ' + ins + '. Красным — что было только в «Было», зелёным — только в «Стало».' : 'Тексты совпадают.';
+    };
+    const pasteInto = el => async () => { try { el.value = await navigator.clipboard.readText(); run(); } catch (e) { toast('Нет доступа к буферу: вставьте долгим нажатием', true); } };
+    a.addEventListener('input', run); b.addEventListener('input', run);
+    box.append(h('h2', { text: 'Сравнение' }), modes,
+      h('div', { class: 'diffin' },
+        h('div', {}, h('div', { class: 'phead' }, h('span', { class: 'ptitle', text: 'Было' }), h('button', { class: 'hb', type: 'button', onclick: pasteInto(a) }, 'Вставить')), a),
+        h('div', {}, h('div', { class: 'phead' }, h('span', { class: 'ptitle', text: 'Стало' }), h('button', { class: 'hb', type: 'button', onclick: pasteInto(b) }, 'Вставить')), b)),
+      stat, outEl,
+      h('div', { class: 'btns', style: 'margin-top:12px' }, btn('Закрыть', () => api.close(), 'primary')));
+    run();
+  });
+}
+$('#diffBtn').addEventListener('click', diffSheet);
 
 /* ---------- вкладки команд: телефон всегда, компьютер — по настройке ---------- */
 function applyDeskTabs() {
@@ -1393,6 +1870,7 @@ async function copyResult() {
   const t = currentOutput();
   if (!t) { toast('Копировать нечего', true); return; }
   const ok = await copyText(t);
+  if (ok) { addHistory(t); save(); }
   toast(ok ? '✓ Скопировано ' + (state.steps.length ? '' : '(без изменений) ') + '· ' + t.length + ' симв.' : 'Не удалось скопировать', !ok);
 }
 function accept() {
@@ -1506,6 +1984,12 @@ function helpSheet() {
         h('li', { text: 'Режим «пятый» — порядковые: 5 → пятый, 2000 → двухтысячный; «мн» — пятые. Если в тексте есть числа с окончанием (5-й, 21-го), меняются только они.' }),
         h('li', { text: 'Режим «5-й» — порядковые сокращённо, окончание по падежу и роду: 5 → 5-й, 21 в род. → 21-го, 3 в ж.р. → 3-я; по-украински 5 в ж.р. → 5-та. Если в тексте уже есть 5-го, 21-й и т.п., меняются только они — так можно исправить окончания.' }),
         h('li', { text: 'Режим «сумма» — прописью, как в документах: 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек. Валюта берётся из текста (грн, $, €, ₽, USD…), иначе — выбранная. Если в тексте есть суммы с валютой, меняются только они. «В скобках» оставляет цифры и добавляет слова в скобках.' }),
+        h('li', { text: '«Строки»: сортировка А→Я и Я→А (числа по значению: Деталь-2 раньше Деталь-10), без дублей, обратный порядок, нумерация и её снятие, префикс и суффикс для каждой строки.' }),
+        h('li', { text: '«Формат»: кавычки «ёлочки» и "прямые", дефис ↔ тире, десятичная запятая ↔ точка, разряды 1 234 567, любые даты → 12.11.2026, 2026-11-12, 12/11/2026 или словами. Обозначения вроде АБВГ.123456.001 не трогаются.' }),
+        h('li', { text: '«Имена файлов»: каждая строка становится именем по шаблону. {text} — строка, {n} — номер, {n:3} — номер с нулями (001), {date} — сегодняшняя дата. Запрещённые в Windows знаки \\ / : * ? " < > | заменяются на _.' }),
+        h('li', { text: '«Замена» → «Наборы»: несколько пар «что → на что» под одним названием, применяются одной кнопкой. «＋ набор» — создать, ✎ — изменить или удалить.' }),
+        h('li', { text: '«Пресеты»: цепочка шагов под названием. Сделайте шаги и нажмите «★ В пресет» в строке шагов; потом весь набор шагов — одной кнопкой во вкладке «Пресеты».' }),
+        h('li', { text: '⇄ у окна «Результат» — сравнение: что изменилось между текстом и результатом (или любыми двумя текстами), удалённое красным, добавленное зелёным. 🕘 — история последних 30 скопированных результатов.' }),
         h('li', { text: '«Знаки»: Ø, °, ±, стрелки, кавычки, индексы и др. — те же наборы, что в «Моих шаблонах». Знак вставляется в текст туда, где курсор (нажмите в нужное место текста; если не нажимали — в конец). В режиме «✎ Править» клавиатура при этом не закрывается. Если курсор в поле «Найти» или «Заменить на», знак вставится туда.' }),
         h('li', { text: '«Транслит»: RU → Lat — практичная схема (Щукин → Shchukin, Юрий → Yuriy), UA → Lat — официальная схема КМУ № 55, как в загранпаспорте (Сергій → Serhii, Київ → Kyiv). Обратно, из латиницы, — приблизительно: латиница не различает е/э, и/й и мягкий знак, проверяйте результат.' }),
         h('li', { text: '«Раскладка» RU → UA и UA → RU — это не перевод, а исправление текста, набранного не на той клавиатуре: ы ↔ і, э ↔ є, ъ ↔ ї.' }),
@@ -1517,7 +2001,7 @@ function helpSheet() {
   });
 }
 /* ---------- оформление и настройки (блоки сворачиваются) ---------- */
-const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', sym: 'Знаки' };
+const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', sym: 'Знаки', lines: 'Строки', format: 'Формат', fname: 'Имена файлов', presets: 'Пресеты' };
 const NUM_MODE_NAMES = { card: 'пять', ord: 'пятый', abbr: '5-й', money: 'сумма' };
 // какие группы и команды показывать — хранится в этом браузере, на каждом устройстве своё
 const cmdId = b => b.dataset.id || (b.dataset.t ? b.dataset.t + ':' + b.dataset.p : 'num:' + b.dataset.v);
@@ -1525,7 +2009,7 @@ function cmdButtons(g) {
   const el = document.querySelector('.tgroup[data-g="' + g + '"]');
   if (!el) return [];
   if (g === 'sym') return [...el.querySelectorAll('#symCats .seg')];
-  return g === 'num' ? [...el.querySelectorAll('#numMode .seg')] : [...el.querySelectorAll('.tb[data-t]')];
+  return g === 'num' ? [...el.querySelectorAll('#numMode .seg')] : [...el.querySelectorAll('.tb[data-t], .tb[data-id]')];
 }
 function applyVisibility() {
   const hid = new Set(state.ui.hidden), hc = new Set(state.ui.hiddenCmd);
@@ -1611,7 +2095,10 @@ function settingsSheet() {
             btn(n, () => { state.ui.paste = k; save(); draw(); }, state.ui.paste === k ? 'primary' : ''))),
           (() => { const c = h('input', { type: 'checkbox' }); c.checked = !!state.ui.clearAsk;
             c.addEventListener('change', () => { state.ui.clearAsk = c.checked; save(); });
-            return h('label', { class: 'chk' }, c, h('span', { text: 'Спрашивать перед очисткой ✕' })); })()),
+            return h('label', { class: 'chk' }, c, h('span', { text: 'Спрашивать перед очисткой ✕' })); })(),
+          (() => { const c = h('input', { type: 'checkbox' }); c.checked = !!state.ui.histOn;
+            c.addEventListener('change', () => { state.ui.histOn = c.checked; save(); });
+            return h('label', { class: 'chk' }, c, h('span', { text: 'Сохранять историю скопированных результатов (🕘)' })); })()),
         grp('prot', 'Исключения при смене регистра',
           h('label', { class: 'chk' }, on, h('span', { text: 'Учитывать исключения' })),
           h('p', { class: 'msg', text: 'Слова из списка всегда пишутся так, как вы их здесь записали. Разделяйте пробелом, запятой или новой строкой.' }),
@@ -1631,6 +2118,8 @@ function menuSheet() {
       h('h2', { text: 'Меню' }),
       h('div', { class: 'btns' },
         btn('Оформление и настройки…', () => { api.close(); settingsSheet(); }),
+        btn('История результатов', () => { api.close(); historySheet(); }),
+        btn('Сравнить тексты', () => { api.close(); diffSheet(); }),
         btn('Как пользоваться', () => { api.close(); helpSheet(); }),
         btn('Проверить обновление', () => { api.close(); checkUpdate(); }),
         btn('Закрыть', () => api.close(), 'ghost')),
