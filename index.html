@@ -79,8 +79,21 @@ button{font:inherit;color:inherit;cursor:pointer}
 /* --- инструменты --- */
 .tools{display:grid;gap:10px;grid-template-columns:repeat(3,minmax(0,1fr))}
 .tools .fr{grid-column:span 2}
-.ttabs{display:none}
+.ttabs{display:none;overflow-x:auto;gap:3px;padding:4px 4px 0;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:14px 14px 0 0;scrollbar-width:none}
+.ttabs::-webkit-scrollbar{display:none}
+.ttab{flex:none;min-height:40px;padding:0 14px;border:0;border-radius:10px 10px 0 0;background:none;font-weight:700;font-size:15px;color:var(--muted)}
+.ttab.on{background:var(--accent);color:var(--accent-ink)}
 .tgroup{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px}
+/* все группы сразу (компьютер): у каждой группы цветная шапка, текущая (где была последняя команда) — в рамке */
+.tgroup>.tlbl.gtitle{margin:-10px -10px 10px;padding:7px 12px;background:var(--accent-soft);color:var(--ink);border-radius:13px 13px 0 0;font-size:14px}
+.tgroup.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.tgroup.on>.tlbl.gtitle{background:var(--accent);color:var(--accent-ink)}
+/* вкладками (телефон всегда, компьютер — по настройке): активная вкладка залита цветом, панель её команд — в цветной рамке */
+.tabbed{display:flex!important;flex-direction:column;gap:0!important}
+.tabbed .ttabs{display:flex}
+.tabbed .tgroup{display:none;border:2px solid var(--accent);border-radius:0 0 14px 14px;box-shadow:none}
+.tabbed .tgroup.on{display:block;box-shadow:none}
+.tabbed .gtitle{display:none!important}
 .tlbl{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;font-weight:800;font-size:14px;color:var(--muted);margin:0 2px 8px}
 .tlbl .sp{flex:1}
 .tbtns{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}
@@ -131,20 +144,17 @@ button{font:inherit;color:inherit;cursor:pointer}
   .wide-only{display:none!important}
   .steps{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;min-height:34px;scrollbar-width:none}
   .steps::-webkit-scrollbar{display:none}
-  .tools{display:flex;flex-direction:column;gap:6px}
-  /* вкладки групп — лента с подчёркиванием, прокручивается; команды — отдельной панелью ниже */
-  .ttabs{display:flex;overflow-x:auto;gap:2px;border-bottom:1px solid var(--line);scrollbar-width:none}
-  .ttab{flex:none;min-height:40px;padding:0 14px;margin-bottom:-1px;border:0;border-bottom:3px solid transparent;border-radius:0;background:none;font-weight:700;font-size:15px;color:var(--muted)}
-  .ttab.on{color:var(--accent);border-bottom-color:var(--accent)}
-  .tgroup{display:none;padding:6px;border-radius:12px}
-  .tgroup.on{display:block}
+  .tools{display:flex;flex-direction:column;gap:0}
+  .ttabs{display:flex}
+  .tgroup{display:none;padding:6px;border:2px solid var(--accent);border-radius:0 0 14px 14px;box-shadow:none}
+  .tgroup.on{display:block;box-shadow:none}
   .gtitle{display:none!important}
   .tlbl{margin:0 2px 4px}
   /* команды и переключатели — одной строкой, листаются пальцем вбок */
   .tbtns,.srow,.segflex{display:flex;flex-wrap:nowrap;gap:6px}
   .tbtns,.srow{overflow-x:auto;scrollbar-width:none}
   .segflex{flex:none;gap:4px}
-  .ttabs::-webkit-scrollbar,.tbtns::-webkit-scrollbar,.srow::-webkit-scrollbar{display:none}
+  .tbtns::-webkit-scrollbar,.srow::-webkit-scrollbar{display:none}
   .tb{flex:none;min-height:44px;font-size:14px;padding:2px 14px;white-space:nowrap}
   .seg{flex:none}
   .frgrid{grid-template-columns:1fr 1fr;gap:6px}
@@ -357,7 +367,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.5';
+const APP_VERSION = '2026-11-12.6';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -785,7 +795,7 @@ function numbersToWords(t, p) {
 const TABS = ['layout', 'case', 'clean', 'replace', 'num'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
+  ui: { toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num'];
 function load() {
@@ -803,7 +813,7 @@ function load() {
         ui: (() => { const u = s.ui || {}, strs = a => (Array.isArray(a) ? a.filter(x => typeof x === 'string') : []);
           const hidden = strs(u.hidden).filter(x => TABS.includes(x));
           return { toasts: u.toasts === 'warn' ? 'warn' : 'all', order: fixOrder(u.order), hidden: hidden.length >= TABS.length ? [] : hidden,
-            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false }; })() };
+            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs }; })() };
     }
   } catch (e) { /* пусто или повреждено */ }
   return d;
@@ -952,6 +962,7 @@ function updUndo() {
 /* ---------- действия ---------- */
 // sel — выделение, снятое в момент нажатия кнопки (или null)
 function doOp(type, p, sel) {
+  if (TABS.includes(type) && state.tab !== type) showTab(type);      // группа последней команды — текущая
   if (state.text !== src.value) { state.text = src.value; }
   flushTyping();
   const step = { type, p: typeof p === 'object' ? { ...p } : p };
@@ -997,17 +1008,42 @@ const numParams = () => {
   const ordLike = n.m === 'ord' || n.m === 'abbr';
   return { m: n.m, l: n.l, c: n.m === 'money' ? 'nom' : n.c, g: ordLike ? n.g : (n.g === 'p' ? 'm' : n.g), cur: n.cur, br: !!n.br };
 };
+// Падежи, которые для выбранного режима, языка и рода дают одинаковый результат, показываются одной кнопкой (например, «Им./Вин.»)
+const CASE_LBL = { nom: 'Им.', gen: 'Род.', dat: 'Дат.', acc: 'Вин.', ins: 'Тв.', pre: 'Пр.' };
+const CASE_TEST = ['0', '1', '2', '3', '4', '5', '11', '21', '22', '40', '90', '100', '200', '1000', '2000', '21000', '1000000', '3,5', '1,1', '2,25'];
+const caseCache = {};
+function caseGroups(P) {
+  const key = P.m + P.l + P.g;
+  if (caseCache[key]) return caseCache[key];
+  const seen = new Map(), groups = [];
+  CASES.forEach(c => {
+    const sig = CASE_TEST.map(x => numbersToWords(x, { ...P, c, br: false })).join('|');
+    if (seen.has(sig)) seen.get(sig).push(c); else { const g = [c]; seen.set(sig, g); groups.push(g); }
+  });
+  return (caseCache[key] = groups);
+}
+document.querySelectorAll('#numCase .seg').forEach(b => { b.dataset.title = b.title; });
 function updNum() {
   const n = state.num, P = numParams();
   const mark = (id, v) => document.querySelectorAll(id + ' .seg').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-  mark('#numMode', n.m); mark('#numLang', n.l); mark('#numCase', P.c); mark('#numGen', P.g); mark('#numCur', n.cur);
+  mark('#numMode', n.m); mark('#numLang', n.l); mark('#numGen', P.g); mark('#numCur', n.cur);
+  if (n.m !== 'money') {
+    const groups = caseGroups(P);
+    document.querySelectorAll('#numCase .seg').forEach(b => {
+      const grp = groups.find(g => g.includes(b.dataset.v)), first = grp[0] === b.dataset.v;
+      b.hidden = !first;
+      b.textContent = grp.map(c => CASE_LBL[c]).join('/');
+      b.title = grp.length > 1 ? grp.map(c => CASE_LBL[c]).join(' и ') + ' здесь пишутся одинаково' : b.dataset.title;
+      b.classList.toggle('on', grp.includes(P.c));
+    });
+  }
   const money = n.m === 'money', open = state.ui.numOpen;
   $('#numGen').hidden = money; $('#numCur').hidden = !money; $('#numBrWrap').hidden = !money;
   $('#numCase').hidden = money; $('#numSep').hidden = money;
   $('#numGen .seg[data-v="p"]').hidden = n.m !== 'ord' && n.m !== 'abbr';
   $('#numBr').checked = !!n.br;
   $('#numOpts').hidden = !open;
-  const sum = money ? (CUR_SHORT[n.cur] || 'грн') + (n.br ? ' (…)' : '') : (CASE_SHORT[P.c] || 'им.') + ' ' + (GEN_SHORT[P.g] || 'м.р.');
+  const sum = money ? (CUR_SHORT[n.cur] || 'грн') + (n.br ? ' (…)' : '') : (caseGroups(P).find(g => g.includes(P.c)) || [P.c]).map(c => CASE_SHORT[c]).join('/') + ' ' + (GEN_SHORT[P.g] || 'м.р.');
   $('#numOptBtn').textContent = sum + (open ? ' ▴' : ' ▾');
   $('#numOptBtn').setAttribute('aria-expanded', String(open));
   const ex = n.m === 'money' ? ['1250,50'] : n.m === 'ord' ? ['1', '22', '2000'] : n.m === 'abbr' ? ['1', '3', '5', '21', '2000'] : ['1', '22', '3,5'];
@@ -1015,15 +1051,26 @@ function updNum() {
 }
 [['#numMode', 'm'], ['#numLang', 'l'], ['#numCase', 'c'], ['#numGen', 'g'], ['#numCur', 'cur']].forEach(([id, key]) => document.querySelectorAll(id + ' .seg').forEach(b => {
   b.addEventListener('mousedown', e => e.preventDefault());       // выделение в тексте не пропадает
-  b.addEventListener('click', () => { state.num[key] = b.dataset.v; updNum(); save(); });
+  b.addEventListener('click', () => { state.num[key] = b.dataset.v; updNum(); liveNum(); save(); });
 }));
-$('#numBr').addEventListener('change', e => { state.num.br = e.target.checked; updNum(); save(); });
+// Если последний шаг — «Числа» по всему тексту, переключатели сразу меняют его, и результат обновляется без повторного нажатия.
+// Шаг «кусок» так не меняется: после него можно выбрать другие параметры и добавить ещё один шаг.
+function liveNum() {
+  const last = state.steps[state.steps.length - 1];
+  if (!last || last.type !== 'num' || Array.isArray(last.r)) return;
+  const np = numParams();
+  if (JSON.stringify(np) === JSON.stringify(last.p)) return;
+  last.p = np; commit(); after();
+}
+$('#numBr').addEventListener('change', e => { state.num.br = e.target.checked; updNum(); liveNum(); save(); });
 $('#numOptBtn').addEventListener('mousedown', e => e.preventDefault());
 $('#numOptBtn').addEventListener('click', () => { state.ui.numOpen = !state.ui.numOpen; updNum(); save(); });
 bindCmd($('#numGo'), sel => doOp('num', numParams(), sel));
 updNum();
 
-/* ---------- вкладки команд (телефон) ---------- */
+/* ---------- вкладки команд: телефон всегда, компьютер — по настройке ---------- */
+function applyDeskTabs() { $('#tools').classList.toggle('tabbed', !!state.ui.deskTabs && !narrow.matches); }
+narrow.addEventListener('change', applyDeskTabs);
 function showTab(g) {
   state.tab = g;
   document.querySelectorAll('.ttab').forEach(t => {
@@ -1336,6 +1383,10 @@ function settingsSheet() {
                 } }, label);
               })) : null);
           }))),
+        ...(narrow.matches ? [] : [grp('desk', 'Вид команд на компьютере',
+          h('p', { class: 'msg', text: '«Вкладками» — как на телефоне: видна одна группа, всё помещается на экран без прокрутки. Действует только на этом компьютере.' }),
+          h('div', { class: 'thm' }, [[false, 'Все группы сразу'], [true, 'Вкладками']].map(([k, n]) =>
+            btn(n, () => { state.ui.deskTabs = k; applyDeskTabs(); save(); draw(); }, !!state.ui.deskTabs === k ? 'primary' : ''))))]),
         grp('paste', 'Вставка и очистка',
           h('div', { class: 'uilbl', text: '«Вставить», когда в поле уже есть текст' }),
           h('div', { class: 'thm' }, [['ask', 'Спрашивать'], ['replace', 'Заменять'], ['add', 'Добавлять']].map(([k, n]) =>
@@ -1375,6 +1426,7 @@ applyTheme();
 applyGroupOrder();
 showTab(state.tab);
 applyVisibility();
+applyDeskTabs();
 src.value = state.text;
 commit();
 after();
