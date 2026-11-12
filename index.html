@@ -57,7 +57,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 /* --- окна текста и результата --- */
 .app{display:grid;gap:14px;padding:12px 12px 24px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  grid-template-areas:"in out" "steps steps" "tools tools"}
+  grid-template-areas:"in out" "steps steps" "bar bar" "tools tools"}
 .pane.in{grid-area:in}.tools{grid-area:tools}.steps{grid-area:steps}.pane.out{grid-area:out}
 .area{min-height:42vh}
 #actbar{display:none}
@@ -192,6 +192,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .rowlbl{grid-column:1/-1;flex:none;align-self:center;font-size:12.5px;font-weight:700;color:var(--muted);padding-right:2px}
 .tgroup .tbtns+.tbtns{margin-top:6px}
 .numback{margin-top:8px}
+.toolsbar{display:none;grid-area:bar}
+@media (min-width:900px){.toolsbar{display:flex;justify-content:flex-end;gap:16px;margin:-8px 0 -6px}.toolsbar:has(+ .tools.tabbed){display:none}}
 .dwhich{margin-top:8px;align-items:center;position:relative}
 .dpick{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
 .dprev{font-size:17px;font-weight:700;padding:10px 12px;border-radius:12px;background:var(--accent-soft);word-break:break-word}
@@ -384,6 +386,10 @@ body.modal-lock{overflow:hidden}
 
   <section class="steps" id="steps" aria-live="polite"></section>
 
+  <div class="toolsbar" id="toolsBar">
+    <button class="linkbtn" type="button" id="collapseAll" title="Свернуть все группы команд">▸ Свернуть все</button>
+    <button class="linkbtn" type="button" id="expandAll" title="Развернуть все группы команд">▾ Развернуть все</button>
+  </div>
   <section class="tools" id="tools">
     <div class="ttabs" role="tablist">
       <button class="ttabmenu" id="tabMenuBtn" type="button" aria-label="Все вкладки" aria-expanded="false" title="Все вкладки списком">▲</button>
@@ -665,7 +671,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.24';
+const APP_VERSION = '2026-11-12.25';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1963,8 +1969,10 @@ const SYM_SETS = [
   ['Отметки', '✓ ✔ ✗ ✘ ★ ☆ ☐ ☑ ☒ ● ○ ■ □ ◆ ◇ ⚠ ❗ ❓ ✉ ☎ ✎ ♥'],
   ['Валюты', '₴ $ € £ ¥ ₽ ₸ zł Kč ¢ ₿'],
   ['Греч.', 'α β γ δ ε θ λ μ π ρ σ τ φ ω Δ Σ Ω Φ Π Λ'],
-  ['Индексы', '⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ⁺ ⁻ ⁿ ₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉ ₊ ₋']
+  ['Индексы', '⁰ ¹ ² ³ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ⁺ ⁻ ⁿ ₀ ₁ ₂ ₃ ₄ ₅ ₆ ₇ ₈ ₉ ₊ ₋'],
+  ['Пары', '«» „“ “” "" ‘’ \'\' () [] {} <> ‹›']
 ];
+const PAIRS_CAT = 'Пары';
 const keepFocus = b => { b.addEventListener('mousedown', e => e.preventDefault()); return b; };   // курсор и клавиатура остаются в поле
 $('#symCats').append(...SYM_SETS.map(([n], i) => keepFocus(h('button', { class: 'seg', type: 'button', role: 'tab', 'data-id': 'sym:' + n, 'data-i': i,
   onclick() { state.ui.symCat = i; renderSym(); save(); } }, n))));
@@ -1973,17 +1981,29 @@ function renderSym() {
   let ci = +state.ui.symCat || 0;
   if (vis.length && !vis.some(b => +b.dataset.i === ci)) ci = +vis[0].dataset.i;
   cats.forEach(b => { const on = +b.dataset.i === ci; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
-  $('#symChars').replaceChildren(...SYM_SETS[ci][1].split(' ').map(ch => keepFocus(h('button', { class: 'seg', type: 'button', title: 'Вставить ' + ch, onclick() { insertSym(ch); } }, ch))));
+  const pairs = SYM_SETS[ci][0] === PAIRS_CAT;
+  $('#symChars').replaceChildren(...SYM_SETS[ci][1].split(' ').map(ch => keepFocus(pairs
+    ? h('button', { class: 'seg', type: 'button', title: 'Обрамить выделенное ' + ch[0] + '…' + ch[1] + ', а без выделения — вставить пару, курсор внутри', onclick() { insertSym(ch[0], ch[1]); } }, ch[0] + '…' + ch[1])
+    : h('button', { class: 'seg', type: 'button', title: 'Вставить ' + ch, onclick() { insertSym(ch); } }, ch))));
   $('#symChars').scrollLeft = 0;
 }
 // Знак вставляется туда, где курсор: в поле «Найти»/«Заменить на», если вы в нём, иначе в текст.
 // Если курсор в тексте не ставили — в конец текста
-function insertSym(ch) {
+// close — закрывающая пара: выделенное обрамляется (ch + выделенное + close), без выделения курсор встаёт внутрь пары
+function insertSym(ch, close) {
   const el = document.activeElement;
-  if (el === fr.find || el === fr.repl) { el.setRangeText(ch, el.selectionStart, el.selectionEnd, 'end'); el.dispatchEvent(new Event('input')); return; }
+  if (el === fr.find || el === fr.repl) {
+    const fa = el.selectionStart, fsel = el.value.slice(fa, el.selectionEnd);
+    el.setRangeText(close == null ? ch : ch + fsel + close, fa, el.selectionEnd, 'end');
+    if (close != null && !fsel) el.setSelectionRange(fa + ch.length, fa + ch.length);
+    el.dispatchEvent(new Event('input')); return;
+  }
   flushTyping();
   const inField = el === src || caretKnown;
-  const a = inField ? src.selectionStart : src.value.length, b = inField ? src.selectionEnd : a, delta = ch.length - (b - a);
+  const a = inField ? src.selectionStart : src.value.length, b = inField ? src.selectionEnd : a;
+  const sel = src.value.slice(a, b), wrapped = close != null;
+  if (wrapped) ch = ch + sel + close;
+  const delta = ch.length - (b - a), caretAt = wrapped && !sel ? a + ch.length - close.length : a + ch.length;
   src.setRangeText(ch, a, b, 'end');
   caretKnown = true; state.text = src.value;
   state.steps.forEach(x => {                       // шаги «кусок» сдвигаются вместе с текстом
@@ -1992,7 +2012,7 @@ function insertSym(ch) {
   });
   commit(); after();
   // на компьютере и в режиме «Править» возвращаем курсор в поле, чтобы можно было печатать дальше
-  if (!touch || !src.readOnly) { const pos = a + ch.length; src.focus(); try { src.setSelectionRange(pos, pos); } catch (e) { /* ничего */ } }
+  if (!touch || !src.readOnly) { src.focus(); try { src.setSelectionRange(caretAt, caretAt); } catch (e) { /* ничего */ } }
 }
 
 
@@ -2847,7 +2867,15 @@ function freqTop(n) {
   const f = state.ui.freq || {}, map = new Map(allCommands().map(c => [c.id, c]));
   return Object.entries(f).filter(([id]) => map.has(id)).sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1]).slice(0, n).map(([id]) => map.get(id));
 }
-function scheduleFreq() { clearTimeout(freqT); freqT = setTimeout(renderFreq, 250); }
+var toolsHover = false, freqPending = false;
+// На компьютере в режиме «Все группы сразу» группа «Частые» обновляется, когда мышь уходит из области команд, —
+// иначе её рост сдвигает остальные группы прямо под курсором
+function scheduleFreq() {
+  if (!narrow.matches && toolsHover && !$('#tools').classList.contains('tabbed')) { freqPending = true; return; }
+  clearTimeout(freqT); freqT = setTimeout(renderFreq, 250);
+}
+$('#tools').addEventListener('mouseenter', () => { toolsHover = true; });
+$('#tools').addEventListener('mouseleave', () => { toolsHover = false; if (freqPending) { freqPending = false; renderFreq(); } });
 function runQuiet(c, sel, fromF) {
   quietTab = true; fromFreq = !!fromF;
   try { c.run(sel); } finally { quietTab = false; fromFreq = false; }
@@ -3252,6 +3280,10 @@ function manageDateTpls() {
   });
 }
 renderDateIns();
+
+/* ---------- свернуть / развернуть все группы (компьютер, «Все группы сразу») ---------- */
+$('#collapseAll').addEventListener('click', () => { state.ui.collapsed = TABS.slice(); applyCollapsed(); relayout(); save(); });
+$('#expandAll').addEventListener('click', () => { state.ui.collapsed = []; applyCollapsed(); relayout(); save(); });
 
 /* ---------- запуск ---------- */
 applyTheme();
