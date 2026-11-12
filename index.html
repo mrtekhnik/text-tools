@@ -86,6 +86,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tbtns{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px}
 .tb{min-height:48px;padding:4px 8px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-weight:600;font-size:15px;line-height:1.2}
 .tb.main{background:var(--accent-soft);border-color:var(--accent)}
+.seggrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
+.seggrid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.seg{min-height:38px;padding:0 2px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-weight:600;font-size:14px}
+.seg.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.numrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-top:6px;align-items:stretch}
+.numhint{font-size:12.5px;color:var(--muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);font-size:14px;min-height:32px;cursor:pointer}
 .mini input{width:20px;height:20px;accent-color:var(--accent);margin:0}
 .frgrid{display:grid;gap:8px;grid-template-columns:1fr 1fr 200px;align-items:start}
@@ -117,8 +123,8 @@ button{font:inherit;color:inherit;cursor:pointer}
   .steps{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;min-height:34px;scrollbar-width:none}
   .steps::-webkit-scrollbar{display:none}
   .tools{display:flex;flex-direction:column;gap:6px}
-  .ttabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
-  .ttab{min-height:40px;padding:0 4px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:14px;color:var(--muted)}
+  .ttabs{display:flex;gap:4px}
+  .ttab{flex:1 1 auto;min-height:40px;padding:0 5px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:14px;color:var(--muted)}
   .ttab.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   .tgroup{display:none;padding:6px;border-radius:12px}
   .tgroup.on{display:block}
@@ -230,6 +236,7 @@ body.modal-lock{overflow:hidden}
       <button class="ttab" type="button" role="tab" data-g="case">Регистр</button>
       <button class="ttab" type="button" role="tab" data-g="clean">Очистка</button>
       <button class="ttab" type="button" role="tab" data-g="replace">Замена</button>
+      <button class="ttab" type="button" role="tab" data-g="num">Числа</button>
     </div>
     <div class="tgroup" data-g="layout">
       <div class="tlbl gtitle">Раскладка</div>
@@ -261,6 +268,26 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="clean" data-p="trim">Пробелы по краям</button>
       </div>
     </div>
+    <div class="tgroup" data-g="num">
+      <div class="tlbl gtitle">Числа словами</div>
+      <div class="seggrid" id="numCase" role="group" aria-label="Падеж">
+        <button class="seg" type="button" data-v="nom" title="Именительный: кто? что? — пять">Им.</button>
+        <button class="seg" type="button" data-v="gen" title="Родительный: кого? чего? — пяти">Род.</button>
+        <button class="seg" type="button" data-v="dat" title="Дательный: кому? чему? — пяти">Дат.</button>
+        <button class="seg" type="button" data-v="acc" title="Винительный: что? — пять">Вин.</button>
+        <button class="seg" type="button" data-v="ins" title="Творительный: чем? — пятью">Тв.</button>
+        <button class="seg" type="button" data-v="pre" title="Предложный: о чём? — о пяти">Пр.</button>
+      </div>
+      <div class="numrow">
+        <div class="seggrid g3" id="numGen" role="group" aria-label="Род (для 1 и 2)">
+          <button class="seg" type="button" data-v="m" title="Мужской род: один, два">муж.</button>
+          <button class="seg" type="button" data-v="f" title="Женский род: одна, две">жен.</button>
+          <button class="seg" type="button" data-v="n" title="Средний род: одно, два">ср.</button>
+        </div>
+        <button class="tb main" type="button" id="numGo" title="5 → пять; обозначения вроде М8 и АБВГ.123.001 не меняются">Числа → словами</button>
+      </div>
+      <div class="numhint" id="numHint"></div>
+    </div>
     <div class="tgroup fr" data-g="replace">
       <div class="tlbl gtitle">Найти и заменить</div>
       <div class="frgrid">
@@ -289,7 +316,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-11.7';
+const APP_VERSION = '2026-11-12.1';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -474,6 +501,7 @@ function applyWhole(t, s, prot) {
     case 'case': return caseTransform(t, s.p, prot);
     case 'clean': return cleanText(t, s.p);
     case 'replace': { const r = makeRegex(s.p); return r.rx ? t.replace(r.rx, r.repl) : t; }
+    case 'num': return numbersToWords(t, s.p);
   }
   return t;
 }
@@ -481,15 +509,88 @@ function countText(t) {
   if (!t) return { chars: 0, words: 0, lines: 0 };
   return { chars: t.length, words: (t.match(/[\p{L}\p{N}]+(?:['’\-.][\p{L}\p{N}]+)*/gu) || []).length, lines: t.split('\n').length };
 }
+/* ---------- числа словами (русский, все падежи) ---------- */
+// падежи: 0 им, 1 род, 2 дат, 3 вин (неодушевл.), 4 твор, 5 пред
+const CASES = ['nom', 'gen', 'dat', 'acc', 'ins', 'pre'];
+const N_ONE = { m: ['один', 'одного', 'одному', 'один', 'одним', 'одном'], f: ['одна', 'одной', 'одной', 'одну', 'одной', 'одной'], n: ['одно', 'одного', 'одному', 'одно', 'одним', 'одном'] };
+const N_TWO = { m: ['два', 'двух', 'двум', 'два', 'двумя', 'двух'], f: ['две', 'двух', 'двум', 'две', 'двумя', 'двух'] };
+const softN = st => [st + 'ь', st + 'и', st + 'и', st + 'ь', st + 'ью', st + 'и'];
+const N_SMALL = {
+  0: ['ноль', 'нуля', 'нулю', 'ноль', 'нулём', 'нуле'],
+  3: ['три', 'трёх', 'трём', 'три', 'тремя', 'трёх'], 4: ['четыре', 'четырёх', 'четырём', 'четыре', 'четырьмя', 'четырёх'],
+  5: softN('пят'), 6: softN('шест'), 7: softN('сем'), 8: ['восемь', 'восьми', 'восьми', 'восемь', 'восемью', 'восьми'],
+  9: softN('девят'), 10: softN('десят'), 11: softN('одиннадцат'), 12: softN('двенадцат'), 13: softN('тринадцат'),
+  14: softN('четырнадцат'), 15: softN('пятнадцат'), 16: softN('шестнадцат'), 17: softN('семнадцат'), 18: softN('восемнадцат'), 19: softN('девятнадцат')
+};
+const N_TENS = { 2: softN('двадцат'), 3: softN('тридцат'), 4: ['сорок', 'сорока', 'сорока', 'сорок', 'сорока', 'сорока'],
+  5: ['пятьдесят', 'пятидесяти', 'пятидесяти', 'пятьдесят', 'пятьюдесятью', 'пятидесяти'],
+  6: ['шестьдесят', 'шестидесяти', 'шестидесяти', 'шестьдесят', 'шестьюдесятью', 'шестидесяти'],
+  7: ['семьдесят', 'семидесяти', 'семидесяти', 'семьдесят', 'семьюдесятью', 'семидесяти'],
+  8: ['восемьдесят', 'восьмидесяти', 'восьмидесяти', 'восемьдесят', 'восемьюдесятью', 'восьмидесяти'],
+  9: ['девяносто', 'девяноста', 'девяноста', 'девяносто', 'девяноста', 'девяноста'] };
+const hundN = (nom, st, dat, ins, pre) => [nom, st, dat, nom, ins, pre];
+const N_HUND = { 1: ['сто', 'ста', 'ста', 'сто', 'ста', 'ста'],
+  2: hundN('двести', 'двухсот', 'двумстам', 'двумястами', 'двухстах'), 3: hundN('триста', 'трёхсот', 'трёмстам', 'тремястами', 'трёхстах'),
+  4: hundN('четыреста', 'четырёхсот', 'четырёмстам', 'четырьмястами', 'четырёхстах'), 5: hundN('пятьсот', 'пятисот', 'пятистам', 'пятьюстами', 'пятистах'),
+  6: hundN('шестьсот', 'шестисот', 'шестистам', 'шестьюстами', 'шестистах'), 7: hundN('семьсот', 'семисот', 'семистам', 'семьюстами', 'семистах'),
+  8: hundN('восемьсот', 'восьмисот', 'восьмистам', 'восемьюстами', 'восьмистах'), 9: hundN('девятьсот', 'девятисот', 'девятистам', 'девятьюстами', 'девятистах') };
+// формы «тысяча / миллион / миллиард»: [ед. число по падежам], [мн. число по падежам], [им./вин. при 2–4]
+const N_BIG = {
+  1: { one: ['тысяча', 'тысячи', 'тысяче', 'тысячу', 'тысячей', 'тысяче'], many: ['тысяч', 'тысяч', 'тысячам', 'тысяч', 'тысячами', 'тысячах'], few: 'тысячи', g: 'f' },
+  2: { one: ['миллион', 'миллиона', 'миллиону', 'миллион', 'миллионом', 'миллионе'], many: ['миллионов', 'миллионов', 'миллионам', 'миллионов', 'миллионами', 'миллионах'], few: 'миллиона', g: 'm' },
+  3: { one: ['миллиард', 'миллиарда', 'миллиарду', 'миллиард', 'миллиардом', 'миллиарде'], many: ['миллиардов', 'миллиардов', 'миллиардам', 'миллиардов', 'миллиардами', 'миллиардах'], few: 'миллиарда', g: 'm' }
+};
+function smallWords(n, c, g) {
+  if (n === 1) return N_ONE[g][c];
+  if (n === 2) return N_TWO[g === 'f' ? 'f' : 'm'][c];
+  return N_SMALL[n][c];
+}
+function tripletWords(v, c, g) {
+  const w = [], hd = Math.floor(v / 100), r = v % 100;
+  if (hd) w.push(N_HUND[hd][c]);
+  if (r >= 20) { w.push(N_TENS[Math.floor(r / 10)][c]); if (r % 10) w.push(smallWords(r % 10, c, g)); }
+  else if (r) w.push(smallWords(r, c, g));
+  return w;
+}
+function bigNoun(k, v, c) {
+  const B = N_BIG[k], r10 = v % 10, r100 = v % 100;
+  const one = r10 === 1 && r100 !== 11, few = r10 >= 2 && r10 <= 4 && (r100 < 12 || r100 > 14);
+  if (one) return B.one[c];
+  if ((c === 0 || c === 3) && few) return B.few;
+  return B.many[c];
+}
+// digits — строка из цифр; caseName — nom/gen/dat/acc/ins/pre; g — m/f/n. Возвращает null, если число слишком большое
+function numberToWords(digits, caseName, g) {
+  const c = Math.max(0, CASES.indexOf(caseName)), d = String(digits).replace(/^0+(?=\d)/, '');
+  if (d.length > 12) return null;
+  if (/^0+$/.test(d)) return N_SMALL[0][c];
+  const groups = [];
+  for (let i = d.length; i > 0; i -= 3) groups.push(+d.slice(Math.max(0, i - 3), i));
+  const words = [];
+  for (let k = groups.length - 1; k >= 0; k--) {
+    const v = groups[k];
+    if (!v) continue;
+    if (k === 0) { words.push(...tripletWords(v, c, g || 'm')); continue; }
+    if (v !== 1) words.push(...tripletWords(v, c, N_BIG[k].g));       // ровно 1000 — «тысяча», без «одна»
+    words.push(bigNoun(k, v, c));
+  }
+  return words.join(' ');
+}
+// Меняются только отдельные числа; обозначения (М8, АБВГ.123456.001), даты, время, дроби, номера с нулём впереди — не трогаются
+const NUM_RE = /(?<![\p{L}\p{N}_.,:\/\-№#])\d+(?![\p{L}\p{N}_%°]|[.,:\/\-]\p{N})/gu;
+function numbersToWords(t, p) {
+  const o = p || {};
+  return t.replace(NUM_RE, m => (m.length > 1 && m[0] === '0') ? m : (numberToWords(m, o.c || 'nom', o.g || 'm') || m));
+}
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
-const TABS = ['layout', 'case', 'clean', 'replace'];
+const TABS = ['layout', 'case', 'clean', 'replace', 'num'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { toasts: 'all', order: TABS.slice() } });
+  ui: { toasts: 'all', order: TABS.slice() }, num: { c: 'nom', g: 'm' } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
-const STEP_TYPES = ['layout', 'case', 'clean', 'replace'];
+const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num'];
 function load() {
   const d = DEF();
   try {
@@ -500,6 +601,7 @@ function load() {
         text: typeof s.text === 'string' ? s.text : '',
         steps: Array.isArray(s.steps) ? s.steps.filter(x => x && STEP_TYPES.includes(x.type)) : [],
         prot: { ...d.prot, ...(s.prot || {}) }, fr: { ...d.fr, ...(s.fr || {}) },
+        num: { c: s.num && CASES.includes(s.num.c) ? s.num.c : 'nom', g: s.num && ['m', 'f', 'n'].includes(s.num.g) ? s.num.g : 'm' },
         ui: { toasts: s.ui && s.ui.toasts === 'warn' ? 'warn' : 'all', order: fixOrder(s.ui && s.ui.order) } };
     }
   } catch (e) { /* пусто или повреждено */ }
@@ -565,8 +667,11 @@ const NAMES = {
   clean: { all: 'Очистка: всё', spaces: 'Двойные пробелы', empty: 'Пустые строки', join: 'Склеить строки', hyphen: 'Переносы слов', trim: 'Пробелы по краям' }
 };
 const cut = (s, n) => { s = String(s).replace(/\n/g, '↵'); return s.length > n ? s.slice(0, n) + '…' : s; };
+const CASE_SHORT = { nom: 'им.', gen: 'род.', dat: 'дат.', acc: 'вин.', ins: 'тв.', pre: 'пр.' }, GEN_SHORT = { m: 'м.р.', f: 'ж.р.', n: 'ср.р.' };
 function stepLabel(s) {
-  const base = s.type === 'replace' ? '«' + cut(s.p.find, 14) + '» → «' + cut(s.p.repl, 14) + '»' : ((NAMES[s.type] && NAMES[s.type][s.p]) || s.type);
+  const base = s.type === 'replace' ? '«' + cut(s.p.find, 14) + '» → «' + cut(s.p.repl, 14) + '»'
+    : s.type === 'num' ? 'Числа словами, ' + (CASE_SHORT[s.p.c] || 'им.') + ' ' + (GEN_SHORT[s.p.g] || 'м.р.')
+    : ((NAMES[s.type] && NAMES[s.type][s.p]) || s.type);
   return Array.isArray(s.r) ? base + ' · кусок' : base;
 }
 
@@ -677,7 +782,20 @@ function bindCmd(b, run) {
     run(sel);
   });
 }
-document.querySelectorAll('#tools .tb').forEach(b => bindCmd(b, sel => doOp(b.dataset.t, b.dataset.p, sel)));
+document.querySelectorAll('#tools .tb[data-t]').forEach(b => bindCmd(b, sel => doOp(b.dataset.t, b.dataset.p, sel)));
+
+/* ---------- числа словами: выбор падежа и рода ---------- */
+function updNum() {
+  document.querySelectorAll('#numCase .seg').forEach(b => b.classList.toggle('on', b.dataset.v === state.num.c));
+  document.querySelectorAll('#numGen .seg').forEach(b => b.classList.toggle('on', b.dataset.v === state.num.g));
+  $('#numHint').textContent = 'Пример: 1 → ' + numberToWords('1', state.num.c, state.num.g) + ', 22 → ' + numberToWords('22', state.num.c, state.num.g) + ', 1500 → ' + numberToWords('1500', state.num.c, state.num.g);
+}
+[['#numCase', 'c'], ['#numGen', 'g']].forEach(([id, key]) => document.querySelectorAll(id + ' .seg').forEach(b => {
+  b.addEventListener('mousedown', e => e.preventDefault());       // выделение в тексте не пропадает
+  b.addEventListener('click', () => { state.num[key] = b.dataset.v; updNum(); save(); });
+}));
+bindCmd($('#numGo'), sel => doOp('num', { c: state.num.c, g: state.num.g }, sel));
+updNum();
 
 /* ---------- вкладки команд (телефон) ---------- */
 function showTab(g) {
@@ -854,13 +972,14 @@ function helpSheet() {
         h('li', { text: 'Раскладка меняет только слова, в которых есть буквы «не той» раскладки. Опечатки она не исправляет.' }),
         h('li', { text: '«Склеить строки» соединяет строки внутри абзаца (как после копирования из PDF); абзацы и пункты списков остаются.' }),
         h('li', { text: 'В регулярных выражениях замена понимает $1 и \\n.' }),
+        h('li', { text: '«Числа»: выберите падеж и род (род нужен для 1 и 2: один/одна/одно, два/две) и нажмите «Числа → словами». Меняются только отдельно стоящие числа; обозначения (М8, АБВГ.123456.001), даты, время, дроби и проценты остаются цифрами. До 999 миллиардов.' }),
         h('li', { text: 'Тема, подсказки, порядок групп команд и исключения регистра — в ⋮ → «Оформление и настройки».' }),
         h('li', { text: 'Текст и настройки хранятся только в этом браузере и никуда не отправляются.' })),
       h('div', { class: 'btns' }, btn('Понятно', () => api.close(), 'primary')));
   });
 }
 /* ---------- оформление и настройки (блоки сворачиваются) ---------- */
-const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена' };
+const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа' };
 function applyGroupOrder() {
   const tabs = $('.ttabs'), tools = $('#tools');
   state.ui.order.forEach(g => {
