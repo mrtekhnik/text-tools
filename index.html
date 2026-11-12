@@ -56,9 +56,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 /* --- окна текста и результата --- */
 .app{display:grid;gap:14px;padding:12px 0 24px;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  grid-template-areas:"tools tools" "steps steps" "in out"}
+  grid-template-areas:"in out" "steps steps" "tools tools"}
 .pane.in{grid-area:in}.tools{grid-area:tools}.steps{grid-area:steps}.pane.out{grid-area:out}
-.area{min-height:52vh}
+.area{min-height:42vh}
 #actbar{display:none}
 .pane{display:flex;flex-direction:column;gap:8px;min-width:0}
 .phead{display:flex;align-items:center;gap:8px;min-height:36px}
@@ -357,7 +357,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.4';
+const APP_VERSION = '2026-11-12.5';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -901,7 +901,7 @@ function renderSteps() {
   if (!state.steps.length) {
     stepsEl.replaceChildren(h('span', { text: narrow.matches
       ? 'Шагов нет: нажмите команду внизу'
-      : 'Нажмите действие — результат появится справа. Действия складываются по очереди, исходный текст не меняется.' }));
+      : 'Нажмите команду ниже — результат появится справа. Команды складываются по очереди, исходный текст не меняется.' }));
     return;
   }
   const kids = [h('span', { text: 'Шаги:', style: 'flex:none' })];
