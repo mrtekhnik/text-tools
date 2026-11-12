@@ -92,6 +92,24 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tools:not(.tabbed) .tgroup.collapsed>.gtitle::before{content:'▸'}
 .tools:not(.tabbed) .tgroup.collapsed>:not(.gtitle){display:none!important}
 .tools:not(.tabbed) .tgroup.collapsed>.gtitle{margin-bottom:-10px;border-radius:13px}
+/* компьютер, все группы сразу: значок для перетаскивания группы за шапку */
+@media (min-width:900px){
+  .tools:not(.tabbed) .tgroup>.gtitle::after{content:'⠿';margin-left:auto;opacity:.55;font-size:16px;line-height:1;cursor:grab}
+  .tgroup.dragging{opacity:.45}
+  .tgroup.dropbefore{box-shadow:-5px 0 0 0 var(--accent)}
+  .tgroup.dropafter{box-shadow:5px 0 0 0 var(--accent)}
+  /* «Плотно»: группы подтягиваются вверх без пустот (высота задаётся из скрипта) */
+  .tools.dense{grid-auto-rows:2px;row-gap:0;align-items:start}
+  .tools.dense>.tgroup{margin-bottom:10px}
+  /* «Ровные ряды»: карточки в ряду одной высоты */
+  .tools.eqrows{align-items:stretch}
+  .tools.eqrows>.tgroup.collapsed{align-self:start}
+  /* «Команды в одну строку»: кнопки строкой с прокруткой вбок, как на телефоне */
+  .tools.oneline .tbtns,.tools.oneline .srow{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}
+  .tools.oneline .segflex{flex-wrap:nowrap;flex:none}
+  .tools.oneline .tb{flex:none;white-space:nowrap;padding:2px 14px}
+  .tools.oneline .seg{flex:none}
+}
 .tgroup.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .tgroup.on>.tlbl.gtitle{background:var(--accent);color:var(--accent-ink)}
 /* вкладками (телефон всегда, компьютер — по настройке): активная вкладка залита цветом, панель её команд — в цветной рамке */
@@ -392,7 +410,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.10';
+const APP_VERSION = '2026-11-12.11';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -908,7 +926,7 @@ function translit(t, p) {
 const TABS = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, collapsed: [] }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'dense', collapsed: [] }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit'];
 function load() {
@@ -926,7 +944,7 @@ function load() {
         ui: (() => { const u = s.ui || {}, strs = a => (Array.isArray(a) ? a.filter(x => typeof x === 'string') : []);
           const hidden = strs(u.hidden).filter(x => TABS.includes(x));
           return { toasts: u.toasts === 'warn' ? 'warn' : 'all', order: fixOrder(u.order), hidden: hidden.length >= TABS.length ? [] : hidden,
-            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs, collapsed: strs(u.collapsed).filter(x => TABS.includes(x)), symCat: Math.max(0, Math.min(6, +u.symCat || 0)) }; })() };
+            hiddenCmd: strs(u.hiddenCmd), numOpen: u.numOpen !== false, paste: ['ask', 'replace', 'add'].includes(u.paste) ? u.paste : 'ask', clearAsk: u.clearAsk !== false, deskTabs: !!u.deskTabs, deskLayout: ['dense', 'rows', 'line'].includes(u.deskLayout) ? u.deskLayout : 'dense', collapsed: strs(u.collapsed).filter(x => TABS.includes(x)), symCat: Math.max(0, Math.min(6, +u.symCat || 0)) }; })() };
     }
   } catch (e) { /* пусто или повреждено */ }
   return d;
@@ -1223,7 +1241,33 @@ function insertSym(ch) {
 }
 
 /* ---------- вкладки команд: телефон всегда, компьютер — по настройке ---------- */
-function applyDeskTabs() { $('#tools').classList.toggle('tabbed', !!state.ui.deskTabs && !narrow.matches); }
+function applyDeskTabs() {
+  const T = $('#tools'), desk = !narrow.matches, tabs = desk && !!state.ui.deskTabs, L = state.ui.deskLayout;
+  T.classList.toggle('tabbed', tabs);
+  T.classList.toggle('dense', desk && !tabs && L === 'dense');
+  T.classList.toggle('eqrows', desk && !tabs && L === 'rows');
+  T.classList.toggle('oneline', desk && !tabs && L === 'line');
+  relayout();
+}
+// «Плотно»: каждая группа занимает в сетке столько строк по 2 px, какова её высота, — так группы ложатся плиткой без пустот
+let relayoutRaf = 0;
+function relayout() {
+  cancelAnimationFrame(relayoutRaf);
+  relayoutRaf = requestAnimationFrame(() => {
+    const T = $('#tools'), on = T.classList.contains('dense');
+    T.querySelectorAll(':scope > .tgroup').forEach(g => {
+      g.style.gridRowEnd = on ? 'span ' + Math.max(1, Math.ceil((g.getBoundingClientRect().height + 10) / 2)) : '';
+    });
+  });
+}
+if ('ResizeObserver' in window) { const ro = new ResizeObserver(relayout); document.querySelectorAll('#tools > .tgroup').forEach(g => ro.observe(g)); }
+window.addEventListener('resize', relayout);
+// колесо мыши листает строки кнопок вбок, если они не помещаются
+document.querySelectorAll('#tools .tbtns, #tools .srow').forEach(el => el.addEventListener('wheel', e => {
+  if (el.scrollWidth <= el.clientWidth + 1 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+  const before = el.scrollLeft; el.scrollLeft += e.deltaY;
+  if (el.scrollLeft !== before) e.preventDefault();
+}, { passive: false }));
 narrow.addEventListener('change', applyDeskTabs);
 function showTab(g) {
   state.tab = g;
@@ -1457,7 +1501,7 @@ function helpSheet() {
         h('li', { text: '«Транслит»: RU → Lat — практичная схема (Щукин → Shchukin, Юрий → Yuriy), UA → Lat — официальная схема КМУ № 55, как в загранпаспорте (Сергій → Serhii, Київ → Kyiv). Обратно, из латиницы, — приблизительно: латиница не различает е/э, и/й и мягкий знак, проверяйте результат.' }),
         h('li', { text: '«Раскладка» RU → UA и UA → RU — это не перевод, а исправление текста, набранного не на той клавиатуре: ы ↔ і, э ↔ є, ъ ↔ ї.' }),
         h('li', { text: '«рус / укр» — язык числительных. Обозначения (М8, АБВГ.123456.001), даты, время, проценты, №5, 007, 5-7 остаются цифрами. До 999 миллиардов.' }),
-        h('li', { text: 'На компьютере в режиме «Все группы сразу» нажатие на шапку группы сворачивает или разворачивает её; состояние запоминается.' }),
+        h('li', { text: 'На компьютере в режиме «Все группы сразу» нажатие на шапку группы сворачивает или разворачивает её; состояние запоминается. Группу можно перетащить мышью за шапку (⠿) на другое место. Способ укладки групп (плотно, ровными рядами, в одну строку) — в ⋮ → «Оформление и настройки» → «Вид команд на компьютере».' }),
         h('li', { text: 'Тема, подсказки, порядок групп команд и исключения регистра — в ⋮ → «Оформление и настройки».' }),
         h('li', { text: 'Текст и настройки хранятся только в этом браузере и никуда не отправляются.' })),
       h('div', { class: 'btns' }, btn('Понятно', () => api.close(), 'primary')));
@@ -1546,7 +1590,12 @@ function settingsSheet() {
         ...(narrow.matches ? [] : [grp('desk', 'Вид команд на компьютере',
           h('p', { class: 'msg', text: '«Вкладками» — как на телефоне: видна одна группа, всё помещается на экран без прокрутки. Действует только на этом компьютере.' }),
           h('div', { class: 'thm' }, [[false, 'Все группы сразу'], [true, 'Вкладками']].map(([k, n]) =>
-            btn(n, () => { state.ui.deskTabs = k; applyDeskTabs(); save(); draw(); }, !!state.ui.deskTabs === k ? 'primary' : ''))))]),
+            btn(n, () => { state.ui.deskTabs = k; applyDeskTabs(); save(); draw(); }, !!state.ui.deskTabs === k ? 'primary' : ''))),
+          ...(state.ui.deskTabs ? [] : [
+            h('div', { class: 'uilbl', text: 'Как укладывать группы' }),
+            h('div', { class: 'thm' }, [['dense', 'Плотно'], ['rows', 'Ровные ряды'], ['line', 'Команды в одну строку']].map(([k, n]) =>
+              btn(n, () => { state.ui.deskLayout = k; applyDeskTabs(); save(); draw(); }, state.ui.deskLayout === k ? 'primary' : ''))),
+            h('p', { class: 'msg', text: '«Плотно» — группы подтягиваются вверх без пустот. «Ровные ряды» — карточки в ряду одной высоты. «Команды в одну строку» — кнопки строкой с прокруткой вбок (колесом мыши тоже). Группы можно перетаскивать мышью за шапку (⠿); щелчок по шапке сворачивает группу.' })]))]),
         grp('paste', 'Вставка и очистка',
           h('div', { class: 'uilbl', text: '«Вставить», когда в поле уже есть текст' }),
           h('div', { class: 'thm' }, [['ask', 'Спрашивать'], ['replace', 'Заменять'], ['add', 'Добавлять']].map(([k, n]) =>
@@ -1602,12 +1651,43 @@ document.querySelectorAll('.tgroup > .gtitle').forEach(hd => {
     if ($('#tools').classList.contains('tabbed') || narrow.matches) return;
     const c = state.ui.collapsed;
     state.ui.collapsed = c.includes(g) ? c.filter(x => x !== g) : [...c, g];
-    applyCollapsed(); save();
+    applyCollapsed(); relayout(); save();
   };
   hd.addEventListener('click', toggle);
   hd.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
 });
 applyCollapsed();
+// перетаскивание групп мышью за шапку (компьютер, «Все группы сразу»)
+let dragG = null;
+const clearDrop = () => document.querySelectorAll('.tgroup').forEach(t => t.classList.remove('dragging', 'dropbefore', 'dropafter'));
+document.querySelectorAll('.tgroup > .gtitle').forEach(hd => {
+  hd.draggable = true;
+  hd.addEventListener('dragstart', e => {
+    if ($('#tools').classList.contains('tabbed') || narrow.matches) { e.preventDefault(); return; }
+    dragG = hd.parentNode.dataset.g;
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', GROUP_NAMES[dragG] || dragG); } catch (er) { /* ничего */ }
+    hd.parentNode.classList.add('dragging');
+  });
+  hd.addEventListener('dragend', () => { dragG = null; clearDrop(); });
+});
+document.querySelectorAll('#tools > .tgroup').forEach(t => {
+  t.addEventListener('dragover', e => {
+    if (!dragG || t.dataset.g === dragG) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    const r = t.getBoundingClientRect(), afterIt = e.clientX > r.left + r.width / 2;
+    t.classList.toggle('dropafter', afterIt); t.classList.toggle('dropbefore', !afterIt);
+  });
+  t.addEventListener('dragleave', e => { if (!t.contains(e.relatedTarget)) t.classList.remove('dropbefore', 'dropafter'); });
+  t.addEventListener('drop', e => {
+    if (!dragG || t.dataset.g === dragG) return;
+    e.preventDefault();
+    const afterIt = t.classList.contains('dropafter'), o = state.ui.order.filter(x => x !== dragG);
+    o.splice(o.indexOf(t.dataset.g) + (afterIt ? 1 : 0), 0, dragG);
+    state.ui.order = o; dragG = null; clearDrop();
+    applyGroupOrder(); relayout(); save();
+  });
+});
 src.value = state.text;
 commit();
 after();
