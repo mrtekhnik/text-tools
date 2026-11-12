@@ -178,7 +178,9 @@ button{font:inherit;color:inherit;cursor:pointer}
   .wide-only{display:none!important}
   .steps{flex-wrap:nowrap;overflow-x:auto;white-space:nowrap;min-height:34px;scrollbar-width:none}
   .steps::-webkit-scrollbar{display:none}
-  .tools{display:flex;flex-direction:column;gap:0}
+  .tools{display:flex;flex-direction:column;gap:0;align-items:stretch;min-width:0}
+  .tools>*{min-width:0;max-width:100%}
+  html,body{overflow-x:hidden}
   .ttabs{display:flex}
   .tgroup{display:none;padding:6px;border:2px solid var(--accent);border-radius:0 0 14px 14px;box-shadow:none}
   .tgroup.on{display:block;box-shadow:none}
@@ -417,7 +419,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.12';
+const APP_VERSION = '2026-11-12.13';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
