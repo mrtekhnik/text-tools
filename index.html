@@ -681,7 +681,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.39';
+const APP_VERSION = '2026-11-12.40';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1240,7 +1240,7 @@ function linesOp(t, p) {
     case 'unnum': return L.map(x => x.replace(/^(\s*)(?:\d{1,4}[.)]|[-–—•·▪*])\s+/, '$1')).join('\n');
     case 'affix': return L.map(x => (x.trim() ? (o.pre || '') + x + (o.suf || '') : x)).join('\n');
     case 'fname': return fileNames(L, o);
-    case 'joinsep': return joinLines(t, o.sep);
+    case 'joinsep': return joinWithSep(t, o.sep);
     case 'split': return splitText(t, o.sep);
   }
   return t;
@@ -1444,7 +1444,7 @@ function colStats(t, sep) {
 }
 
 /* ---------- склеить и разбить строки ---------- */
-function joinLines(t, sep) { return t.split('\n').map(x => x.trim()).filter(Boolean).join(sep == null ? ', ' : sep); }
+function joinWithSep(t, sep) { return t.split('\n').map(x => x.trim()).filter(Boolean).join(sep == null ? ', ' : sep); }
 function splitText(t, sep) {
   if (!sep) return t;
   // запятая и точка между цифрами (1,5) — не разделитель
@@ -1701,6 +1701,8 @@ function fixMojiWord(w) {
 function fixEncoding(t) {
   let hit = false;
   t = t.replace(/[^\s\d.,;:!?()\[\]{}"'/\\<>=+_|@#$%^&*~`]+/gu, w => { const r = fixMojiWord(w); if (r != null) { hit = true; return r; } return w; });
+  // русская «х» между числами в старой кодировке: 15õ19 → 15х19 (размеры, сечения)
+  t = t.replace(/(\d)([õÕ])(?=\d)/g, (m, d, c) => d + (c === 'õ' ? 'х' : 'Х'));
   // однобуквенные слова (к, с, в, і) — если рядом уже были кракозябры из Windows-1251: «ê» → «к», «³» → «і»
   if (hit) {
     const T = cpTables();
