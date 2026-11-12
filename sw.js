@@ -1,7 +1,7 @@
 // Текстовые инструменты — офлайн-кэш.
 // При каждой новой версии меняйте VERSION (и APP_VERSION в index.html): по изменению этого файла
 // браузер узнаёт, что есть обновление, и показывает полосу «Доступна новая версия».
-const VERSION = '2026-11-12.6';
+const VERSION = '2026-11-12.7';
 const PREFIX = 'text-tools-';            // кэши других приложений на этом адресе не трогаем
 const CACHE = PREFIX + VERSION;
 const ASSETS = ['index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];

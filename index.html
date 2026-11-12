@@ -261,6 +261,7 @@ body.modal-lock{overflow:hidden}
       <button class="ttab" type="button" role="tab" data-g="clean">Очистка</button>
       <button class="ttab" type="button" role="tab" data-g="replace">Замена</button>
       <button class="ttab" type="button" role="tab" data-g="num">Числа</button>
+      <button class="ttab" type="button" role="tab" data-g="translit">Транслит</button>
     </div>
     <div class="tgroup" data-g="layout">
       <div class="tlbl gtitle">Раскладка</div>
@@ -290,6 +291,15 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="clean" data-p="join" title="Строки внутри абзаца склеиваются, абзацы и списки остаются">Склеить строки</button>
         <button class="tb" type="button" data-t="clean" data-p="hyphen" title="сло-↵во → слово">Переносы слов</button>
         <button class="tb" type="button" data-t="clean" data-p="trim">Пробелы по краям</button>
+      </div>
+    </div>
+    <div class="tgroup" data-g="translit">
+      <div class="tlbl gtitle">Транслитерация</div>
+      <div class="tbtns">
+        <button class="tb" type="button" data-t="translit" data-p="ru-lat" title="Сергей Щукин → Sergey Shchukin (практичная схема, как в адресах сайтов и именах файлов)">RU → Lat</button>
+        <button class="tb" type="button" data-t="translit" data-p="ua-lat" title="Сергій Щукін → Serhii Shchukin (официальная схема КМУ № 55, как в загранпаспорте)">UA → Lat</button>
+        <button class="tb" type="button" data-t="translit" data-p="lat-ru" title="Sergey Shchukin → Сергей Щукин (приблизительно — проверьте результат)">Lat → RU</button>
+        <button class="tb" type="button" data-t="translit" data-p="lat-ua" title="Serhii Shchukin → Сергії Щукін (приблизительно — проверьте результат)">Lat → UA</button>
       </div>
     </div>
     <div class="tgroup" data-g="num">
@@ -367,7 +377,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-12.6';
+const APP_VERSION = '2026-11-12.7';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -553,6 +563,7 @@ function applyWhole(t, s, prot) {
     case 'clean': return cleanText(t, s.p);
     case 'replace': { const r = makeRegex(s.p); return r.rx ? t.replace(r.rx, r.repl) : t; }
     case 'num': return numbersToWords(t, s.p);
+    case 'translit': return translit(t, s.p);
   }
   return t;
 }
@@ -789,15 +800,77 @@ function numbersToWords(t, p) {
     return (fr ? fractionWords(digits, fr, c, l) : numberToWords(digits, c, g === 'p' ? 'm' : g, l)) || m;
   });
 }
+/* ---------- транслитерация ---------- */
+// RU → Lat: практичная схема (как в адресах сайтов и именах файлов): ё yo, й y, х kh, ц ts, щ shch, ы y, ю yu, я ya; ъ и ь опускаются
+// UA → Lat: официальная, постановление КМУ № 55 (2010): г h, ґ g, и y, і i; є/ї/й/ю/я в начале слова ye/yi/y/yu/ya, внутри ie/i/i/iu/ia; зг → zgh
+const TR_RU = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't',
+  у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya', і: 'i', ї: 'yi', є: 'ye', ґ: 'g' };
+const TR_UA = { а: 'a', б: 'b', в: 'v', г: 'h', ґ: 'g', д: 'd', е: 'e', є: ['ye', 'ie'], ж: 'zh', з: 'z', и: 'y', і: 'i', ї: ['yi', 'i'], й: ['y', 'i'], к: 'k', л: 'l', м: 'm',
+  н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch', ь: '', ю: ['yu', 'iu'], я: ['ya', 'ia'],
+  "'": '', '’': '', 'ʼ': '', ы: 'y', э: 'e', ё: 'io', ъ: '' };
+const isCapsWord = w => w.length > 1 && w === w.toUpperCase() && w !== w.toLowerCase();
+const fitCase = (m, ch, caps) => (!m ? m : caps ? m.toUpperCase() : ch !== ch.toLowerCase() ? m[0].toUpperCase() + m.slice(1) : m);
+function cyrToLat(t, lang) {
+  const M = lang === 'ua' ? TR_UA : TR_RU;
+  return t.replace(/[\p{L}'’ʼ]+/gu, w => {
+    if (!/[\u0400-\u04FF]/.test(w)) return w;
+    const caps = isCapsWord(w.replace(/['’ʼ]/g, ''));
+    let out = '';
+    for (let i = 0; i < w.length; i++) {
+      const ch = w[i], lo = ch.toLowerCase();
+      let m = M[lo];
+      if (m === undefined) { out += ch; continue; }
+      if (Array.isArray(m)) m = m[i === 0 ? 0 : 1];
+      if (lang === 'ua' && lo === 'г' && i > 0 && w[i - 1].toLowerCase() === 'з') m = 'gh';
+      out += fitCase(m, ch, caps);
+    }
+    return out;
+  });
+}
+// Обратно — по тем же схемам, буквосочетания ищутся первыми (shch, zh, kh, ts, ch, sh, ya…). Результат приблизительный:
+// латиница не различает е/э, и/й, ь и т. п., поэтому текст нужно проверить
+const LAT_RU = [['shch', 'щ'], ['sch', 'щ'], ['yo', 'ё'], ['jo', 'ё'], ['zh', 'ж'], ['kh', 'х'], ['ts', 'ц'], ['ch', 'ч'], ['sh', 'ш'], ['yu', 'ю'], ['ju', 'ю'], ['ya', 'я'], ['ja', 'я'],
+  ['ye', 'е'], ['a', 'а'], ['b', 'б'], ['v', 'в'], ['g', 'г'], ['d', 'д'], ['e', 'е'], ['z', 'з'], ['i', 'и'], ['j', 'й'], ['k', 'к'], ['l', 'л'], ['m', 'м'], ['n', 'н'], ['o', 'о'],
+  ['p', 'п'], ['r', 'р'], ['s', 'с'], ['t', 'т'], ['u', 'у'], ['f', 'ф'], ['h', 'х'], ['c', 'к'], ['q', 'к'], ['w', 'в'], ['x', 'кс'], ["'", 'ь']];
+const LAT_UA = [['shch', 'щ'], ['zgh', 'зг'], ['zh', 'ж'], ['kh', 'х'], ['ts', 'ц'], ['ch', 'ч'], ['sh', 'ш'], ['ye', 'є'], ['yi', 'ї'], ['yu', 'ю'], ['ya', 'я'], ['ie', 'є'], ['iu', 'ю'], ['ia', 'я'],
+  ['a', 'а'], ['b', 'б'], ['v', 'в'], ['h', 'г'], ['g', 'ґ'], ['d', 'д'], ['e', 'е'], ['z', 'з'], ['y', 'и'], ['i', 'і'], ['j', 'й'], ['k', 'к'], ['l', 'л'], ['m', 'м'], ['n', 'н'],
+  ['o', 'о'], ['p', 'п'], ['r', 'р'], ['s', 'с'], ['t', 'т'], ['u', 'у'], ['f', 'ф'], ['c', 'ц'], ['q', 'к'], ['w', 'в'], ['x', 'кс'], ["'", "'"]];
+const CYR_VOW = /[аеёиоуыэюяіїє]/;
+function latToCyr(t, lang) {
+  const R = lang === 'ua' ? LAT_UA : LAT_RU;
+  return t.replace(/[A-Za-z']+/g, w => {
+    if (!/[A-Za-z]/.test(w)) return w;
+    const caps = isCapsWord(w.replace(/'/g, '')), lw = w.toLowerCase();
+    let out = '', i = 0;
+    while (i < lw.length) {
+      let m = null, len = 1;
+      if (lang !== 'ua' && lw[i] === 'y' && !/^y[aeouo]/.test(lw.slice(i))) m = CYR_VOW.test(out.slice(-1)) ? 'й' : 'ы';   // Sergey → Сергей, Rybak → Рыбак
+      else if (lang === 'ua' && lw[i] === 'i' && !/^i[aeu]/.test(lw.slice(i)) && CYR_VOW.test(out.slice(-1))) m = i === lw.length - 1 ? 'й' : 'ї';   // Andrii → Андрій, Kyiv → Київ, Ukraina → Україна
+      else for (const [k, v] of R) if (lw.startsWith(k, i) && (lang !== 'ua' || k !== 'yi' || i === 0)) { m = v; len = k.length; break; }
+      if (m == null) { out += w[i]; i++; continue; }
+      const ch = w[i];
+      out += caps ? m.toUpperCase() : ch !== ch.toLowerCase() ? m[0].toUpperCase() + m.slice(1) : m;
+      i += len;
+    }
+    return out;
+  });
+}
+function translit(t, p) {
+  if (p === 'ru-lat') return cyrToLat(t, 'ru');
+  if (p === 'ua-lat') return cyrToLat(t, 'ua');
+  if (p === 'lat-ru') return latToCyr(t, 'ru');
+  if (p === 'lat-ua') return latToCyr(t, 'ua');
+  return t;
+}
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
-const TABS = ['layout', 'case', 'clean', 'replace', 'num'];
+const TABS = ['layout', 'case', 'clean', 'replace', 'num', 'translit'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
   ui: { toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false }, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) a.push(x); }); return [...new Set(a)]; };
-const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num'];
+const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit'];
 function load() {
   const d = DEF();
   try {
@@ -875,6 +948,7 @@ async function copyText(text) {
 const NAMES = {
   layout: { 'en-ru': 'EN → RU', 'ru-en': 'RU → EN', 'ru-ua': 'RU → UA', 'ua-ru': 'UA → RU' },
   case: { upper: 'ВЕРХНИЙ', lower: 'нижний', sentence: 'Как в предложении', title: 'Каждое Слово', invert: 'иНВЕРСИЯ' },
+  translit: { 'ru-lat': 'Транслит RU → Lat', 'ua-lat': 'Транслит UA → Lat', 'lat-ru': 'Транслит Lat → RU', 'lat-ua': 'Транслит Lat → UA' },
   clean: { all: 'Очистка: всё', spaces: 'Двойные пробелы', empty: 'Пустые строки', join: 'Склеить строки', hyphen: 'Переносы слов', trim: 'Пробелы по краям' }
 };
 const cut = (s, n) => { s = String(s).replace(/\n/g, '↵'); return s.length > n ? s.slice(0, n) + '…' : s; };
@@ -1299,6 +1373,8 @@ function helpSheet() {
         h('li', { text: 'Режим «пятый» — порядковые: 5 → пятый, 2000 → двухтысячный; «мн» — пятые. Если в тексте есть числа с окончанием (5-й, 21-го), меняются только они.' }),
         h('li', { text: 'Режим «5-й» — порядковые сокращённо, окончание по падежу и роду: 5 → 5-й, 21 в род. → 21-го, 3 в ж.р. → 3-я; по-украински 5 в ж.р. → 5-та. Если в тексте уже есть 5-го, 21-й и т.п., меняются только они — так можно исправить окончания.' }),
         h('li', { text: 'Режим «сумма» — прописью, как в документах: 1250,50 грн → одна тысяча двести пятьдесят гривен 50 копеек. Валюта берётся из текста (грн, $, €, ₽, USD…), иначе — выбранная. Если в тексте есть суммы с валютой, меняются только они. «В скобках» оставляет цифры и добавляет слова в скобках.' }),
+        h('li', { text: '«Транслит»: RU → Lat — практичная схема (Щукин → Shchukin, Юрий → Yuriy), UA → Lat — официальная схема КМУ № 55, как в загранпаспорте (Сергій → Serhii, Київ → Kyiv). Обратно, из латиницы, — приблизительно: латиница не различает е/э, и/й и мягкий знак, проверяйте результат.' }),
+        h('li', { text: '«Раскладка» RU → UA и UA → RU — это не перевод, а исправление текста, набранного не на той клавиатуре: ы ↔ і, э ↔ є, ъ ↔ ї.' }),
         h('li', { text: '«рус / укр» — язык числительных. Обозначения (М8, АБВГ.123456.001), даты, время, проценты, №5, 007, 5-7 остаются цифрами. До 999 миллиардов.' }),
         h('li', { text: 'Тема, подсказки, порядок групп команд и исключения регистра — в ⋮ → «Оформление и настройки».' }),
         h('li', { text: 'Текст и настройки хранятся только в этом браузере и никуда не отправляются.' })),
@@ -1306,7 +1382,7 @@ function helpSheet() {
   });
 }
 /* ---------- оформление и настройки (блоки сворачиваются) ---------- */
-const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа' };
+const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит' };
 const NUM_MODE_NAMES = { card: 'пять', ord: 'пятый', abbr: '5-й', money: 'сумма' };
 // какие группы и команды показывать — хранится в этом браузере, на каждом устройстве своё
 const cmdId = b => (b.dataset.t ? b.dataset.t + ':' + b.dataset.p : 'num:' + b.dataset.v);
