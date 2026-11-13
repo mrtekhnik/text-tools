@@ -635,6 +635,14 @@ body.modal-lock{overflow:hidden}
         <label class="mini"><input type="checkbox" id="fnUs"> пробелы → _</label>
       </div>
       <div class="numhint" id="fnHint"></div>
+      <div class="tbtns" id="wsepRow">
+        <span class="rowlbl">Слова через знак</span>
+        <button class="tb" type="button" data-sep="_" data-id="lines:wsep_" title="Пробелы между словами → _ в каждой строке">Табель_Відділ_КБ</button>
+        <button class="tb" type="button" data-sep="-" data-id="lines:wsep-" title="Пробелы между словами → - в каждой строке">Табель-Відділ-КБ</button>
+        <button class="tb" type="button" data-sep="." data-id="lines:wsep." title="Пробелы между словами → . в каждой строке">Табель.Відділ.КБ</button>
+        <button class="tb" type="button" data-sep="" data-id="lines:wsep0" title="Убрать пробелы между словами">ТабельВідділКБ</button>
+        <button class="tb" type="button" id="wsepOwn" data-id="lines:wsep" title="Свой знак между словами">Свой знак…</button>
+      </div>
     </div>
     <div class="tgroup" data-g="dec">
       <div class="tlbl gtitle">Обозначения</div>
@@ -754,7 +762,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.8';
+const APP_VERSION = '2026-11-13.9';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1317,6 +1325,7 @@ function linesOp(t, p) {
     case 'merge': return mergeLines(t);
     case 'filter': return filterLines(t, o);
     case 'joinsep': return joinWithSep(t, o.sep);
+    case 'wsep': return wordSep(t, o.sep == null ? '_' : o.sep);
     case 'split': return splitText(t, o.sep);
   }
   return t;
@@ -1520,6 +1529,9 @@ function colStats(t, sep) {
 }
 
 /* ---------- склеить и разбить строки ---------- */
+// слова в каждой строке соединить знаком: «Табель Відділ КБ, 05 2026» → «Табель_Відділ_КБ_05_2026».
+// Пробелы, «, », «; » и « - » между словами считаются одним разделителем; дробные 5,5 не трогаются.
+function wordSep(t, sep) { return t.split('\n').map(x => x.trim().replace(/[ \t\u00a0]*[,;][ \t\u00a0]+|[ \t\u00a0]+(?:[-–—_][ \t\u00a0]+)?/g, sep)).join('\n'); }
 function joinWithSep(t, sep) { return t.split('\n').map(x => x.trim()).filter(Boolean).join(sep == null ? ', ' : sep); }
 function splitText(t, sep) {
   if (!sep) return t;
@@ -2119,7 +2131,7 @@ const DEC_FOLD = ['Library', 'PDF_DXF', 'Документация', 'Повід�
 const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'anon', 'format', 'dates', 'phone', 'fname', 'dec', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', dec: { v: '', n: 10, step: 1, sk: false, extra: true, fold: DEC_FOLD.slice(), docs: DEC_DOCS.slice() }, hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', dec: { v: '', n: 10, step: 1, sk: false, extra: true, fold: DEC_FOLD.slice(), docs: DEC_DOCS.slice() }, hl: false, joinSep: ', ', splitSep: ',', wsep: '_', colSpec: '', colSep: 'auto', exUniq: true },
   sets: [], presets: [], hist: [], anonMap: {}, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw', 'fix', 'roman', 'anon'];
@@ -2150,7 +2162,7 @@ function load() {
             dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '', calLang: u.calLang === 'ua' ? 'ua' : 'ru',
             dec: (() => { const x = u.dec || {}; return { v: typeof x.v === 'string' ? x.v : '', n: Math.max(1, Math.min(99, +x.n || 10)), step: x.step === 10 ? 10 : 1, sk: !!x.sk, extra: x.extra !== false,
               fold: Array.isArray(x.fold) ? x.fold.filter(y => typeof y === 'string').slice(0, 40) : DEC_FOLD.slice(), docs: Array.isArray(x.docs) && x.docs.join('|') !== '{N} ВМ|{N} ВП|Акт на {И}' ? x.docs.filter(y => typeof y === 'string').slice(0, 40) : DEC_DOCS.slice() }; })(),
-            dateTpls: Array.isArray(u.dateTpls) ? u.dateTpls.filter(x => x && typeof x.tpl === 'string').map(x => ({ id: String(x.id || uid0()), tpl: x.tpl })).slice(0, 30) : [], joinSep: typeof u.joinSep === 'string' ? u.joinSep : ', ', splitSep: typeof u.splitSep === 'string' && u.splitSep ? u.splitSep : ',',
+            dateTpls: Array.isArray(u.dateTpls) ? u.dateTpls.filter(x => x && typeof x.tpl === 'string').map(x => ({ id: String(x.id || uid0()), tpl: x.tpl })).slice(0, 30) : [], joinSep: typeof u.joinSep === 'string' ? u.joinSep : ', ', wsep: typeof u.wsep === 'string' ? u.wsep : '_', splitSep: typeof u.splitSep === 'string' && u.splitSep ? u.splitSep : ',',
             colSpec: typeof u.colSpec === 'string' ? u.colSpec : '', colSep: ['auto', 'tab', 'semi', 'comma', 'bar', 'sp'].includes(u.colSep) ? u.colSep : 'auto', exUniq: u.exUniq !== false,
             freq: u.freq && typeof u.freq === 'object' && !Array.isArray(u.freq) ? Object.fromEntries(Object.entries(u.freq).filter(([, v]) => Array.isArray(v) && v.length === 2 && isFinite(v[0]) && isFinite(v[1])).slice(0, 80)) : {} }; })(),
         sets: Array.isArray(s.sets) ? s.sets.filter(x => x && typeof x.name === 'string' && Array.isArray(x.rules)).map(x => ({ id: x.id || uid0(), name: x.name, rules: x.rules.filter(r => r && typeof r.find === 'string') })) : [],
@@ -2253,6 +2265,7 @@ function stepLabel(s) {
     : s.type === 'rules' ? 'Набор «' + cut(s.p.name, 18) + '»'
     : s.type === 'lines' && s.p && s.p.k === 'affix' ? 'Префикс «' + cut(s.p.pre, 8) + '» / суффикс «' + cut(s.p.suf, 8) + '»'
     : s.type === 'lines' && s.p && s.p.k === 'fname' ? 'Имена файлов: ' + cut(s.p.tpl, 20)
+    : s.type === 'lines' && s.p && s.p.k === 'wsep' ? (s.p.sep ? 'Слова через «' + cut(s.p.sep, 8) + '»' : 'Слова слитно')
     : s.type === 'lines' && s.p && s.p.k === 'joinsep' ? 'Склеить через «' + cut(s.p.sep, 8) + '»'
     : s.type === 'lines' && s.p && s.p.k === 'split' ? 'Разбить по «' + cut(s.p.sep, 8) + '»'
     : s.type === 'lines' && s.p && s.p.k === 'filter' ? (s.p.keep ? 'Оставить' : 'Убрать') + ' строки с «' + cut(s.p.q, 14) + '»'
@@ -2338,7 +2351,7 @@ function updUndo() {
 /* ---------- действия ---------- */
 // sel — выделение, снятое в момент нажатия кнопки (или null)
 function doOp(type, p, sel) {
-  const tg = type === 'lines' && p && p.k === 'fname' ? 'fname' : ({ typo: 'format', date: 'dates', nfmt: 'format', fio: 'format', dim: 'format', numw: 'num', fix: 'clean', roman: 'format', rules: 'replace' }[type] || type);
+  const tg = type === 'lines' && p && (p.k === 'fname' || p.k === 'wsep') ? 'fname' : ({ typo: 'format', date: 'dates', nfmt: 'format', fio: 'format', dim: 'format', numw: 'num', fix: 'clean', roman: 'format', rules: 'replace' }[type] || type);
   if (!quietTab && TABS.includes(tg) && state.tab !== tg) showTab(tg);      // группа последней команды — текущая
   if (state.text !== src.value) { state.text = src.value; }
   flushTyping();
@@ -3192,8 +3205,8 @@ async function editStep(i) {
       { key: 'us', type: 'check', label: 'Пробелы → _', value: s.p.us }], 'Сохранить');
     if (!v) return;
     p = { k: 'fname', tpl: v.tpl || '{text}', start: parseInt(v.start, 10) || 1, us: v.us, safe: true };
-  } else if (s.type === 'lines' && s.p && (s.p.k === 'joinsep' || s.p.k === 'split')) {
-    const v = await formDialog(s.p.k === 'split' ? 'Разбить на строки' : 'Склеить строки', [{ key: 'sep', label: s.p.k === 'split' ? 'По какому знаку разбивать' : 'Разделитель', value: s.p.sep }], 'Сохранить');
+  } else if (s.type === 'lines' && s.p && (s.p.k === 'joinsep' || s.p.k === 'split' || s.p.k === 'wsep')) {
+    const v = await formDialog(s.p.k === 'split' ? 'Разбить на строки' : s.p.k === 'wsep' ? 'Соединить слова' : 'Склеить строки', [{ key: 'sep', label: s.p.k === 'split' ? 'По какому знаку разбивать' : s.p.k === 'wsep' ? 'Знак между словами (пусто — слитно)' : 'Разделитель', value: s.p.sep }], 'Сохранить');
     if (!v) return;
     if (s.p.k === 'split' && !v.sep) { toast('Укажите знак', true); return; }
     p = { k: s.p.k, sep: v.sep };
@@ -3312,6 +3325,7 @@ const KW = {
   fio: 'фио инициалы фамилия имя отчество', dim: 'размеры', 'dim:x': 'умножить крестик размер', 'dim:dia': 'диаметр', 'dim:sym': 'плюс минус градус допуск',
   'lines:merge': 'свести сложить количество одинаковые позиции спецификация заявка сумма', 'lines:filter': 'фильтр оставить убрать строки содержащие поиск', 'lines:cmp': 'сравнить списки разница excel',
   'fix:md': 'ответ ии нейросеть chatgpt claude markdown разметка звездочки', anon: 'обезличить скрыть личные данные ии нейросеть персональные', 'anon:back': 'вернуть данные',
+  'lines:wsep_': 'подчёркивание подчеркивание нижнее соединить слова пробелы имя файла табель', 'lines:wsep-': 'дефис соединить слова пробелы', 'lines:wsep0': 'слитно убрать пробелы между словами', 'lines:wsep': 'соединить слова свой знак разделитель',
   'dim:mm2m': 'миллиметры метры', 'dim:m2mm': 'метры миллиметры', 'lines:join': 'склеить объединить в строку через запятую', 'lines:split': 'разбить разделить на строки столбик'
 };
 function allCommands() {
@@ -3581,6 +3595,16 @@ function applyHl() {
 }
 hlBtn.addEventListener('click', () => { state.ui.hl = !state.ui.hl; save(); applyHl(); });
 applyHl();
+
+/* ---------- Имена файлов: слова через знак ---------- */
+document.querySelectorAll('#wsepRow .tb[data-sep]').forEach(b => bindCmd(b, sel => doOp('lines', { k: 'wsep', sep: b.dataset.sep }, sel)));
+bindCmd($('#wsepOwn'), async sel => {
+  const v = await formDialog('Соединить слова', [{ key: 'sep', label: 'Знак между словами', value: state.ui.wsep }], 'Соединить',
+    { msg: 'В каждой строке пробелы между словами заменятся этим знаком: «Табель Відділ КБ ТІСО 05 2026 Травень» → «Табель_Відділ_КБ_ТІСО_05_2026_Травень». «, » и « - » между словами считаются одним разделителем.' });
+  if (!v) return;
+  state.ui.wsep = v.sep; save();
+  doOp('lines', { k: 'wsep', sep: v.sep }, sel);
+});
 
 /* ---------- Строки: склеить и разбить ---------- */
 bindCmd($('#joinBtn'), async sel => {
