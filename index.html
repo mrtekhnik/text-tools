@@ -206,7 +206,22 @@ button{font:inherit;color:inherit;cursor:pointer}
 .hsep{width:1px;height:28px;background:var(--line);margin:0 4px;flex:none}
 @media (max-width:899px){.deskonly{display:none!important}}
 .dwhich{align-items:center;position:relative;margin-bottom:6px}
-.dpick{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
+.calhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 8px}
+.calhead b{font-size:17px}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.calwd{text-align:center;font-size:12.5px;font-weight:700;color:var(--muted);padding:2px 0}
+.calwd.we,.calday.we{color:var(--danger)}
+.calday{min-height:42px;border-radius:10px;border:1px solid transparent;background:var(--bg);font-weight:600;font-size:15px;color:var(--ink)}
+.calday.today{border-color:var(--accent)}
+.calday.on{background:var(--accent);color:var(--accent-ink)}
+.decrow{flex-wrap:wrap!important;overflow:visible!important}
+@media (max-width:899px){.decrow>.rowlbl{flex-basis:100%}#decOpts{flex-wrap:wrap;overflow:visible}#decOpts>.rowlbl{display:none}}
+.decitem{display:inline-flex;flex:none}
+.decchip{min-height:40px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--muted);font:500 14px/1.2 ui-monospace,Consolas,monospace;white-space:nowrap}
+.decchip b{color:var(--ink);font-weight:800}
+.decchip.used{background:var(--accent-soft)}
+.decitem .decchip{border-radius:10px 0 0 10px}
+.decgo{min-height:40px;width:38px;border:1px solid var(--line);border-left:0;border-radius:0 10px 10px 0;background:var(--bg);font-weight:800;font-size:16px;color:var(--accent)}
 .dprev{font-size:17px;font-weight:700;padding:10px 12px;border-radius:12px;background:var(--accent-soft);word-break:break-word}
 .tbtns.wide{grid-template-columns:repeat(auto-fill,minmax(178px,1fr))}
 .tbtns.wide .tb{white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -418,6 +433,7 @@ body.modal-lock{overflow:hidden}
       <button class="ttab" type="button" role="tab" data-g="dates">Даты</button>
       <button class="ttab" type="button" role="tab" data-g="phone">Телефоны</button>
       <button class="ttab" type="button" role="tab" data-g="fname">Имена файлов</button>
+      <button class="ttab" type="button" role="tab" data-g="dec">Обозначения</button>
       <button class="ttab" type="button" role="tab" data-g="presets">Пресеты</button>
     </div>
     <div class="tgroup" data-g="freq">
@@ -572,9 +588,9 @@ body.modal-lock{overflow:hidden}
         <button class="seg" type="button" data-v="yest">Вчера</button>
         <button class="seg" type="button" data-v="tom">Завтра</button>
         <button class="seg" type="button" data-v="custom" title="Выбрать дату в календаре">📅 Дата…</button>
-        <input type="date" id="datePick" class="dpick" tabindex="-1" aria-hidden="true">
       </div>
       <div class="tbtns" id="dateIns"></div>
+      <div class="tbtns" id="dateMon"></div>
       <div class="tbtns datefix">
         <span class="rowlbl">Исправить в тексте</span>
         <button class="tb" type="button" data-t="date" data-p="dmy" title="Любые даты → ДД.ММ.ГГГГ">12.11.2026</button>
@@ -618,6 +634,21 @@ body.modal-lock{overflow:hidden}
         <label class="mini"><input type="checkbox" id="fnUs"> пробелы → _</label>
       </div>
       <div class="numhint" id="fnHint"></div>
+    </div>
+    <div class="tgroup" data-g="dec">
+      <div class="tlbl gtitle">Обозначения</div>
+      <div class="srow">
+        <span class="rowlbl">Обозначение</span>
+        <input class="field" id="decIn" type="text" autocomplete="off" spellcheck="false" placeholder="например АЮИА.358-07.00.00.00.00" style="flex:1;min-width:0">
+      </div>
+      <div class="srow" id="decOpts">
+        <span class="rowlbl">Показывать</span>
+        <label class="mini">по <input class="field" id="decN" type="number" min="1" max="99" style="width:70px;padding:6px 8px"> номеров</label>
+        <span class="mini">шаг сборок</span><button class="seg" type="button" data-step="1">1</button><button class="seg" type="button" data-step="10">10</button>
+        <label class="mini"><input type="checkbox" id="decSk"> сборки с «СК»</label>
+      </div>
+      <div id="decOut"></div>
+      <div class="numhint">Нажмите на номер — он скопируется (скопированные подсвечиваются). › — перейти в сборку, ↑ — на уровень выше.</div>
     </div>
     <div class="tgroup" data-g="presets">
       <div class="tlbl gtitle">Пресеты</div>
@@ -720,7 +751,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.4';
+const APP_VERSION = '2026-11-13.5';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1686,6 +1717,30 @@ function translateNumerals(t, p) {
   });
 }
 function numWordsOp(t, p) { return p === 'digits' ? wordsToDigits(t) : translateNumerals(t, p); }
+/* ---------- децимальные обозначения: АЮИА.358-07.01.00.00.00 ---------- */
+// После номера изделия — пары цифр: каждая пара — уровень сборок, последняя — номер детали. 00 — уровень не занят.
+function decParse(s) {
+  s = String(s || '').trim();
+  const m = s.match(/^(\S.*?)((?:\.\d{2}){2,})(?![\d.])/);
+  if (m) return { base: m[1], p: m[2].slice(1).split('.').map(Number) };
+  const base = s.replace(/\s+(СК|СБ)\s*$/i, '').trim();
+  return base ? { base, p: [0, 0, 0, 0] } : null;
+}
+const decFmt = (base, p) => base + p.map(x => '.' + String(x).padStart(2, '0')).join('');
+function decTree(d) {
+  const L = d.p.length - 1, part = d.p[L] > 0;
+  const asm = d.p.slice(); asm[L] = 0;
+  let k = -1; for (let i = 0; i < L; i++) if (asm[i]) k = i;           // уровень сборки (-1 — изделие)
+  const up = [];                                                        // цепочка вверх: изделие … родитель
+  if (part) up.unshift(asm.slice());
+  for (let q = asm.slice(), j = k; j >= 0; j--) { if (!q[j]) continue; q = q.slice(); q[j] = 0; up.unshift(q); }
+  return { L, part, k, up, sub: !part && k + 1 < L ? k + 1 : -1 };
+}
+function decList(p, idx, n, step) {
+  const out = [];
+  for (let i = 1; i <= n && i * step <= 99; i++) { const q = p.slice(); q[idx] = i * step; out.push(q); }
+  return out;
+}
 /* ---------- дата по шаблону ---------- */
 const MON_RU_N = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
 const MON_UA_N = ['січень', 'лютий', 'березень', 'квітень', 'травень', 'червень', 'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень'];
@@ -2057,10 +2112,10 @@ function deanonymize(t, map) {
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
-const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'anon', 'format', 'dates', 'phone', 'fname', 'presets'];
+const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'anon', 'format', 'dates', 'phone', 'fname', 'dec', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', dec: { v: '', n: 10, step: 1, sk: false }, hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
   sets: [], presets: [], hist: [], anonMap: {}, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw', 'fix', 'roman', 'anon'];
@@ -2088,7 +2143,8 @@ function load() {
             filter: { q: String((u.filter || {}).q || ''), keep: (u.filter || {}).keep !== false, cs: !!(u.filter || {}).cs, re: !!(u.filter || {}).re },
             cmp: { byCol: !!(u.cmp || {}).byCol, col: Math.max(1, +(u.cmp || {}).col || 1), ci: (u.cmp || {}).ci !== false },
             anonOpt: Object.fromEntries(['fio', 'tel', 'email', 'acc', 'code'].map(k => [k, (u.anonOpt || {})[k] !== false])), anonWords: typeof u.anonWords === 'string' ? u.anonWords : '',
-            dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '',
+            dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '', calLang: u.calLang === 'ua' ? 'ua' : 'ru',
+            dec: (() => { const x = u.dec || {}; return { v: typeof x.v === 'string' ? x.v : '', n: Math.max(1, Math.min(99, +x.n || 10)), step: x.step === 10 ? 10 : 1, sk: !!x.sk }; })(),
             dateTpls: Array.isArray(u.dateTpls) ? u.dateTpls.filter(x => x && typeof x.tpl === 'string').map(x => ({ id: String(x.id || uid0()), tpl: x.tpl })).slice(0, 30) : [], joinSep: typeof u.joinSep === 'string' ? u.joinSep : ', ', splitSep: typeof u.splitSep === 'string' && u.splitSep ? u.splitSep : ',',
             colSpec: typeof u.colSpec === 'string' ? u.colSpec : '', colSep: ['auto', 'tab', 'semi', 'comma', 'bar', 'sp'].includes(u.colSep) ? u.colSep : 'auto', exUniq: u.exUniq !== false,
             freq: u.freq && typeof u.freq === 'object' && !Array.isArray(u.freq) ? Object.fromEntries(Object.entries(u.freq).filter(([, v]) => Array.isArray(v) && v.length === 2 && isFinite(v[0]) && isFinite(v[1])).slice(0, 80)) : {} }; })(),
@@ -2906,7 +2962,7 @@ async function helpSheet() {
   });
 }
 /* ---------- оформление и настройки (блоки сворачиваются) ---------- */
-const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', freq: 'Частые', sym: 'Знаки', lines: 'Строки', cols: 'Столбцы', extract: 'Извлечь', anon: 'Обезличить', format: 'Формат', dates: 'Даты', phone: 'Телефоны', fname: 'Имена файлов', presets: 'Пресеты' };
+const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', freq: 'Частые', sym: 'Знаки', lines: 'Строки', cols: 'Столбцы', extract: 'Извлечь', anon: 'Обезличить', format: 'Формат', dates: 'Даты', phone: 'Телефоны', fname: 'Имена файлов', dec: 'Обозначения', presets: 'Пресеты' };
 const NUM_MODE_NAMES = { card: 'пять', ord: 'пятый', abbr: '5-й', money: 'сумма' };
 // какие группы и команды показывать — хранится в этом браузере, на каждом устройстве своё
 const cmdId = b => b.dataset.id || (b.dataset.t ? b.dataset.t + ':' + b.dataset.p : 'num:' + b.dataset.v);
@@ -3255,7 +3311,7 @@ const KW = {
 function allCommands() {
   const list = [];
   TABS.forEach(g => {
-    if (g === 'freq' || g === 'sym' || g === 'presets') return;
+    if (g === 'freq' || g === 'sym' || g === 'presets' || g === 'dec') return;
     const el = document.querySelector('.tgroup[data-g="' + g + '"]'); if (!el) return;
     el.querySelectorAll('.tb[data-t], [data-id]').forEach(b => {
       if (b.closest('#fnPh')) return;
@@ -3628,7 +3684,6 @@ const DATE_TPLS = [['dmy', '{ДД}.{ММ}.{ГГГГ}'], ['iso', '{ГГГГ}-{М�
   ['doc', '«{ДД}» {месяц} {ГГГГ} г.'], ['wd', '{День}, {Д} {месяц}'], ['dt', '{ДД}.{ММ}.{ГГГГ} {чч}:{мин}']];
 const DATE_TOKENS = [['{ДД}', 'день 05'], ['{Д}', 'день 5'], ['{ММ}', 'месяц 03'], ['{М}', 'месяц 3'], ['{ГГГГ}', 'год 2026'], ['{ГГ}', 'год 26'],
   ['{месяц}', 'ноября'], ['{месяц-им}', 'ноябрь'], ['{місяць}', 'листопада'], ['{місяць-наз}', 'листопад'], ['{день}', 'четверг'], ['{день-ua}', 'четвер'], ['{чч}', 'часы'], ['{мин}', 'минуты']];
-const datePick = $('#datePick');
 function insDate() {
   const now = new Date(), w = state.ui.dateWhich;
   if (w === 'custom' && /^\d{4}-\d{2}-\d{2}$/.test(state.ui.dateCustom)) {
@@ -3644,8 +3699,9 @@ function renderDateIns() {
   document.querySelectorAll('#dateWhich .seg').forEach(b => b.classList.toggle('on', b.dataset.v === state.ui.dateWhich));
   const pk = $('#dateWhich .seg[data-v="custom"]');
   pk.textContent = state.ui.dateWhich === 'custom' && state.ui.dateCustom ? '📅 ' + dateByTpl('{ДД}.{ММ}.{ГГГГ}', d) : '📅 Дата…';
-  const mk = (id, tpl) => {
-    const b = keepFocus(h('button', { class: 'tb', type: 'button', 'data-id': id, title: 'Вставить в место курсора. Шаблон: ' + tpl, onclick() { insertSym(dateByTpl(tpl, insDate())); } }, dateByTpl(tpl, d)));
+  const prevMon = () => { const x = insDate(); return new Date(x.getFullYear(), x.getMonth() - 1, 1); };
+  const mk = (id, tpl, dt = insDate, tip) => {
+    const b = keepFocus(h('button', { class: 'tb', type: 'button', 'data-id': id, title: (tip ? tip + '. ' : '') + 'Вставить в место курсора. Шаблон: ' + tpl, onclick() { insertSym(dateByTpl(tpl, dt())); } }, dateByTpl(tpl, dt())));
     b.hidden = hc.has(id);
     return b;
   };
@@ -3655,17 +3711,42 @@ function renderDateIns() {
     ...user.map(u => mk('dins:u' + u.id, u.tpl)),
     h('button', { class: 'tb', type: 'button', title: 'Свой шаблон даты', onclick() { editDateTpl(null); } }, '＋ шаблон'),
     user.length ? h('button', { class: 'tb', type: 'button', title: 'Изменить или удалить свои шаблоны', onclick: manageDateTpls }, '✎') : '');
+  $('#dateMon').replaceChildren(h('span', { class: 'rowlbl', text: 'Месяц, день недели' }),
+    mk('dins:mon', '{месяц-им} {ГГГГ}', insDate, 'Этот месяц'), mk('dins:mon-ua', '{місяць-наз} {ГГГГ}', insDate, 'Этот месяц'),
+    mk('dins:pmon', '{месяц-им} {ГГГГ}', prevMon, 'Прошлый месяц'), mk('dins:pmon-ua', '{місяць-наз} {ГГГГ}', prevMon, 'Прошлый місяць'),
+    mk('dins:wd', '{день}', insDate, 'День недели'), mk('dins:wd-ua', '{день-ua}', insDate, 'День тижня'));
   if (!touch) relayout();
 }
 document.querySelectorAll('#dateWhich .seg').forEach(b => keepFocus(b).addEventListener('click', () => {
-  if (b.dataset.v === 'custom') {
-    datePick.value = state.ui.dateCustom || todayISO();
-    try { datePick.showPicker(); } catch (e) { datePick.focus(); datePick.click(); }
-    return;
-  }
+  if (b.dataset.v === 'custom') { calSheet(); return; }
   state.ui.dateWhich = b.dataset.v; save(); renderDateIns();
 }));
-datePick.addEventListener('change', () => { if (!datePick.value) return; state.ui.dateCustom = datePick.value; state.ui.dateWhich = 'custom'; save(); renderDateIns(); });
+// свой календарь: подписи по-русски или по-украински, неделя с понедельника
+function calSheet() {
+  openModal((box, api) => {
+    const c0 = insDate(); let y = c0.getFullYear(), m = c0.getMonth();
+    const head = h('div', { class: 'calhead' }), grid = h('div', { class: 'calgrid' }), langs = h('div', { class: 'thm', style: 'justify-content:center' });
+    const iso = (yy, mm, dd) => yy + '-' + pad(mm + 1, 2) + '-' + pad(dd, 2);
+    const pick = v => { if (v === todayISO()) state.ui.dateWhich = 'today'; else { state.ui.dateCustom = v; state.ui.dateWhich = 'custom'; } save(); api.close(); renderDateIns(); };
+    const draw = () => {
+      const ua = state.ui.calLang === 'ua', MN = ua ? MON_UA_N : MON_RU_N;
+      const WD = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', ua ? 'Нд' : 'Вс'];
+      const go = dm => () => { m += dm; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } draw(); };
+      head.replaceChildren(h('button', { class: 'seg', type: 'button', 'aria-label': 'Предыдущий месяц', onclick: go(-1) }, '‹'),
+        h('b', { text: MN[m][0].toUpperCase() + MN[m].slice(1) + ' ' + y }),
+        h('button', { class: 'seg', type: 'button', 'aria-label': 'Следующий месяц', onclick: go(1) }, '›'));
+      langs.replaceChildren(...[['ru', 'Русский'], ['ua', 'Українська']].map(([k, n]) => btn(n, () => { state.ui.calLang = k; save(); draw(); }, (ua ? 'ua' : 'ru') === k ? 'primary' : '')));
+      const off = (new Date(y, m, 1).getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate(), sel = iso(c0.getFullYear(), c0.getMonth(), c0.getDate()), today = todayISO();
+      grid.replaceChildren(...WD.map((w, i) => h('div', { class: 'calwd' + (i > 4 ? ' we' : ''), text: w })),
+        ...Array.from({ length: off }, () => h('div', {})),
+        ...Array.from({ length: days }, (_, i) => { const v = iso(y, m, i + 1), wd = (off + i) % 7;
+          return h('button', { class: 'calday' + (wd > 4 ? ' we' : '') + (v === today ? ' today' : '') + (v === sel ? ' on' : ''), type: 'button', onclick: () => pick(v) }, String(i + 1)); }));
+    };
+    box.append(h('h2', { text: 'Выберите дату' }), langs, head, grid,
+      h('div', { class: 'btns', style: 'margin-top:12px' }, btn('Сегодня', () => pick(todayISO())), btn('Закрыть', () => api.close(), 'ghost')));
+    draw();
+  });
+}
 // подписи кнопок — живые: меняются с датой и временем
 setInterval(() => { if (!document.hidden && dateMin !== new Date().toDateString() + new Date().getMinutes()) renderDateIns(); }, 15000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) renderDateIns(); });
@@ -3705,6 +3786,44 @@ function manageDateTpls() {
   });
 }
 renderDateIns();
+
+/* ---------- Обозначения: структура децимальных номеров, копирование по нажатию ---------- */
+const decIn = $('#decIn'), decN = $('#decN'), decSk = $('#decSk'), decUsed = new Set();
+decIn.value = state.ui.dec.v; decN.value = state.ui.dec.n; decSk.checked = state.ui.dec.sk;
+function renderDec() {
+  const o = state.ui.dec, d = decParse(o.v), out = $('#decOut');
+  document.querySelectorAll('#decOpts .seg').forEach(b => b.classList.toggle('on', +b.dataset.step === o.step));
+  if (!d) { out.replaceChildren(h('p', { class: 'msg', text: 'Впишите обозначение изделия или узла — например АЮИА.358-07.00.00.00.00 или просто АЮИА.358-07.' })); return; }
+  const t = decTree(d);
+  const chip = (q, hi, asm) => {
+    const txt = decFmt(d.base, q) + (asm && o.sk ? ' СК' : '');
+    const b = h('button', { class: 'decchip' + (decUsed.has(txt) ? ' used' : ''), type: 'button', title: 'Копировать ' + txt, async onclick() {
+      const ok = await copyText(txt); toast(ok ? '✓ Скопировано: ' + txt : 'Не удалось скопировать', !ok);
+      if (ok) { decUsed.add(txt); b.classList.add('used'); }
+    } }, d.base, ...q.map((x, i) => (i === hi ? h('b', { text: '.' + pad(x, 2) }) : '.' + pad(x, 2))), asm && o.sk ? ' СК' : '');
+    return b;
+  };
+  const goBtn = (q, sym, tip) => h('button', { class: 'decgo', type: 'button', title: tip, onclick() { setDec(decFmt(d.base, q)); } }, sym);
+  const all = (list, asm) => h('button', { class: 'seg', type: 'button', title: 'Скопировать список — по номеру в строке', async onclick() {
+    const txt = list.map(q => decFmt(d.base, q) + (asm && o.sk ? ' СК' : '')).join('\n'); const ok = await copyText(txt); toast(ok ? '✓ Скопировано: ' + list.length : 'Не удалось скопировать', !ok);
+  } }, 'Копировать все');
+  const row = (lbl, ...items) => h('div', { class: 'srow decrow' }, h('span', { class: 'rowlbl', text: lbl }), ...items);
+  const cur = d.p, rows = [];
+  if (t.up.length) rows.push(row('Выше', ...t.up.map(q => chip(q, -1, true)), goBtn(t.up[t.up.length - 1], '↑', 'На уровень выше')));
+  rows.push(row(t.part ? 'Деталь' : t.k < 0 ? 'Изделие' : 'Сборка', chip(cur, t.part ? t.L : t.k, false),
+    ...(t.part ? [] : [h('button', { class: 'decchip', type: 'button', title: 'Чертёж сборки', async onclick() {
+      const txt = decFmt(d.base, cur) + ' СК', ok = await copyText(txt); toast(ok ? '✓ Скопировано: ' + txt : 'Не удалось скопировать', !ok); } }, decFmt(d.base, cur) + ' СК')])));
+  if (t.sub >= 0) { const l = decList(cur, t.sub, o.n, o.step); rows.push(row('Сборки', ...l.map(q => h('span', { class: 'decitem' }, chip(q, t.sub, true), goBtn(q, '›', 'Перейти в эту сборку'))), all(l, true))); }
+  if (!t.part) { const l = decList(cur, t.L, o.n, 1); rows.push(row('Детали', ...l.map(q => chip(q, t.L, false)), all(l, false))); }
+  else { const l = decList(t.up[t.up.length - 1], t.L, o.n, 1); rows.push(row('Детали рядом', ...l.map(q => chip(q, t.L, false)), all(l, false))); }
+  out.replaceChildren(...rows);
+}
+function setDec(v) { state.ui.dec.v = v; decIn.value = v; save(); renderDec(); }
+decIn.addEventListener('input', () => { state.ui.dec.v = decIn.value; save(); renderDec(); });
+decN.addEventListener('input', () => { const n = parseInt(decN.value, 10); if (n >= 1 && n <= 99) { state.ui.dec.n = n; save(); renderDec(); } });
+decSk.addEventListener('change', () => { state.ui.dec.sk = decSk.checked; save(); renderDec(); });
+document.querySelectorAll('#decOpts .seg').forEach(b => b.addEventListener('click', () => { state.ui.dec.step = +b.dataset.step; save(); renderDec(); }));
+renderDec();
 
 const topBtn = $('#topBtn');
 topBtn.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
