@@ -215,6 +215,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .calday.today{border-color:var(--accent)}
 .calday.on{background:var(--accent);color:var(--accent-ink)}
 .decrow{flex-wrap:wrap!important;overflow:visible!important}
+.decmk{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:2px 12px;margin:4px 0 8px}
 @media (max-width:899px){.decrow>.rowlbl{flex-basis:100%}#decOpts{flex-wrap:wrap;overflow:visible}#decOpts>.rowlbl{display:none}}
 .decitem{display:inline-flex;flex:none}
 .decchip{min-height:40px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--muted);font:500 14px/1.2 ui-monospace,Consolas,monospace;white-space:nowrap}
@@ -647,6 +648,7 @@ body.modal-lock{overflow:hidden}
         <label class="mini">по <input class="field" id="decN" type="number" min="1" max="99" style="width:70px;padding:6px 8px"> номеров</label>
         <span class="mini">шаг сборок</span><button class="seg" type="button" data-step="1">1</button><button class="seg" type="button" data-step="10">10</button>
         <label class="mini"><input type="checkbox" id="decSk"> сборки с «СК»</label>
+        <label class="mini"><input type="checkbox" id="decExtra"> папки и ведомости</label>
       </div>
       <div id="decOut"></div>
       <div class="numhint">Нажмите на номер — он скопируется (скопированные подсвечиваются). › — перейти в сборку, ↑ — на уровень выше.</div>
@@ -752,7 +754,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.6';
+const APP_VERSION = '2026-11-13.7';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -2113,10 +2115,11 @@ function deanonymize(t, map) {
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
+const DEC_FOLD = ['Library', 'PDF_DXF', 'Документация', 'Повідомлення'], DEC_DOCS = ['{N} ВМ', '{N} ВП', 'Акт на {И}'];
 const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'anon', 'format', 'dates', 'phone', 'fname', 'dec', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', dec: { v: '', n: 10, step: 1, sk: false }, hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', dec: { v: '', n: 10, step: 1, sk: false, extra: true, fold: DEC_FOLD.slice(), docs: DEC_DOCS.slice() }, hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
   sets: [], presets: [], hist: [], anonMap: {}, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw', 'fix', 'roman', 'anon'];
@@ -2145,7 +2148,8 @@ function load() {
             cmp: { byCol: !!(u.cmp || {}).byCol, col: Math.max(1, +(u.cmp || {}).col || 1), ci: (u.cmp || {}).ci !== false },
             anonOpt: Object.fromEntries(['fio', 'tel', 'email', 'acc', 'code'].map(k => [k, (u.anonOpt || {})[k] !== false])), anonWords: typeof u.anonWords === 'string' ? u.anonWords : '',
             dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '', calLang: u.calLang === 'ua' ? 'ua' : 'ru',
-            dec: (() => { const x = u.dec || {}; return { v: typeof x.v === 'string' ? x.v : '', n: Math.max(1, Math.min(99, +x.n || 10)), step: x.step === 10 ? 10 : 1, sk: !!x.sk }; })(),
+            dec: (() => { const x = u.dec || {}; return { v: typeof x.v === 'string' ? x.v : '', n: Math.max(1, Math.min(99, +x.n || 10)), step: x.step === 10 ? 10 : 1, sk: !!x.sk, extra: x.extra !== false,
+              fold: Array.isArray(x.fold) ? x.fold.filter(y => typeof y === 'string').slice(0, 40) : DEC_FOLD.slice(), docs: Array.isArray(x.docs) ? x.docs.filter(y => typeof y === 'string').slice(0, 40) : DEC_DOCS.slice() }; })(),
             dateTpls: Array.isArray(u.dateTpls) ? u.dateTpls.filter(x => x && typeof x.tpl === 'string').map(x => ({ id: String(x.id || uid0()), tpl: x.tpl })).slice(0, 30) : [], joinSep: typeof u.joinSep === 'string' ? u.joinSep : ', ', splitSep: typeof u.splitSep === 'string' && u.splitSep ? u.splitSep : ',',
             colSpec: typeof u.colSpec === 'string' ? u.colSpec : '', colSep: ['auto', 'tab', 'semi', 'comma', 'bar', 'sp'].includes(u.colSep) ? u.colSep : 'auto', exUniq: u.exUniq !== false,
             freq: u.freq && typeof u.freq === 'object' && !Array.isArray(u.freq) ? Object.fromEntries(Object.entries(u.freq).filter(([, v]) => Array.isArray(v) && v.length === 2 && isFinite(v[0]) && isFinite(v[1])).slice(0, 80)) : {} }; })(),
@@ -3791,7 +3795,7 @@ renderDateIns();
 
 /* ---------- Обозначения: структура децимальных номеров, копирование по нажатию ---------- */
 const decIn = $('#decIn'), decN = $('#decN'), decSk = $('#decSk'), decUsed = new Set();
-decIn.value = state.ui.dec.v; decN.value = state.ui.dec.n; decSk.checked = state.ui.dec.sk;
+decIn.value = state.ui.dec.v; decN.value = state.ui.dec.n; decSk.checked = state.ui.dec.sk; $('#decExtra').checked = state.ui.dec.extra;
 function renderDec() {
   const o = state.ui.dec, d = decParse(o.v), out = $('#decOut');
   document.querySelectorAll('#decOpts .seg').forEach(b => b.classList.toggle('on', +b.dataset.step === o.step));
@@ -3816,6 +3820,15 @@ function renderDec() {
     ...(t.part ? [] : [h('button', { class: 'decchip', type: 'button', title: 'Чертёж сборки', async onclick() {
       const txt = decFmt(d.base, cur) + ' СК', ok = await copyText(txt); toast(ok ? '✓ Скопировано: ' + txt : 'Не удалось скопировать', !ok); } }, decFmt(d.base, cur) + ' СК')])));
   if (t.sub >= 0) { const l = decList(cur, t.sub, o.n, o.step); rows.push(row('Сборки', ...l.map(q => h('span', { class: 'decitem' }, chip(q, t.sub, true), goBtn(q, '›', 'Перейти в эту сборку'))), all(l, true))); }
+  if (o.extra && !t.part) {
+    const fill = x => x.replace(/\{N\}/g, decFmt(d.base, cur)).replace(/\{И\}/g, d.base);
+    const txtChip = x => h('button', { class: 'decchip' + (decUsed.has(x) ? ' used' : ''), type: 'button', title: 'Копировать', async onclick(e) {
+      const ok = await copyText(x); toast(ok ? '✓ Скопировано: ' + x : 'Не удалось скопировать', !ok); if (ok) { decUsed.add(x); e.currentTarget.classList.add('used'); } } }, x);
+    const edit = h('button', { class: 'seg', type: 'button', title: 'Изменить шаблоны папок и ведомостей', onclick: decTplSheet }, '✎');
+    if (t.k < 0) rows.push(row('Папки', ...o.fold.map(f => txtChip(fill(f))),
+      window.showDirectoryPicker ? h('button', { class: 'seg', type: 'button', title: 'Выбрать папку изделия на диске и создать в ней папки', onclick: () => decMakeDirs(o.fold.map(fill), d.base, cur) }, 'Создать папки…') : '', edit));
+    rows.push(row('Ведомости', ...o.docs.map(f => txtChip(fill(f))), t.k < 0 ? '' : edit));
+  }
   if (!t.part) { const l = decList(cur, t.L, o.n, 1); rows.push(row('Детали', ...l.map(q => chip(q, t.L, false)), all(l, false))); }
   else { const l = decList(t.up[t.up.length - 1], t.L, o.n, 1); rows.push(row('Детали рядом', ...l.map(q => chip(q, t.L, false)), all(l, false))); }
   out.replaceChildren(...rows);
@@ -3831,6 +3844,44 @@ function decFromText(force) {
   if (m) setDec(m[0]); else if (force) toast('В тексте не найдено обозначение вида АЮИА.358-07.01.00.00.00', true);
 }
 $('#decTake').addEventListener('click', () => decFromText(true));
+// шаблоны: папки изделия и ведомости. {N} — обозначение, {И} — номер изделия без пар (АЮИА.357-03)
+function decTplSheet() {
+  openModal((box, api) => {
+    const o = state.ui.dec;
+    const ta = (v, ph) => h('textarea', { class: 'field', rows: 6, spellcheck: 'false', value: v.join('\n'), placeholder: ph });
+    const f = ta(o.fold, 'по одной папке в строке'), dd = ta(o.docs, 'по одному в строке');
+    box.append(h('h2', { text: 'Папки и ведомости' }),
+      h('p', { class: 'msg', text: 'По одному названию в строке. {N} — обозначение (АЮИА.357-03.06.00.00.00), {И} — номер изделия (АЮИА.357-03). Пример: «{N}-01 ВМ» → АЮИА.357-03.07.00.00.00-01 ВМ.' }),
+      h('div', { class: 'uilbl', text: 'Папки (для изделия)' }), f,
+      h('div', { class: 'uilbl', text: 'Ведомости и документы (для изделия и сборок)' }), dd,
+      h('div', { class: 'btns', style: 'margin-top:12px' },
+        btn('Сохранить', () => { const ln = el => el.value.split('\n').map(x => x.trim()).filter(Boolean); o.fold = ln(f); o.docs = ln(dd); save(); api.close(); renderDec(); toast('✓ Шаблоны сохранены'); }, 'primary'),
+        btn('Как было', () => { f.value = DEC_FOLD.join('\n'); dd.value = DEC_DOCS.join('\n'); }),
+        btn('Отмена', () => api.close(), 'ghost')));
+  });
+}
+// создать папки на диске (Chrome на компьютере): выбрать нужные, указать папку изделия
+function decMakeDirs(names, base, cur) {
+  const asm = decList(cur, 0, state.ui.dec.n, state.ui.dec.step).map(q => decFmt(base, q));
+  openModal((box, api) => {
+    const mk = (n, on) => { const c = h('input', { type: 'checkbox' }); c.checked = on; return [n, c]; };
+    const fl = names.map(n => mk(n, true)), al = asm.map(n => mk(n, false));
+    const list = items => h('div', { class: 'decmk' }, ...items.map(([n, c]) => h('label', { class: 'chk' }, c, h('span', { text: n }))));
+    box.append(h('h2', { text: 'Создать папки' }),
+      h('p', { class: 'msg', text: 'Отметьте папки и выберите папку изделия — они будут созданы внутри. Уже существующие не трогаются. Папкам сборок потом допишите наименование.' }),
+      list(fl), h('div', { class: 'uilbl', text: 'Папки сборок' }), list(al),
+      h('div', { class: 'btns', style: 'margin-top:12px' },
+        btn('Выбрать папку изделия и создать', async () => {
+          const want = [...fl, ...al].filter(([, c]) => c.checked).map(([n]) => n.replace(/[\\/:*?"<>|]/g, '_'));
+          if (!want.length) { toast('Ничего не отмечено', true); return; }
+          let dir; try { dir = await window.showDirectoryPicker({ mode: 'readwrite' }); } catch (e) { return; }
+          let n = 0; for (const w of want) { try { await dir.getDirectoryHandle(w, { create: true }); n++; } catch (e) { toast('Не удалось создать: ' + w, true); } }
+          api.close(); toast('✓ Папок создано или уже было: ' + n + ' в «' + dir.name + '»');
+        }, 'primary'),
+        btn('Отмена', () => api.close(), 'ghost')));
+  });
+}
+$('#decExtra').addEventListener('change', e => { state.ui.dec.extra = e.target.checked; save(); renderDec(); });
 function setDec(v) { state.ui.dec.v = v; decIn.value = v; save(); renderDec(); }
 decIn.addEventListener('input', () => { state.ui.dec.v = decIn.value; save(); renderDec(); });
 decN.addEventListener('input', () => { const n = parseInt(decN.value, 10); if (n >= 1 && n <= 99) { state.ui.dec.n = n; save(); renderDec(); } });
