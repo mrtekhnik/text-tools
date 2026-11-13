@@ -686,7 +686,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.2';
+const APP_VERSION = '2026-11-13.3';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1725,9 +1725,14 @@ function fixEncoding(t) {
     hit = true; if (/[\u0402-\u040F\u0452-\u045F\u00A0-\u00BF]/.test(w)) dos = true;
     return r;
   });
-  // однобуквенные слова в DOS-тексте: Є → к, ў → в, б → с, г → у, п → я
+  // короткие слова (1–2 буквы) в DOS-тексте: Є → к, Ё → и, вл → ты, б → с
   if (dos) { const T = cpTables(), dec = new TextDecoder('ibm866');
-    t = t.replace(/(?<![\p{L}\p{N}])[\u0402-\u040F\u0452-\u045F\u00A0-\u00BF\u2013-\u2122бгп](?![\p{L}\p{N}])/gu, c => { const b = T.w1251.from.get(c), r = b != null ? dec.decode(Uint8Array.of(b)) : c; return /[\u0400-\u045F]/.test(r) ? r : c; }); }
+    t = t.replace(/(?<![\p{L}\p{N}])[\u0401-\u045F\u00A0-\u00BF\u2013-\u2122]{1,2}(?![\p{L}\p{N}])/gu, w => {
+      const b = toBytes(w, T.w1251); if (!b) return w;
+      const r = dec.decode(b);
+      if (!/^[\u0400-\u045F]+$/.test(r)) return w;
+      return /[\u0401-\u040F\u0452-\u045F\u00A0-\u00BF\u2013-\u2122]/.test(w) || /^[бгп]$/.test(w) || wordScore(r) > wordScore(w) ? r : w;
+    }); }
   // русская «х» между числами в старой кодировке: 15õ19 → 15х19 (размеры, сечения)
   t = t.replace(/(\d)([õÕ])(?=\d)/g, (m, d, c) => d + (c === 'õ' ? 'х' : 'Х'));
   // одиночная буква старой кодировки перед числом: Í14 → Н14 (поле допуска), Ì8 → М8
