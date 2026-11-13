@@ -762,7 +762,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.10';
+const APP_VERSION = '2026-11-13.11';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -3900,9 +3900,9 @@ function decMakeDirs(names, base, cur) {
         btn('Выбрать папку изделия и создать', async () => {
           const want = [...fl, ...al].filter(([, c]) => c.checked).map(([n]) => n.replace(/[\\/:*?"<>|]/g, '_').replace(/[. ]+$/, ''));
           if (!want.length) { say('Ничего не отмечено.', true); return; }
-          let dir;
+          let dir; say('Открываю выбор папки… Выберите папку изделия и нажмите «Выбрать папку», затем «Разрешить изменения».');
           try { dir = await window.showDirectoryPicker({ id: 'dec', mode: 'readwrite' }); }
-          catch (e) { if (e.name !== 'AbortError') say('Chrome не открыл папку: ' + e.message + '. Корень диска (Z:\\) и системные папки выбирать нельзя — выберите саму папку изделия.', true); return; }
+          catch (e) { if (e.name === 'AbortError') say('Выбор папки отменён (или Chrome не дал выбрать эту папку) — ничего не создано.', true); else say('Chrome не открыл папку: ' + e.message + '. Корень диска (Z:\\) и системные папки выбирать нельзя — выберите саму папку изделия.', true); return; }
           try {
             if ((await dir.queryPermission({ mode: 'readwrite' })) !== 'granted' && (await dir.requestPermission({ mode: 'readwrite' })) !== 'granted') {
               say('Нет разрешения на изменения в «' + dir.name + '». Нажмите ещё раз и в окне Chrome выберите «Разрешить изменения».', true); return;
