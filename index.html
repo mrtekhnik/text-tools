@@ -686,7 +686,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.1';
+const APP_VERSION = '2026-11-13.2';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1681,8 +1681,19 @@ const isCyrWord = s => /^[Ѐ-ӿ'’ʼ\-́]+$/u.test(s);
 function toBytes(s, tbl) { const out = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) { const b = tbl.from.get(s[i]); if (b == null) return null; out[i] = b; } return out; }
 function utf8(bytes) { try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch (e) { return null; } }
 // одно «слово» из кракозябр → нормальный текст или null
+// насколько слово похоже на русское или украинское (частоты букв и сочетаний)
+function wordScore(w) {
+  const s = w.toLowerCase(); let sc = 0, prev = '';
+  for (const c of s) { const f = CYR_FREQ[c]; sc += f ? Math.log(f) : -5; if (prev && f) sc += CYR_BIGR.has(prev + c) ? 1.5 : -1.5; prev = f ? c : ''; }
+  return sc / Math.max(1, s.length);
+}
 function fixMojiWord(w) {
   const T = cpTables();
+  // DOS (CP866), прочитанный как Windows-1251: ЏаЁўҐв → Привет
+  if (w.length >= 3 && /[\u0402-\u040F\u0452-\u045F\u00A0-\u00BF\u2013-\u2122]/.test(w)) {
+    const b = toBytes(w, T.w1251);
+    if (b) { const c = new TextDecoder('ibm866').decode(b); if (/^[\u0400-\u045F]+$/.test(c) && wordScore(c) > wordScore(w) + 1) return c; }
+  }
   // UTF-8, прочитанный как Windows-1251: РџСЂРёРІРµС‚
   if (/[РСТ]/.test(w) && w.length >= 4) {
     const b = toBytes(w, T.w1251), u = b && utf8(b);
@@ -1704,8 +1715,19 @@ function fixMojiWord(w) {
   return null;
 }
 function fixEncoding(t) {
-  let hit = false;
-  t = t.replace(/[^\s\d.,;:!?()\[\]{}"'/\\<>=+_|@#$%^&*~`]+/gu, w => { const r = fixMojiWord(w); if (r != null) { hit = true; return r; } return w; });
+  // закодированные ссылки: %D0%9F%D1%80%D0%B8 → При (только там, где за кодами стоят нелатинские буквы)
+  t = t.replace(/(?:%[0-9A-Fa-f]{2})+/g, m => { try { const d = decodeURIComponent(m); return /[^\x00-\x7F]/.test(d) ? d : m; } catch (e) { return m; } });
+  let hit = false, dos = false;
+  // неразрывный пробел остаётся внутри слова: в DOS-тексте это буква «а»
+  t = t.replace(/[^ \t\r\n\d.,;:!?()\[\]{}"'/\\<>=+_|@#$%^&*~`]+/gu, w => {
+    const r = fixMojiWord(w);
+    if (r == null) return w;
+    hit = true; if (/[\u0402-\u040F\u0452-\u045F\u00A0-\u00BF]/.test(w)) dos = true;
+    return r;
+  });
+  // однобуквенные слова в DOS-тексте: Є → к, ў → в, б → с, г → у, п → я
+  if (dos) { const T = cpTables(), dec = new TextDecoder('ibm866');
+    t = t.replace(/(?<![\p{L}\p{N}])[\u0402-\u040F\u0452-\u045F\u00A0-\u00BF\u2013-\u2122бгп](?![\p{L}\p{N}])/gu, c => { const b = T.w1251.from.get(c), r = b != null ? dec.decode(Uint8Array.of(b)) : c; return /[\u0400-\u045F]/.test(r) ? r : c; }); }
   // русская «х» между числами в старой кодировке: 15õ19 → 15х19 (размеры, сечения)
   t = t.replace(/(\d)([õÕ])(?=\d)/g, (m, d, c) => d + (c === 'õ' ? 'х' : 'Х'));
   // одиночная буква старой кодировки перед числом: Í14 → Н14 (поле допуска), Ì8 → М8
