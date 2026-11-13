@@ -754,7 +754,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.7';
+const APP_VERSION = '2026-11-13.8';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -2115,7 +2115,7 @@ function deanonymize(t, map) {
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
-const DEC_FOLD = ['Library', 'PDF_DXF', 'Документация', 'Повідомлення'], DEC_DOCS = ['{N} ВМ', '{N} ВП', 'Акт на {И}'];
+const DEC_FOLD = ['Library', 'PDF_DXF', 'Документация', 'Повідомлення'], DEC_DOCS = ['{N} ВМ', 'Відомість матеріалів', '{N} ВП', 'Відомість покупних виробів', 'Акт на {И}'];
 const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'anon', 'format', 'dates', 'phone', 'fname', 'dec', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
@@ -2149,7 +2149,7 @@ function load() {
             anonOpt: Object.fromEntries(['fio', 'tel', 'email', 'acc', 'code'].map(k => [k, (u.anonOpt || {})[k] !== false])), anonWords: typeof u.anonWords === 'string' ? u.anonWords : '',
             dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '', calLang: u.calLang === 'ua' ? 'ua' : 'ru',
             dec: (() => { const x = u.dec || {}; return { v: typeof x.v === 'string' ? x.v : '', n: Math.max(1, Math.min(99, +x.n || 10)), step: x.step === 10 ? 10 : 1, sk: !!x.sk, extra: x.extra !== false,
-              fold: Array.isArray(x.fold) ? x.fold.filter(y => typeof y === 'string').slice(0, 40) : DEC_FOLD.slice(), docs: Array.isArray(x.docs) ? x.docs.filter(y => typeof y === 'string').slice(0, 40) : DEC_DOCS.slice() }; })(),
+              fold: Array.isArray(x.fold) ? x.fold.filter(y => typeof y === 'string').slice(0, 40) : DEC_FOLD.slice(), docs: Array.isArray(x.docs) && x.docs.join('|') !== '{N} ВМ|{N} ВП|Акт на {И}' ? x.docs.filter(y => typeof y === 'string').slice(0, 40) : DEC_DOCS.slice() }; })(),
             dateTpls: Array.isArray(u.dateTpls) ? u.dateTpls.filter(x => x && typeof x.tpl === 'string').map(x => ({ id: String(x.id || uid0()), tpl: x.tpl })).slice(0, 30) : [], joinSep: typeof u.joinSep === 'string' ? u.joinSep : ', ', splitSep: typeof u.splitSep === 'string' && u.splitSep ? u.splitSep : ',',
             colSpec: typeof u.colSpec === 'string' ? u.colSpec : '', colSep: ['auto', 'tab', 'semi', 'comma', 'bar', 'sp'].includes(u.colSep) ? u.colSep : 'auto', exUniq: u.exUniq !== false,
             freq: u.freq && typeof u.freq === 'object' && !Array.isArray(u.freq) ? Object.fromEntries(Object.entries(u.freq).filter(([, v]) => Array.isArray(v) && v.length === 2 && isFinite(v[0]) && isFinite(v[1])).slice(0, 80)) : {} }; })(),
