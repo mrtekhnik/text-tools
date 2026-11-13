@@ -762,7 +762,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.11';
+const APP_VERSION = '2026-11-13.12';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -3890,6 +3890,14 @@ function decMakeDirs(names, base, cur) {
   openModal((box, api) => {
     const mk = (n, on) => { const c = h('input', { type: 'checkbox' }); c.checked = on; return [n, c]; };
     const fl = names.map(n => mk(n, true)), al = asm.map(n => mk(n, false));
+    const wanted = () => [...fl, ...al].filter(([, c]) => c.checked).map(([n]) => n.replace(/[\\/:*?"<>|]/g, '_').replace(/[. ]+$/, ''));
+    // запасной путь без Chrome: команда для PowerShell (работает и в сетевых папках)
+    const psCopy = async () => {
+      const want = wanted(); if (!want.length) { say('Ничего не отмечено.', true); return; }
+      const cmd = 'New-Item -ItemType Directory -Force -Path ' + want.map(w => "'" + w.replace(/'/g, "''") + "'").join(',') + ' | Out-Null';
+      const ok = await copyText(cmd);
+      say(ok ? 'Команда скопирована. Откройте папку изделия в Проводнике, в адресной строке напишите powershell и нажмите Enter, в синем окне — Ctrl+V и Enter. Существующие папки не пострадают.' : 'Не удалось скопировать команду.', !ok);
+    };
     const rep = h('p', { class: 'msg', style: 'white-space:pre-line' }), say = (m, bad) => { rep.textContent = m; rep.style.color = bad ? 'var(--danger)' : 'var(--ink)'; };
     const list = items => h('div', { class: 'decmk' }, ...items.map(([n, c]) => h('label', { class: 'chk' }, c, h('span', { text: n }))));
     box.append(h('h2', { text: 'Создать папки' }),
@@ -3898,11 +3906,11 @@ function decMakeDirs(names, base, cur) {
       rep,
       h('div', { class: 'btns', style: 'margin-top:12px' },
         btn('Выбрать папку изделия и создать', async () => {
-          const want = [...fl, ...al].filter(([, c]) => c.checked).map(([n]) => n.replace(/[\\/:*?"<>|]/g, '_').replace(/[. ]+$/, ''));
+          const want = wanted();
           if (!want.length) { say('Ничего не отмечено.', true); return; }
           let dir; say('Открываю выбор папки… Выберите папку изделия и нажмите «Выбрать папку», затем «Разрешить изменения».');
           try { dir = await window.showDirectoryPicker({ id: 'dec', mode: 'readwrite' }); }
-          catch (e) { if (e.name === 'AbortError') say('Выбор папки отменён (или Chrome не дал выбрать эту папку) — ничего не создано.', true); else say('Chrome не открыл папку: ' + e.message + '. Корень диска (Z:\\) и системные папки выбирать нельзя — выберите саму папку изделия.', true); return; }
+          catch (e) { if (e.name === 'AbortError') say('Выбор папки отменён (или Chrome не дал выбрать эту папку) — ничего не создано. Если Chrome не даёт создать папки, нажмите «Скопировать команду для PowerShell».', true); else say('Chrome не открыл папку: ' + e.message + '. Корень диска (Z:\\) и системные папки выбирать нельзя — выберите саму папку изделия.', true); return; }
           try {
             if ((await dir.queryPermission({ mode: 'readwrite' })) !== 'granted' && (await dir.requestPermission({ mode: 'readwrite' })) !== 'granted') {
               say('Нет разрешения на изменения в «' + dir.name + '». Нажмите ещё раз и в окне Chrome выберите «Разрешить изменения».', true); return;
@@ -3916,6 +3924,7 @@ function decMakeDirs(names, base, cur) {
           say(['В папке «' + dir.name + '»:', made.length ? 'создано: ' + made.join(', ') : 'новых папок не создано',
             had.length ? 'уже были: ' + had.join(', ') : '', bad.length ? 'ошибка: ' + bad.join('; ') : ''].filter(Boolean).join('\n'), bad.length > 0);
         }, 'primary'),
+        btn('Скопировать команду для PowerShell', psCopy),
         btn('Закрыть', () => api.close(), 'ghost')));
   });
 }
