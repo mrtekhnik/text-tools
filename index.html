@@ -187,6 +187,14 @@ button{font:inherit;color:inherit;cursor:pointer}
 .rowlbl{grid-column:1/-1;flex:none;align-self:center;font-size:12.5px;font-weight:700;color:var(--muted);padding-right:2px}
 .tgroup .tbtns+.tbtns{margin-top:6px}
 .numback{margin-top:8px}
+#anonOpts .mini{white-space:nowrap;flex:none}
+.cmpopts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:8px 0}
+.cmpopts .thm{margin:0;align-items:center}
+.cmpres{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.cmpsec{border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0}
+.cmphead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cmplist{margin:6px 0 0;max-height:30vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font:inherit;font-size:14px}
+.cmpsec.c1{border-color:rgba(179,38,30,.45)}.cmpsec.c2{border-color:rgba(13,107,91,.55)}.cmpsec.cd{border-color:rgba(224,138,0,.6)}
 .pane.hasmarks{position:relative}
 .srcmarks{position:absolute;pointer-events:none;overflow:hidden;z-index:2}
 .srcmarks-in{white-space:pre-wrap;overflow-wrap:break-word;word-wrap:break-word;color:transparent;box-sizing:border-box;width:100%}
@@ -403,6 +411,7 @@ body.modal-lock{overflow:hidden}
       <button class="ttab" type="button" role="tab" data-g="translit">Транслит</button>
       <button class="ttab" type="button" role="tab" data-g="sym">Знаки</button>
       <button class="ttab" type="button" role="tab" data-g="lines">Строки</button>
+      <button class="ttab" type="button" role="tab" data-g="anon">Обезличить</button>
       <button class="ttab" type="button" role="tab" data-g="format">Формат</button>
       <button class="ttab" type="button" role="tab" data-g="cols">Столбцы</button>
       <button class="ttab" type="button" role="tab" data-g="extract">Извлечь</button>
@@ -451,6 +460,7 @@ body.modal-lock{overflow:hidden}
         <button class="tb main" type="button" data-t="fix" data-p="pdf" title="Всё сразу для текста, скопированного из PDF, Word, сайтов: кракозябры, сдвинутые буквы, латиница в русских словах, буквы через пробел, невидимые символы, лигатуры">Текст из PDF</button>
         <button class="tb" type="button" data-t="fix" data-p="enc" title="Нечитаемые знаки вместо букв (неверная кодировка): Ðîçì³ðè → Розміри, РџСЂРёРІРµС‚ → Привет, Ð¿Ñ€Ð¸Ð²ÐµÑ‚ → привет, ǋǱǭ ǰǶǱǰǼ → Вид знизу">Кодировка</button>
         <button class="tb" type="button" data-t="fix" data-p="mixed" title="Латинские буквы-двойники в русских и украинских словах и наоборот: Бoлт (o латинская) → Болт, AБВГ → АБВГ; ноль вместо О: Б0ЛТ → БОЛТ. Такие места подсвечены в окне «Текст»">Смешанные буквы</button>
+        <button class="tb" type="button" data-t="fix" data-p="md" title="Убрать разметку из ответа ИИ: **жирный**, # заголовки, `код`, списки «- » → «• », таблицы → столбцы через Tab (вставятся в Excel и Word)">Ответ ИИ → текст</button>
         <button class="tb" type="button" data-t="fix" data-p="invis" title="Мягкие переносы и нулевые пробелы — убрать, неразрывные пробелы — в обычные, лигатуры ﬁ ﬂ — в fi fl">Невидимые символы</button>
       </div>
     </div>
@@ -463,10 +473,34 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="lines" data-p="rev" title="Последняя строка становится первой">Обратный порядок</button>
         <button class="tb" type="button" data-t="lines" data-p="num" title="1. 2. 3. — пустые строки не нумеруются">Нумерация</button>
         <button class="tb" type="button" data-t="lines" data-p="unnum" title="Убрать «1.», «2)», «- », «•» в начале строк">Без нумерации</button>
+        <button class="tb" type="button" data-t="lines" data-p="merge" title="Одинаковые позиции — в одну, количество складывается: «Болт М8 — 4 шт» + «Болт М8 — 2 шт» → «Болт М8 — 6 шт». Понимает и таблицы из Excel">Свести позиции</button>
+        <button class="tb" type="button" id="filterBtn" data-id="lines:filter" title="Оставить или убрать строки, где есть слово или маска">Фильтр…</button>
+        <button class="tb" type="button" id="cmpBtn" data-id="lines:cmp" title="Что есть в одном списке и нет в другом — порядок строк не важен">Сравнить списки…</button>
         <button class="tb" type="button" id="joinBtn" data-id="lines:join" title="Все строки в одну через разделитель: Болт, Гайка, Шайба">Склеить через…</button>
         <button class="tb" type="button" id="splitBtn" data-id="lines:split" title="Разбить текст по знаку на отдельные строки">Разбить по…</button>
         <button class="tb" type="button" id="affixBtn" data-id="lines:affix" title="Добавить текст в начало и/или конец каждой строки">Префикс / суффикс…</button>
       </div>
+    </div>
+    <div class="tgroup" data-g="anon">
+      <div class="tlbl gtitle">Обезличить</div>
+      <div class="tbtns">
+        <span class="rowlbl">Данные</span>
+        <button class="tb main" type="button" id="anonHide" data-id="anon:hide" title="ФИО, телефоны, e-mail, счета и карты, коды ЄДРПОУ/ІПН → метки [ФИО1], [ТЕЛ1]… Результат можно отправлять в ИИ">Скрыть данные</button>
+        <button class="tb" type="button" id="anonBack" data-id="anon:back" title="Вставьте ответ ИИ и нажмите — метки [ФИО1], [ТЕЛ1]… снова станут настоящими данными">Вернуть данные</button>
+      </div>
+      <div class="srow" id="anonOpts">
+        <span class="rowlbl">Что скрывать</span>
+        <label class="mini"><input type="checkbox" data-k="fio"> ФИО</label>
+        <label class="mini"><input type="checkbox" data-k="tel"> телефоны</label>
+        <label class="mini"><input type="checkbox" data-k="email"> e-mail</label>
+        <label class="mini"><input type="checkbox" data-k="acc"> счета, карты</label>
+        <label class="mini"><input type="checkbox" data-k="code"> ЄДРПОУ, ІПН</label>
+      </div>
+      <div class="srow">
+        <span class="rowlbl">Ещё скрывать</span>
+        <input class="field" id="anonWords" type="text" autocomplete="off" spellcheck="false" placeholder="свои слова через «;» — название фирмы, адрес, номер договора" style="flex:1;min-width:0">
+      </div>
+      <div class="numhint" id="anonInfo"></div>
     </div>
     <div class="tgroup" data-g="format">
       <div class="tlbl gtitle">Формат</div>
@@ -686,7 +720,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.3';
+const APP_VERSION = '2026-11-13.4';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -887,6 +921,7 @@ function applyWhole(t, s, prot) {
     case 'numw': return numWordsOp(t, s.p);
     case 'fix': return fixOp(t, s.p);
     case 'roman': return romanOp(t, s.p);
+    case 'anon': { if (s.p.k === 'back') return deanonymize(t, ANON_MAP); const r = anonymize(t, s.p.o || {}, ANON_MAP); ANON_MAP = r.map; return r.text; }
   }
   return t;
 }
@@ -1245,6 +1280,8 @@ function linesOp(t, p) {
     case 'unnum': return L.map(x => x.replace(/^(\s*)(?:\d{1,4}[.)]|[-–—•·▪*])\s+/, '$1')).join('\n');
     case 'affix': return L.map(x => (x.trim() ? (o.pre || '') + x + (o.suf || '') : x)).join('\n');
     case 'fname': return fileNames(L, o);
+    case 'merge': return mergeLines(t);
+    case 'filter': return filterLines(t, o);
     case 'joinsep': return joinWithSep(t, o.sep);
     case 'split': return splitText(t, o.sep);
   }
@@ -1843,6 +1880,7 @@ function fixOp(t, p) {
     case 'enc': return fixShift(fixEncoding(t));
     case 'mixed': return fixMixed(t);
     case 'invis': return fixInvisible(t);
+    case 'md': return mdToText(t);
     case 'pdf': return fixMixed(fixSpaced(fixInvisible(fixShift(fixEncoding(t)))));
   }
   return t;
@@ -1874,16 +1912,158 @@ function romanOp(t, p) {
     return x + (b ? dash + y : '');
   });
 }
+var ANON_MAP = {};          // метка → исходные данные (хранится в настройках, только на устройстве)
+/* ---------- свести одинаковые позиции: «Болт М8х20 — 4 шт» + «Болт М8х20 — 2 шт» → «Болт М8х20 — 6 шт» ---------- */
+// Количество распознаётся, если перед ним тире, двоеточие или табуляция, либо после него единица (шт, кг, м…).
+// «Шайба 8» — без единицы и тире — количеством не считается: 8 здесь размер.
+const QTY_UNITS = 'шт|штук|компл|комплект|кг|г|т|м|мм|см|м2|м²|м3|м³|л|пар|пара|уп|упак|рулон|лист|листов';
+const QTY_RE = new RegExp('^(.*?\\S)([ \\t\\u00a0]*[-–—:][ \\t\\u00a0]*|[ \\t\\u00a0]+)(\\d+(?:[.,]\\d+)?)([ \\t\\u00a0]*(?:' + QTY_UNITS + ')\\.?)?[ \\t\\u00a0]*$', 'iu');
+function parseQty(line) {
+  if (line.includes('\t')) {                                   // строка таблицы: количество — последняя ячейка-число
+    const cells = line.split('\t');
+    for (let i = cells.length - 1; i > 0; i--) {
+      if (/^\s*\d+(?:[.,]\d+)?\s*$/.test(cells[i])) {
+        // номер позиции в первом столбце (1, 2, 3…) в сравнении не участвует
+        const key = cells.filter((c, j) => j !== i && !(j === 0 && /^\s*\d+\s*$/.test(c))).map(c => c.trim()).join('\t');
+        return { key: key.toLowerCase().replace(/\s+/g, ' '), n: parseFloat(cells[i].replace(',', '.')), comma: cells[i].includes(','), make: v => cells.map((c, j) => (j === i ? v : c)).join('\t') };
+      }
+    }
+    return null;
+  }
+  const m = line.match(QTY_RE);
+  if (!m || (!m[4] && !/[-–—:]/.test(m[2]))) return null;
+  const [, name, sep, num, unit = ''] = m;
+  return { key: (name.trim() + '|' + unit.trim().replace(/\.$/, '')).toLowerCase().replace(/\s+/g, ' ').replace(/ё/g, 'е'),
+    n: parseFloat(num.replace(',', '.')), comma: num.includes(','), make: v => name + sep + v + unit };
+}
+function mergeLines(t) {
+  const out = [], seen = new Map();
+  t.split('\n').forEach(line => {
+    const q = line.trim() ? parseQty(line) : null;
+    if (!q) { out.push({ line }); return; }
+    if (seen.has(q.key)) { const o = seen.get(q.key); o.n += q.n; o.comma = o.comma || q.comma; o.cnt++; return; }
+    const o = { q, n: q.n, comma: q.comma, cnt: 1 }; seen.set(q.key, o); out.push(o);
+  });
+  return out.map(o => (o.q ? (o.cnt > 1 ? o.q.make(fmtQty(o.n, o.comma)) : o.q.make(fmtQty(o.n, o.comma))) : o.line)).join('\n');
+}
+const fmtQty = (n, comma) => { const s = String(+n.toFixed(6)); return comma ? s.replace('.', ',') : s; };
+
+/* ---------- фильтр строк: оставить или убрать строки со словом / маской ---------- */
+// Несколько вариантов — через «;» (любой из них). Маска: * — любые символы, ? — один символ.
+function filterLines(t, o) {
+  const parts = String(o.q || '').split(';').map(x => x.trim()).filter(Boolean);
+  if (!parts.length) return t;
+  let tests;
+  if (o.re) { try { const rx = new RegExp(parts.join('|'), o.cs ? 'u' : 'iu'); tests = [l => rx.test(l)]; } catch (e) { return t; } }
+  else tests = parts.map(p => {
+    if (/[*?]/.test(p)) { const rx = new RegExp(p.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.'), o.cs ? 'u' : 'iu'); return l => rx.test(l); }
+    const q = o.cs ? p : p.toLowerCase();
+    return l => (o.cs ? l : l.toLowerCase()).includes(q);
+  });
+  return t.split('\n').filter(l => { const hit = tests.some(f => f(l)); return o.keep ? hit : !hit; }).join('\n');
+}
+
+/* ---------- ответ ИИ → чистый текст: без разметки Markdown ---------- */
+function mdToText(t) {
+  const lines = t.replace(/\r/g, '').split('\n'), out = [];
+  let fence = false;
+  for (let i = 0; i < lines.length; i++) {
+    let l = lines[i];
+    if (/^\s*(```|~~~)/.test(l)) { fence = !fence; continue; }          // границы блока кода
+    if (fence) { out.push(l); continue; }
+    if (/^\s*\|.*\|\s*$/.test(l)) {                                      // таблица → столбцы через Tab (вставится в Excel и Word)
+      if (/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(l)) continue;
+      out.push(l.trim().replace(/^\||\|$/g, '').split('|').map(c => inlineMd(c.trim())).join('\t'));
+      continue;
+    }
+    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)) continue;                  // горизонтальная черта
+    l = l.replace(/^\s{0,3}#{1,6}\s+/, '').replace(/\s+#+\s*$/, '');      // заголовки
+    l = l.replace(/^(\s*)>\s?/, '$1');                                   // цитаты
+    l = l.replace(/^(\s*)[-*+]\s+\[[ xX]\]\s+/, '$1• ');                 // чек-листы
+    l = l.replace(/^(\s*)[-*+]\s+/, '$1• ');                             // маркеры списка
+    out.push(inlineMd(l));
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+function inlineMd(s) {
+  const esc = [];
+  s = s.replace(/\\([\\`*_{}\[\]()#+\-.!|>~])/g, (m, c) => { esc.push(c); return '\uE100' + (esc.length - 1) + '\uE101'; });   // экранированные знаки — не разметка
+  return s
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')                             // картинки
+    .replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (m, a, u) => (a === u ? u : a + ' (' + u + ')'))   // ссылки
+    .replace(/`([^`]+)`/g, '$1')                                          // код в строке
+    .replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, '$2')                      // жирный
+    .replace(/(^|[^\w*])\*(?=\S)([^*\n]*?\S)\*(?!\w)/g, '$1$2')           // курсив *…*
+    .replace(/(^|[^\w_])_(?=\S)([^_\n]*?\S)_(?![\w])/gu, '$1$2')          // курсив _…_ (не трогает имена_файлов)
+    .replace(/~~(?=\S)([\s\S]*?\S)~~/g, '$1')                             // зачёркнутый
+    .replace(/\uE100(\d+)\uE101/g, (m, i) => esc[+i]);
+}
+
+/* ---------- обезличивание: скрыть личные данные перед отправкой в ИИ и вернуть после ---------- */
+const ANON_KINDS = { fio: 'ФИО', tel: 'ТЕЛ', email: 'EMAIL', acc: 'СЧЁТ', code: 'КОД', word: 'СКРЫТО' };
+const NAMEW = "[А-ЯЁІЇЄҐ][а-яёіїєґ'’ʼ\\-]+";
+const INI = '[А-ЯЁІЇЄҐ]\\.[ \\u00a0]?';
+// Находит скрываемые места: [начало, конец, вид]
+function anonFind(t, o) {
+  const hits = [];
+  const add = (a, b, k) => { if (!hits.some(h => a < h[1] && b > h[0])) hits.push([a, b, k]); };
+  if (o.word) String(o.words || '').split(';').map(x => x.trim()).filter(x => x.length > 1).sort((a, b) => b.length - a.length).forEach(w => {
+    const rx = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'giu');
+    for (const m of t.matchAll(rx)) add(m.index, m.index + m[0].length, 'word');
+  });
+  if (o.email) for (const m of t.matchAll(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/gu)) add(m.index, m.index + m[0].length, 'email');
+  if (o.acc) {
+    for (const m of t.matchAll(/\bUA[  ]?\d{2}(?:[  ]?\d){25}\b/g)) add(m.index, m.index + m[0].length, 'acc');            // IBAN
+    for (const m of t.matchAll(/(?<!\d)(?:\d{4}[  -]?){3}\d{4}(?!\d)/g)) add(m.index, m.index + m[0].length, 'acc');            // карта
+  }
+  if (o.code) for (const m of t.matchAll(/(?:ЄДРПОУ|ЕДРПОУ|ІПН|ИНН|ИПН|РНОКПП|ОКПО|код)[^\d\n]{0,15}(\d{8,12})(?!\d)/giu)) {
+    const a = m.index + m[0].length - m[1].length; add(a, a + m[1].length, 'code');
+  }
+  if (o.tel) for (const m of t.matchAll(PHONE_RE)) {
+    let off = m.index;
+    m[0].split(/([ \t ]+)/).forEach(part => { if (/\d/.test(part) && phoneNorm(part.replace(/^\(|\)$/g, ''))) add(off, off + part.length, 'tel'); off += part.length; });
+    if (phoneNorm(m[0]) && !hits.some(h => h[0] >= m.index && h[1] <= m.index + m[0].length)) add(m.index, m.index + m[0].length, 'tel');
+  }
+  if (o.fio) {
+    const rx = [new RegExp('(?<![\\p{L}])' + NAMEW + '[ \\u00a0]+' + NAMEW + '[ \\u00a0]+' + NAMEW + '(?![\\p{L}])', 'gu'),
+      new RegExp('(?<![\\p{L}])' + NAMEW + '[ \\u00a0]+' + INI + INI.replace('[ \\u00a0]?', '') + '', 'gu'),
+      new RegExp('(?<![\\p{L}])' + INI + INI + NAMEW + '(?![\\p{L}])', 'gu')];
+    for (const m of t.matchAll(rx[0])) {
+      const w = m[0].split(/[  ]+/);
+      if ((PATRON.test(w[2]) && !PATRON.test(w[1])) || (PATRON.test(w[1]) && !PATRON.test(w[2]) && !PATRON.test(w[0]))) add(m.index, m.index + m[0].length, 'fio');
+    }
+    for (const r of rx.slice(1)) for (const m of t.matchAll(r)) add(m.index, m.index + m[0].length, 'fio');
+  }
+  return hits.sort((a, b) => a[0] - b[0]);
+}
+// Возвращает { text, map }: map — метка → исходный текст. prev — уже выданные метки (одно и то же значение получает ту же метку)
+function anonymize(t, o, prev) {
+  const map = Object.assign({}, prev || {}), back = {}, cnt = {};
+  Object.entries(map).forEach(([tag, val]) => { back[val] = tag; const m = tag.match(/^\[(\D+?)(\d+)\]$/); if (m) cnt[m[1]] = Math.max(cnt[m[1]] || 0, +m[2]); });
+  let out = '', last = 0;
+  anonFind(t, o).forEach(([a, b, k]) => {
+    const val = t.slice(a, b);
+    let tag = back[val];
+    if (!tag) { const L = ANON_KINDS[k]; cnt[L] = (cnt[L] || 0) + 1; tag = '[' + L + cnt[L] + ']'; back[val] = tag; map[tag] = val; }
+    out += t.slice(last, a) + tag; last = b;
+  });
+  return { text: out + t.slice(last), map };
+}
+// Вернуть данные: [ТЕЛ1] → исходный номер. ИИ иногда теряет скобки — «ТЕЛ1» тоже понимается
+function deanonymize(t, map) {
+  return t.replace(/\[?(?<![\p{L}\p{N}])(ФИО|ТЕЛ|EMAIL|СЧЁТ|КОД|СКРЫТО) ?(\d+)(?!\d)\]?/gu, (m, k, n) => { const v = map['[' + k + n + ']']; return v != null ? v : m; });
+}
 /*CORE-END*/
 
 /* ---------- данные (только в этом браузере) ---------- */
-const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'format', 'dates', 'phone', 'fname', 'presets'];
+const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'anon', 'format', 'dates', 'phone', 'fname', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, dateWhich: 'today', dateCustom: '', dateTpls: [], hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
-  sets: [], presets: [], hist: [], num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], hl: false, joinSep: ', ', splitSep: ',', colSpec: '', colSep: 'auto', exUniq: true },
+  sets: [], presets: [], hist: [], anonMap: {}, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
-const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw', 'fix', 'roman'];
+const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw', 'fix', 'roman', 'anon'];
 const uid0 = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 function load() {
   const d = DEF();
@@ -1905,13 +2085,17 @@ function load() {
             fname: { tpl: typeof (u.fname || {}).tpl === 'string' ? u.fname.tpl : d.ui.fname.tpl, start: (u.fname || {}).start ?? 1, us: !!(u.fname || {}).us },
             histOn: u.histOn !== false, diffMode: u.diffMode === 'lines' ? 'lines' : 'words',
             deskWidth: u.deskWidth === 0 ? 0 : Math.max(900, Math.min(2560, +u.deskWidth || 1240)), hl: !!u.hl,
+            filter: { q: String((u.filter || {}).q || ''), keep: (u.filter || {}).keep !== false, cs: !!(u.filter || {}).cs, re: !!(u.filter || {}).re },
+            cmp: { byCol: !!(u.cmp || {}).byCol, col: Math.max(1, +(u.cmp || {}).col || 1), ci: (u.cmp || {}).ci !== false },
+            anonOpt: Object.fromEntries(['fio', 'tel', 'email', 'acc', 'code'].map(k => [k, (u.anonOpt || {})[k] !== false])), anonWords: typeof u.anonWords === 'string' ? u.anonWords : '',
             dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '',
             dateTpls: Array.isArray(u.dateTpls) ? u.dateTpls.filter(x => x && typeof x.tpl === 'string').map(x => ({ id: String(x.id || uid0()), tpl: x.tpl })).slice(0, 30) : [], joinSep: typeof u.joinSep === 'string' ? u.joinSep : ', ', splitSep: typeof u.splitSep === 'string' && u.splitSep ? u.splitSep : ',',
             colSpec: typeof u.colSpec === 'string' ? u.colSpec : '', colSep: ['auto', 'tab', 'semi', 'comma', 'bar', 'sp'].includes(u.colSep) ? u.colSep : 'auto', exUniq: u.exUniq !== false,
             freq: u.freq && typeof u.freq === 'object' && !Array.isArray(u.freq) ? Object.fromEntries(Object.entries(u.freq).filter(([, v]) => Array.isArray(v) && v.length === 2 && isFinite(v[0]) && isFinite(v[1])).slice(0, 80)) : {} }; })(),
         sets: Array.isArray(s.sets) ? s.sets.filter(x => x && typeof x.name === 'string' && Array.isArray(x.rules)).map(x => ({ id: x.id || uid0(), name: x.name, rules: x.rules.filter(r => r && typeof r.find === 'string') })) : [],
         presets: Array.isArray(s.presets) ? s.presets.filter(x => x && typeof x.name === 'string' && Array.isArray(x.steps)).map(x => ({ id: x.id || uid0(), name: x.name, steps: x.steps.filter(st => st && STEP_TYPES.includes(st.type)) })) : [],
-        hist: Array.isArray(s.hist) ? s.hist.filter(x => x && typeof x.t === 'string').slice(0, 30) : [] };
+        hist: Array.isArray(s.hist) ? s.hist.filter(x => x && typeof x.t === 'string').slice(0, 30) : [],
+        anonMap: s.anonMap && typeof s.anonMap === 'object' ? Object.fromEntries(Object.entries(s.anonMap).filter(([k, v]) => typeof v === 'string' && /^\[\D+\d+\]$/.test(k))) : {} };
     }
   } catch (e) { /* пусто или повреждено */ }
   return d;
@@ -1975,12 +2159,12 @@ const NAMES = {
   layout: { 'en-ru': 'EN → RU', 'ru-en': 'RU → EN', 'ru-ua': 'RU → UA', 'ua-ru': 'UA → RU' },
   case: { upper: 'ВЕРХНИЙ', lower: 'нижний', sentence: 'Как в предложении', title: 'Каждое Слово', invert: 'иНВЕРСИЯ' },
   translit: { 'ru-lat': 'Транслит RU → Lat', 'ua-lat': 'Транслит UA → Lat', 'lat-ru': 'Транслит Lat → RU', 'lat-ua': 'Транслит Lat → UA' },
-  lines: { sort: 'Строки А→Я', sortd: 'Строки Я→А', uniq: 'Без дублей', rev: 'Обратный порядок', num: 'Нумерация', unnum: 'Без нумерации' },
+  lines: { merge: 'Свести позиции', sort: 'Строки А→Я', sortd: 'Строки Я→А', uniq: 'Без дублей', rev: 'Обратный порядок', num: 'Нумерация', unnum: 'Без нумерации' },
   typo: { 'q-ru': '«Ёлочки»', 'q-en': '"Прямые" кавычки', dash: 'Дефис → тире', hyph: 'Тире → дефис', 'dec-dot': '1,5 → 1.5', 'dec-comma': '1.5 → 1,5' },
   date: { dmy: 'Даты 12.11.2026', iso: 'Даты 2026-11-12', slash: 'Даты 12/11/2026', ru: 'Даты 12 ноября 2026 г.', ua: 'Даты 12 листопада 2026 р.' },
   nfmt: { grp: 'Разряды 1 234 567', ungrp: 'Без разрядов' },
   roman: { 'to-ar': 'Римские → арабские', 'to-rom': 'Арабские → римские' },
-  fix: { pdf: 'Починить текст из PDF', enc: 'Исправить кодировку', mixed: 'Смешанные буквы', invis: 'Невидимые символы' },
+  fix: { md: 'Ответ ИИ → текст', pdf: 'Починить текст из PDF', enc: 'Исправить кодировку', mixed: 'Смешанные буквы', invis: 'Невидимые символы' },
   numw: { digits: 'Словами → цифрами', 'ru-ua': 'Числительные RU → UA', 'ua-ru': 'Числительные UA → RU' },
   fio: { short: 'ФИО → Шевченко Т. Г.', 'ini-first': 'ФИО → Т. Г. Шевченко' },
   dim: { x: 'Размеры x → ×', dia: 'd20 → Ø20', sym: '+/- → ±, гр. → °', mm2m: 'мм → м', m2mm: 'м → мм' },
@@ -2010,6 +2194,8 @@ function stepLabel(s) {
     : s.type === 'lines' && s.p && s.p.k === 'fname' ? 'Имена файлов: ' + cut(s.p.tpl, 20)
     : s.type === 'lines' && s.p && s.p.k === 'joinsep' ? 'Склеить через «' + cut(s.p.sep, 8) + '»'
     : s.type === 'lines' && s.p && s.p.k === 'split' ? 'Разбить по «' + cut(s.p.sep, 8) + '»'
+    : s.type === 'lines' && s.p && s.p.k === 'filter' ? (s.p.keep ? 'Оставить' : 'Убрать') + ' строки с «' + cut(s.p.q, 14) + '»'
+    : s.type === 'anon' ? (s.p.k === 'back' ? 'Вернуть данные' : 'Скрыть данные')
     : s.type === 'cols' ? colLabel(s.p)
     : s.type === 'extract' ? 'Извлечь: ' + ({ desig: 'обозначения', std: 'стандарты', num: 'числа', phone: 'телефоны', email: 'e-mail', url: 'ссылки' }[s.p.k] || s.p.k) + (s.p.uniq === false ? ', с повторами' : '')
     : ((NAMES[s.type] && NAMES[s.type][s.p]) || s.type);
@@ -2065,7 +2251,7 @@ function updSel() {
   if (sel) $('#selText').textContent = 'Выделено ' + (sel.b - sel.a) + ' симв. — команда изменит только их (видно в «Результате»)';
   updFrInfo();
 }
-function after() { recompute(); renderSteps(); updCounts(); updSel(); updUndo(); save(); try { updFn(); } catch (e) { /* ещё не готово */ } }
+function after() { recompute(); renderSteps(); updCounts(); updSel(); updUndo(); save(); try { updFn(); syncAnon(); } catch (e) { /* ещё не готово */ } }
 
 /* ---------- отмена и повтор: текст + шаги ---------- */
 const hist = [];
@@ -2720,7 +2906,7 @@ async function helpSheet() {
   });
 }
 /* ---------- оформление и настройки (блоки сворачиваются) ---------- */
-const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', freq: 'Частые', sym: 'Знаки', lines: 'Строки', cols: 'Столбцы', extract: 'Извлечь', format: 'Формат', dates: 'Даты', phone: 'Телефоны', fname: 'Имена файлов', presets: 'Пресеты' };
+const GROUP_NAMES = { layout: 'Раскладка', case: 'Регистр', clean: 'Очистка', replace: 'Замена', num: 'Числа', translit: 'Транслит', freq: 'Частые', sym: 'Знаки', lines: 'Строки', cols: 'Столбцы', extract: 'Извлечь', anon: 'Обезличить', format: 'Формат', dates: 'Даты', phone: 'Телефоны', fname: 'Имена файлов', presets: 'Пресеты' };
 const NUM_MODE_NAMES = { card: 'пять', ord: 'пятый', abbr: '5-й', money: 'сумма' };
 // какие группы и команды показывать — хранится в этом браузере, на каждом устройстве своё
 const cmdId = b => b.dataset.id || (b.dataset.t ? b.dataset.t + ':' + b.dataset.p : 'num:' + b.dataset.v);
@@ -2897,6 +3083,7 @@ function scheduleCounts() { clearTimeout(cntT); cntT = setTimeout(calcCounts, 15
 const STEP_ENUM = ['layout', 'case', 'clean', 'translit', 'typo', 'date', 'nfmt', 'phone', 'lines', 'fio', 'dim', 'numw', 'fix', 'roman'];
 function canEdit(s) {
   if (['replace', 'num', 'cols', 'extract'].includes(s.type)) return true;
+  if (s.type === 'anon') return s.p.k === 'hide';
   if (s.type === 'rules') return state.sets.length > 0;
   if (s.type === 'lines' && s.p && typeof s.p === 'object') return true;
   return STEP_ENUM.includes(s.type) && NAMES[s.type] && Object.keys(NAMES[s.type]).length > 1;
@@ -2948,6 +3135,23 @@ async function editStep(i) {
     if (!v) return;
     if (s.p.k === 'split' && !v.sep) { toast('Укажите знак', true); return; }
     p = { k: s.p.k, sep: v.sep };
+  } else if (s.type === 'lines' && s.p && s.p.k === 'filter') {
+    const v = await formDialog('Фильтр строк', [
+      { key: 'q', label: 'Слово, часть слова или маска. Несколько — через «;»', value: s.p.q },
+      { key: 'keep', label: 'Что сделать со строками, где оно есть', type: 'select', value: s.p.keep ? '1' : '0', options: [['1', 'Оставить только их'], ['0', 'Убрать их']] },
+      { key: 'cs', type: 'check', label: 'Различать заглавные и строчные', value: s.p.cs },
+      { key: 're', type: 'check', label: 'Регулярное выражение', value: s.p.re }], 'Сохранить');
+    if (!v) return;
+    if (!v.q.trim()) { toast('Впишите, что искать', true); return; }
+    p = { k: 'filter', q: v.q, keep: v.keep === '1', cs: !!v.cs, re: !!v.re };
+  } else if (s.type === 'anon') {
+    const o = s.p.o || {};
+    const v = await formDialog('Что скрывать', [
+      { key: 'fio', type: 'check', label: 'ФИО', value: o.fio !== false }, { key: 'tel', type: 'check', label: 'Телефоны', value: o.tel !== false },
+      { key: 'email', type: 'check', label: 'E-mail', value: o.email !== false }, { key: 'acc', type: 'check', label: 'Счета и карты', value: o.acc !== false },
+      { key: 'code', type: 'check', label: 'ЄДРПОУ, ІПН', value: o.code !== false }, { key: 'words', label: 'Ещё скрывать (через «;»)', value: o.words || '' }], 'Сохранить');
+    if (!v) return;
+    p = { k: 'hide', o: { fio: v.fio, tel: v.tel, email: v.email, acc: v.acc, code: v.code, word: !!v.words.trim(), words: v.words } };
   } else if (s.type === 'cols' && (s.p.k === 'pick' || s.p.k === 'drop')) {
     const v = await formDialog(s.p.k === 'pick' ? 'Оставить столбцы' : 'Убрать столбцы', [
       { key: 'spec', label: 'Номера столбцов: 2, 1,3, 3-5, 3,1,2', value: s.p.spec },
@@ -3044,6 +3248,8 @@ const KW = {
   fix: 'починить pdf кракозябры кодировка иероглифы латиница кириллица невидимые символы пробелы word', 'fix:mixed': 'латинские буквы смешанные алфавиты обозначения', 'fix:invis': 'неразрывный пробел мягкий перенос',
   numw: 'числа словами цифры числительные перевод украинский русский прописью обратно', 'numw:digits': 'цифрами', 'numw:ru-ua': 'украинский перевод', 'numw:ua-ru': 'русский перевод',
   fio: 'фио инициалы фамилия имя отчество', dim: 'размеры', 'dim:x': 'умножить крестик размер', 'dim:dia': 'диаметр', 'dim:sym': 'плюс минус градус допуск',
+  'lines:merge': 'свести сложить количество одинаковые позиции спецификация заявка сумма', 'lines:filter': 'фильтр оставить убрать строки содержащие поиск', 'lines:cmp': 'сравнить списки разница excel',
+  'fix:md': 'ответ ии нейросеть chatgpt claude markdown разметка звездочки', anon: 'обезличить скрыть личные данные ии нейросеть персональные', 'anon:back': 'вернуть данные',
   'dim:mm2m': 'миллиметры метры', 'dim:m2mm': 'метры миллиметры', 'lines:join': 'склеить объединить в строку через запятую', 'lines:split': 'разбить разделить на строки столбик'
 };
 function allCommands() {
@@ -3539,6 +3745,110 @@ src.addEventListener('scroll', () => { if (!marksBox.hidden) marksIn.style.trans
 if ('ResizeObserver' in window) new ResizeObserver(() => { if (!marksBox.hidden) placeMarks(); }).observe(src);
 addEventListener('resize', () => { if (!marksBox.hidden) placeMarks(); });
 renderMarks();
+
+/* ---------- Строки: фильтр ---------- */
+bindCmd($('#filterBtn'), async sel => {
+  const f = state.ui.filter;
+  const v = await formDialog('Фильтр строк', [
+    { key: 'q', label: 'Слово, часть слова или маска. Несколько — через «;»', value: f.q, placeholder: 'например: ГОСТ; ДСТУ   или   *0,3 мм*' },
+    { key: 'keep', label: 'Что сделать со строками, где оно есть', type: 'select', value: f.keep ? '1' : '0', options: [['1', 'Оставить только их'], ['0', 'Убрать их']] },
+    { key: 'cs', type: 'check', label: 'Различать заглавные и строчные', value: f.cs },
+    { key: 're', type: 'check', label: 'Регулярное выражение', value: f.re }], 'Применить',
+    { msg: 'Маска: * — любые символы, ? — один символ. Пример: «Болт М*х20» найдёт «Болт М8х20» и «Болт М10х20».' });
+  if (!v) return;
+  if (!v.q.trim()) { toast('Впишите, что искать', true); return; }
+  if (v.re) { try { new RegExp(v.q); } catch (e) { toast('Ошибка в регулярном выражении', true); return; } }
+  state.ui.filter = { q: v.q, keep: v.keep === '1', cs: !!v.cs, re: !!v.re }; save();
+  doOp('lines', { k: 'filter', ...state.ui.filter }, sel);
+});
+
+/* ---------- Строки: сравнить два списка (окно, не шаг) ---------- */
+function cmpSheet() {
+  openModal((box, api) => {
+    box.classList.add('wide');
+    const c = state.ui.cmp;
+    const a = h('textarea', { class: 'field', rows: 5, spellcheck: 'false', value: currentOutput(), placeholder: 'Вставьте первый список или столбец из Excel' });
+    const b = h('textarea', { class: 'field', rows: 5, spellcheck: 'false', placeholder: 'Вставьте второй список' });
+    const res = h('div', { class: 'cmpres' }), modes = h('div', { class: 'thm' });
+    const col = h('input', { class: 'field', type: 'number', min: '1', value: String(c.col || 1), style: 'width:80px', 'aria-label': 'Номер столбца' });
+    const ci = h('input', { type: 'checkbox' }); ci.checked = c.ci !== false;
+    const norm = s => (ci.checked ? s.toLowerCase().replace(/ё/g, 'е').replace(/[\s ]+/g, ' ').trim() : s.trim());
+    const run = () => {
+      modes.replaceChildren(...[[false, 'Целые строки'], [true, 'По столбцу №']].map(([k, n]) => btn(n, () => { c.byCol = k; save(); run(); }, !!c.byCol === k ? 'primary' : '')), c.byCol ? col : '');
+      c.col = Math.max(1, parseInt(col.value, 10) || 1); c.ci = ci.checked;
+      const rows = t => t.split('\n').filter(x => x.trim());
+      const keyOf = t => { const S = colSplitter(t, 'auto'); return r => norm(c.byCol ? (S.split(r)[c.col - 1] || '') : r); };
+      const r1 = rows(a.value), r2 = rows(b.value), k1 = keyOf(a.value), k2 = keyOf(b.value);
+      if (!r1.length || !r2.length) { res.replaceChildren(h('p', { class: 'msg', text: 'Вставьте оба списка.' })); return; }
+      const m2 = new Map(); r2.forEach(r => { const k = k2(r); if (k && !m2.has(k)) m2.set(k, r); });
+      const m1 = new Map(); r1.forEach(r => { const k = k1(r); if (k && !m1.has(k)) m1.set(k, r); });
+      const only1 = r1.filter(r => !m2.has(k1(r))), only2 = r2.filter(r => !m1.has(k2(r)));
+      const same = [], diff = [];
+      r1.forEach(r => { const k = k1(r); if (!m2.has(k)) return; const o = m2.get(k); if (c.byCol && norm(r) !== norm(o)) diff.push(r.trim() + '  →  ' + o.trim()); else same.push(r); });
+      const sec = (title, list, cls) => h('div', { class: 'cmpsec ' + cls },
+        h('div', { class: 'cmphead' }, h('b', { text: title + ' — ' + list.length }),
+          list.length ? h('button', { class: 'hb', type: 'button', async onclick() { const ok = await copyText(list.join('\n')); toast(ok ? '✓ Скопировано: ' + list.length : 'Не удалось скопировать', !ok); } }, 'Копировать') : ''),
+        list.length ? h('pre', { class: 'cmplist', text: list.join('\n') }) : '');
+      res.replaceChildren(
+        sec('Только в списке 1', only1, 'c1'), sec('Только в списке 2', only2, 'c2'),
+        ...(c.byCol ? [sec('Совпадает столбец ' + c.col + ', отличается остальное', diff, 'cd')] : []),
+        sec(c.byCol ? 'Совпадают полностью' : 'Есть в обоих', same, 'cs'));
+    };
+    const pasteInto = el => async () => { try { el.value = await navigator.clipboard.readText(); run(); } catch (e) { toast('Нет доступа к буферу: вставьте долгим нажатием', true); } };
+    [a, b, col].forEach(el => el.addEventListener('input', run));
+    ci.addEventListener('change', () => { run(); save(); });
+    box.append(h('h2', { text: 'Сравнить списки' }),
+      h('p', { class: 'msg', text: 'Порядок строк не важен. Можно вставить столбцы или таблицы из Excel и сравнивать по одному столбцу — например, по обозначению.' }),
+      h('div', { class: 'diffin' },
+        h('div', {}, h('div', { class: 'phead' }, h('span', { class: 'ptitle', text: 'Список 1' }), h('button', { class: 'hb', type: 'button', onclick: pasteInto(a) }, 'Вставить')), a),
+        h('div', {}, h('div', { class: 'phead' }, h('span', { class: 'ptitle', text: 'Список 2' }), h('button', { class: 'hb', type: 'button', onclick: pasteInto(b) }, 'Вставить')), b)),
+      h('div', { class: 'cmpopts' }, h('span', { class: 'uilbl', text: 'Сравнивать:' }), modes, h('label', { class: 'chk' }, ci, h('span', { text: 'не различать регистр и лишние пробелы' }))),
+      res, h('div', { class: 'btns', style: 'margin-top:12px' }, btn('Закрыть', () => api.close(), 'primary')));
+    run();
+  });
+}
+$('#cmpBtn').addEventListener('click', cmpSheet);
+
+/* ---------- Обезличить: скрыть данные перед отправкой в ИИ, вернуть после ---------- */
+ANON_MAP = Object.assign({}, state.anonMap || {});
+const anonOptEls = {};
+document.querySelectorAll('#anonOpts input[data-k]').forEach(el => {
+  anonOptEls[el.dataset.k] = el; el.checked = state.ui.anonOpt[el.dataset.k] !== false;
+  el.addEventListener('change', () => { state.ui.anonOpt[el.dataset.k] = el.checked; save(); });
+});
+const anonWords = $('#anonWords');
+anonWords.value = state.ui.anonWords || '';
+anonWords.addEventListener('input', () => { state.ui.anonWords = anonWords.value; save(); });
+const anonOpts = () => ({ ...Object.fromEntries(Object.entries(anonOptEls).map(([k, el]) => [k, el.checked])), word: !!anonWords.value.trim(), words: anonWords.value });
+bindCmd($('#anonHide'), sel => doOp('anon', { k: 'hide', o: anonOpts() }, sel));
+bindCmd($('#anonBack'), sel => {
+  const n = state.steps.length;
+  state.steps = state.steps.filter(s => !(s.type === 'anon' && s.p && s.p.k === 'hide'));   // при возврате скрывать уже не нужно
+  if (state.steps.length !== n) { commit(); after(); toast('Шаг «Скрыть данные» убран — возвращаю данные', 'warn'); }
+  if (!Object.keys(ANON_MAP).length) { toast('Нет запомненных замен — сначала скройте данные', true); return; }
+  doOp('anon', { k: 'back' }, sel);
+});
+function syncAnon() {
+  if (JSON.stringify(ANON_MAP) !== JSON.stringify(state.anonMap || {})) { state.anonMap = Object.assign({}, ANON_MAP); save(); }
+  const n = Object.keys(ANON_MAP).length;
+  $('#anonInfo').replaceChildren(
+    h('span', { text: n ? 'Запомнено замен: ' + n + '. Хранятся только на этом устройстве. ' : 'Замен пока нет. ' }),
+    n ? h('button', { class: 'linkbtn', type: 'button', onclick: anonList }, 'Показать') : '',
+    n ? h('button', { class: 'linkbtn', type: 'button', onclick() {
+      askDialog('Забыть замены?', 'Вернуть данные в старые ответы ИИ после этого не получится.', [['yes', 'Забыть', 'primary'], ['no', 'Отмена']]).then(r => {
+        if (r !== 'yes') return; ANON_MAP = {}; state.anonMap = {}; save(); syncAnon(); toast('Замены забыты');
+      });
+    } }, 'Забыть') : '');
+}
+function anonList() {
+  openModal((box, api) => {
+    const rows = Object.entries(ANON_MAP);
+    box.append(h('h2', { text: 'Запомненные замены' }),
+      h('div', { class: 'tblwrap' }, h('table', { class: 'stbl' }, ...rows.map(([k, v]) => h('tr', {}, h('td', { text: k }), h('td', { text: v }))))),
+      h('div', { class: 'btns', style: 'margin-top:12px' }, btn('Закрыть', () => api.close(), 'primary')));
+  });
+}
+syncAnon();
 
 /* ---------- запуск ---------- */
 applyTheme();
