@@ -640,6 +640,7 @@ body.modal-lock{overflow:hidden}
       <div class="srow">
         <span class="rowlbl">Обозначение</span>
         <input class="field" id="decIn" type="text" autocomplete="off" spellcheck="false" placeholder="например АЮИА.358-07.00.00.00.00" style="flex:1;min-width:0">
+        <button class="seg" type="button" id="decTake" title="Взять обозначение из окна «Текст»: из выделенного, из строки с курсором или первое найденное">Из текста</button>
       </div>
       <div class="srow" id="decOpts">
         <span class="rowlbl">Показывать</span>
@@ -751,7 +752,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.5';
+const APP_VERSION = '2026-11-13.6';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -2749,6 +2750,7 @@ function showTab(g) {
     if (on && t.parentNode.scrollWidth > t.parentNode.clientWidth) { try { t.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ничего */ } }
   });
   document.querySelectorAll('.tgroup').forEach(t => t.classList.toggle('on', t.dataset.g === g));
+  if (g === 'dec' && decReady) decFromText(false);
   save();
 }
 document.querySelectorAll('.ttab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.g)));
@@ -3818,12 +3820,24 @@ function renderDec() {
   else { const l = decList(t.up[t.up.length - 1], t.L, o.n, 1); rows.push(row('Детали рядом', ...l.map(q => chip(q, t.L, false)), all(l, false))); }
   out.replaceChildren(...rows);
 }
+// обозначение из окна «Текст»: выделенное → строка с курсором → первое в тексте
+const DEC_RE = /[A-ZА-ЯЁІЇЄҐ]{2,}\.[\dA-ZА-ЯЁІЇЄҐ.\-]*?(?:\.\d{2}){2,}(?![\d.])/u;
+var decReady = true;
+function decFromText(force) {
+  if (!force && decIn.value.trim()) return;
+  const t = src.value, a = src.selectionStart, b = src.selectionEnd;
+  const line = t.slice(t.lastIndexOf('\n', a - 1) + 1, (t.indexOf('\n', a) + 1 || t.length + 1) - 1);
+  const m = (a !== b && t.slice(a, b).match(DEC_RE)) || line.match(DEC_RE) || t.match(DEC_RE);
+  if (m) setDec(m[0]); else if (force) toast('В тексте не найдено обозначение вида АЮИА.358-07.01.00.00.00', true);
+}
+$('#decTake').addEventListener('click', () => decFromText(true));
 function setDec(v) { state.ui.dec.v = v; decIn.value = v; save(); renderDec(); }
 decIn.addEventListener('input', () => { state.ui.dec.v = decIn.value; save(); renderDec(); });
 decN.addEventListener('input', () => { const n = parseInt(decN.value, 10); if (n >= 1 && n <= 99) { state.ui.dec.n = n; save(); renderDec(); } });
 decSk.addEventListener('change', () => { state.ui.dec.sk = decSk.checked; save(); renderDec(); });
 document.querySelectorAll('#decOpts .seg').forEach(b => b.addEventListener('click', () => { state.ui.dec.step = +b.dataset.step; save(); renderDec(); }));
 renderDec();
+if (state.tab === 'dec') decFromText(false);
 
 const topBtn = $('#topBtn');
 topBtn.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
