@@ -478,6 +478,7 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="fix" data-p="enc" title="Нечитаемые знаки вместо букв (неверная кодировка): Ðîçì³ðè → Розміри, РџСЂРёРІРµС‚ → Привет, Ð¿Ñ€Ð¸Ð²ÐµÑ‚ → привет, ǋǱǭ ǰǶǱǰǼ → Вид знизу">Кодировка</button>
         <button class="tb" type="button" data-t="fix" data-p="mixed" title="Латинские буквы-двойники в русских и украинских словах и наоборот: Бoлт (o латинская) → Болт, AБВГ → АБВГ; ноль вместо О: Б0ЛТ → БОЛТ. Такие места подсвечены в окне «Текст»">Смешанные буквы</button>
         <button class="tb" type="button" data-t="fix" data-p="md" title="Убрать разметку из ответа ИИ: **жирный**, # заголовки, `код`, списки «- » → «• », таблицы → столбцы через Tab (вставятся в Excel и Word)">Ответ ИИ → текст</button>
+        <button class="tb" type="button" data-t="fix" data-p="spaced" title="Слова, набранные в разрядку, — слитно: «с л о в о» → «слово». Два пробела и больше между словами остаются одним пробелом">с л о в о → слово</button>
         <button class="tb" type="button" data-t="fix" data-p="invis" title="Мягкие переносы и нулевые пробелы — убрать, неразрывные пробелы — в обычные, лигатуры ﬁ ﬂ — в fi fl">Невидимые символы</button>
       </div>
     </div>
@@ -597,6 +598,8 @@ body.modal-lock{overflow:hidden}
         <button class="tb" type="button" data-t="date" data-p="dmy" title="Любые даты → ДД.ММ.ГГГГ">12.11.2026</button>
         <button class="tb" type="button" data-t="date" data-p="iso" title="Любые даты → ГГГГ-ММ-ДД (удобно в именах файлов)">2026-11-12</button>
         <button class="tb" type="button" data-t="date" data-p="slash" title="Любые даты → ДД/ММ/ГГГГ">12/11/2026</button>
+        <button class="tb" type="button" data-t="date" data-p="dash" title="Любые даты → ДД-ММ-ГГГГ">12-11-2026</button>
+        <button class="tb" type="button" data-t="date" data-p="under" title="Любые даты → ДД_ММ_ГГГГ (для имён файлов)">12_11_2026</button>
         <button class="tb" type="button" data-t="date" data-p="ru" title="Любые даты → словами по-русски">12 ноября 2026 г.</button>
         <button class="tb" type="button" data-t="date" data-p="ua" title="Любые даты → словами по-украински">12 листопада 2026 р.</button>
       </div>
@@ -762,7 +765,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-13.12';
+const APP_VERSION = '2026-11-21.1';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 const $ = s => document.querySelector(s);
 
@@ -1364,13 +1367,15 @@ const MON_ALL = [...MON_RU, ...MON_UA];
 const DATE_RE = new RegExp(
   '(?<![\\p{L}\\p{N}.,/\\-])(?:' +
   '(\\d{1,2})([./])(\\d{1,2})\\2(\\d{4}|\\d{2})' +                       // 12.11.2026, 12/11/26
+  '|(\\d{1,2})([_\\-])(\\d{1,2})\\6(\\d{4})' +                           // 12-11-2026, 12_11_2026 (только с полным годом)
   '|(\\d{4})-(\\d{1,2})-(\\d{1,2})' +                                    // 2026-11-12
   '|(\\d{1,2})[ \\u00a0]+(' + MON_ALL.join('|') + ')[ \\u00a0]+(\\d{4})(?:[ \\u00a0]*(?:г\\.|года|року|р\\.))?' +   // 12 ноября 2026 г.
-  ')(?![\\p{L}\\p{N}]|[.,/\\-]\\p{N})', 'giu');
+  ')(?![\\p{L}\\p{N}]|[.,/\\-_]\\p{N})', 'giu');
 function fmtDate(t, p) {
-  return t.replace(DATE_RE, (m, d1, sep, m1, y1, y2, m2, d2, d3, mw, y3) => {
+  return t.replace(DATE_RE, (m, d1, sep, m1, y1, d4, sep4, m4, y4, y2, m2, d2, d3, mw, y3) => {
     let d, mo, y;
     if (d1) { d = +d1; mo = +m1; y = y1.length === 2 ? 2000 + +y1 : +y1; }
+    else if (d4) { d = +d4; mo = +m4; y = +y4; }
     else if (y2) { d = +d2; mo = +m2; y = +y2; }
     else { d = +d3; mo = MON_ALL.indexOf(mw.toLowerCase()) % 12 + 1; y = +y3; }
     if (!(mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return m;
@@ -1378,6 +1383,8 @@ function fmtDate(t, p) {
       case 'dmy': return pad(d, 2) + '.' + pad(mo, 2) + '.' + y;
       case 'iso': return y + '-' + pad(mo, 2) + '-' + pad(d, 2);
       case 'slash': return pad(d, 2) + '/' + pad(mo, 2) + '/' + y;
+      case 'dash': return pad(d, 2) + '-' + pad(mo, 2) + '-' + y;
+      case 'under': return pad(d, 2) + '_' + pad(mo, 2) + '_' + y;
       case 'ru': return d + ' ' + MON_RU[mo - 1] + ' ' + y + ' г.';
       case 'ua': return d + ' ' + MON_UA[mo - 1] + ' ' + y + ' р.';
     }
@@ -1938,10 +1945,13 @@ function fixInvisible(t) {
 }
 // буквы через пробел (разрядка): «П р и в е т  м и р» → «Привет мир». Слова в разрядке разделены двумя и более пробелами.
 // Нужно хотя бы одно слово из 4+ букв в разрядке, чтобы не склеить обычные «а и в»
-function fixSpaced(t) {
-  return t.replace(/(?<![\p{L}\p{N}])\p{L}(?: \p{L})+(?: {2,}\p{L}(?: \p{L})*)*(?![\p{L}\p{N}])/gu, m => {
-    const words = m.split(/ {2,}/);
-    if (!words.some(w => w.length >= 7)) return m;          // «П р и в» — 4 буквы = 7 символов
+// «с л о в о» → «слово». min — сколько букв нужно хотя бы в одном слове (в «Всё сразу» — 4, отдельной кнопкой — 3)
+function fixSpaced(t, min = 4) {
+  return t.replace(/(?<![\p{L}\p{N}])[\p{L}\p{N}](?:[ \u00a0][\p{L}\p{N}])+(?:[ \u00a0]{2,}[\p{L}\p{N}](?:[ \u00a0][\p{L}\p{N}])*)*(?![\p{L}\p{N}])/gu, m => {
+    if ((m.match(/\p{L}/gu) || []).length < 2) return m;      // цифры через пробел («1 2 3», «А 4») не трогаем
+    if (m.length <= 7 && /^[аиоувкся ійзжб\u00a0]+$/iu.test(m)) return m;   // «я и в с», «и в у» — это обычные короткие слова
+    const words = m.split(/[ \u00a0]{2,}/);
+    if (!words.some(w => w.length >= min * 2 - 1)) return m;  // «П р и в» — 4 буквы = 7 символов
     return words.map(w => w.replace(/ /g, '')).join(' ');
   });
 }
@@ -1950,6 +1960,7 @@ function fixOp(t, p) {
     case 'enc': return fixShift(fixEncoding(t));
     case 'mixed': return fixMixed(t);
     case 'invis': return fixInvisible(t);
+    case 'spaced': return fixSpaced(t, 3);
     case 'md': return mdToText(t);
     case 'pdf': return fixMixed(fixSpaced(fixInvisible(fixShift(fixEncoding(t)))));
   }
@@ -2234,10 +2245,10 @@ const NAMES = {
   translit: { 'ru-lat': 'Транслит RU → Lat', 'ua-lat': 'Транслит UA → Lat', 'lat-ru': 'Транслит Lat → RU', 'lat-ua': 'Транслит Lat → UA' },
   lines: { merge: 'Свести позиции', sort: 'Строки А→Я', sortd: 'Строки Я→А', uniq: 'Без дублей', rev: 'Обратный порядок', num: 'Нумерация', unnum: 'Без нумерации' },
   typo: { 'q-ru': '«Ёлочки»', 'q-en': '"Прямые" кавычки', dash: 'Дефис → тире', hyph: 'Тире → дефис', 'dec-dot': '1,5 → 1.5', 'dec-comma': '1.5 → 1,5' },
-  date: { dmy: 'Даты 12.11.2026', iso: 'Даты 2026-11-12', slash: 'Даты 12/11/2026', ru: 'Даты 12 ноября 2026 г.', ua: 'Даты 12 листопада 2026 р.' },
+  date: { dmy: 'Даты 12.11.2026', iso: 'Даты 2026-11-12', slash: 'Даты 12/11/2026', dash: 'Даты 12-11-2026', under: 'Даты 12_11_2026', ru: 'Даты 12 ноября 2026 г.', ua: 'Даты 12 листопада 2026 р.' },
   nfmt: { grp: 'Разряды 1 234 567', ungrp: 'Без разрядов' },
   roman: { 'to-ar': 'Римские → арабские', 'to-rom': 'Арабские → римские' },
-  fix: { md: 'Ответ ИИ → текст', pdf: 'Починить текст из PDF', enc: 'Исправить кодировку', mixed: 'Смешанные буквы', invis: 'Невидимые символы' },
+  fix: { md: 'Ответ ИИ → текст', pdf: 'Починить текст из PDF', enc: 'Исправить кодировку', mixed: 'Смешанные буквы', invis: 'Невидимые символы', spaced: 'Слова в разрядку → слитно' },
   numw: { digits: 'Словами → цифрами', 'ru-ua': 'Числительные RU → UA', 'ua-ru': 'Числительные UA → RU' },
   fio: { short: 'ФИО → Шевченко Т. Г.', 'ini-first': 'ФИО → Т. Г. Шевченко' },
   dim: { x: 'Размеры x → ×', dia: 'd20 → Ø20', sym: '+/- → ±, гр. → °', mm2m: 'мм → м', m2mm: 'м → мм' },
@@ -3320,6 +3331,7 @@ const KW = {
   dins: 'вставить дату сегодня время число календарь', 'num:go': 'числа словами прописью сумма падеж', 'replace:go': 'найти заменить',
   cols: 'столбцы колонки excel таблица csv', 'cols:stats': 'сумма итоги посчитать', 'cols:sum': 'сумма итого', extract: 'извлечь выписать найти список',
   roman: 'римские цифры века главы',
+  'fix:spaced': 'разрядка пробелы внутри слова буквы через пробел слитно', 'date:dash': 'даты дефис тире точки знаки', 'date:under': 'даты подчёркивание имя файла точки',
   fix: 'починить pdf кракозябры кодировка иероглифы латиница кириллица невидимые символы пробелы word', 'fix:mixed': 'латинские буквы смешанные алфавиты обозначения', 'fix:invis': 'неразрывный пробел мягкий перенос',
   numw: 'числа словами цифры числительные перевод украинский русский прописью обратно', 'numw:digits': 'цифрами', 'numw:ru-ua': 'украинский перевод', 'numw:ua-ru': 'русский перевод',
   fio: 'фио инициалы фамилия имя отчество', dim: 'размеры', 'dim:x': 'умножить крестик размер', 'dim:dia': 'диаметр', 'dim:sym': 'плюс минус градус допуск',
