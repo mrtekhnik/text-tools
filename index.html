@@ -338,6 +338,10 @@ body.inmini.m-compact .quick,body.inmini.m-button .quick{display:flex;flex-direc
 .quickrow{display:flex;gap:8px;align-items:center}
 .quickrow label{font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
 #quickAct{flex:1;min-width:0;padding:8px 10px}
+#quickEdit{flex:none;min-width:40px;min-height:40px}
+.qlist{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+.qlist .orow .pg{color:var(--muted);font-size:12.5px}
+.qfound{max-height:240px;overflow:auto;margin-top:6px}
 .quickmsg{font-size:13px;color:var(--muted);min-height:1.25em;line-height:1.25}
 .quickmsg.bad{color:var(--danger)}
 body.inmini.m-compact .pane.in,body.inmini.m-compact .steps,body.inmini.m-compact .tools,body.inmini.m-compact #actbar,
@@ -427,7 +431,7 @@ body.modal-lock{overflow:hidden}
 <main class="wrap app">
   <section class="quick" id="quick">
     <button class="btn primary quickgo" id="quickGo" type="button" title="Взять текст из буфера, обработать и скопировать результат обратно"><b id="quickName">Исправить раскладку</b><small>вставить из буфера → сделать → скопировать</small></button>
-    <div class="quickrow"><label for="quickAct">Кнопка делает:</label><select class="field" id="quickAct"></select></div>
+    <div class="quickrow"><label for="quickAct">Кнопка делает:</label><select class="field" id="quickAct"></select><button class="hb" id="quickEdit" type="button" title="Какие команды в списке: добавить свои, убрать" aria-label="Настроить список команд">✎</button></div>
     <div class="quickmsg" id="quickMsg" role="status"></div>
   </section>
   <section class="pane in">
@@ -809,7 +813,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-22.2';
+const APP_VERSION = '2026-11-22.3';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 // DOC/WIN — документ и окно, где сейчас показан интерфейс: основное окно или мини-окно поверх всех окон.
 // После переноса в мини-окно элементы живут в его документе, поэтому интерфейс обращается к DOC/WIN, а не к document/window.
@@ -2551,7 +2555,7 @@ const DEC_FOLD = ['Library', 'PDF_DXF', 'Документация', 'Повід�
 const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'anon', 'format', 'dates', 'phone', 'fname', 'dec', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', mini: 'full', quick: 'layout:auto', dec: { v: '', n: 10, step: 1, sk: false, extra: true, fold: DEC_FOLD.slice(), docs: DEC_DOCS.slice() }, hl: false, joinSep: ', ', splitSep: ',', wsep: '_', colSpec: '', colSep: 'auto', exUniq: true },
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', mini: 'full', quick: 'layout:auto', quickCmds: ['layout:auto'], quickFreq: true, dec: { v: '', n: 10, step: 1, sk: false, extra: true, fold: DEC_FOLD.slice(), docs: DEC_DOCS.slice() }, hl: false, joinSep: ', ', splitSep: ',', wsep: '_', colSpec: '', colSep: 'auto', exUniq: true },
   sets: [], presets: [], hist: [], anonMap: {}, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw', 'fix', 'roman', 'anon'];
@@ -2580,6 +2584,7 @@ function load() {
             cmp: { byCol: !!(u.cmp || {}).byCol, col: Math.max(1, +(u.cmp || {}).col || 1), ci: (u.cmp || {}).ci !== false },
             anonOpt: Object.fromEntries(['fio', 'tel', 'email', 'acc', 'code'].map(k => [k, (u.anonOpt || {})[k] !== false])), anonWords: typeof u.anonWords === 'string' ? u.anonWords : '',
             dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '', calLang: u.calLang === 'ua' ? 'ua' : 'ru', mini: ['full', 'compact', 'button'].includes(u.mini) ? u.mini : 'full', quick: typeof u.quick === 'string' ? u.quick : 'layout:auto',
+            quickCmds: Array.isArray(u.quickCmds) ? u.quickCmds.filter(x => typeof x === 'string').slice(0, 40) : ['layout:auto'], quickFreq: u.quickFreq !== false,
             dec: (() => { const x = u.dec || {}; return { v: typeof x.v === 'string' ? x.v : '', n: Math.max(1, Math.min(99, +x.n || 10)), step: x.step === 10 ? 10 : 1, sk: !!x.sk, extra: x.extra !== false,
               fold: Array.isArray(x.fold) ? x.fold.filter(y => typeof y === 'string').slice(0, 40) : DEC_FOLD.slice(), docs: Array.isArray(x.docs) && x.docs.join('|') !== '{N} ВМ|{N} ВП|Акт на {И}' ? x.docs.filter(y => typeof y === 'string').slice(0, 40) : DEC_DOCS.slice() }; })(),
             dateTpls: Array.isArray(u.dateTpls) ? u.dateTpls.filter(x => x && typeof x.tpl === 'string').map(x => ({ id: String(x.id || uid0()), tpl: x.tpl })).slice(0, 30) : [], joinSep: typeof u.joinSep === 'string' ? u.joinSep : ', ', wsep: typeof u.wsep === 'string' ? u.wsep : '_', splitSep: typeof u.splitSep === 'string' && u.splitSep ? u.splitSep : ',',
@@ -3824,6 +3829,7 @@ function runQuiet(c, sel, fromF) {
   try { c.run(sel); } finally { quietTab = false; fromFreq = false; }
 }
 function renderFreq() {
+  renderQuick();
   const top = freqTop(10), box = $('#freqList');
   box.replaceChildren(...top.map(c => {
     const b = h('button', { class: 'tb fq', type: 'button', title: c.group + (c.hint ? ' — ' + c.hint : '') }, c.label);
@@ -4638,41 +4644,85 @@ docOn('keydown', e => {
 });
 
 /* ---------- одна кнопка: вставить из буфера → обработать → скопировать (видна в мини-окне) ---------- */
+// Список для кнопки: свои команды (добавляются через ✎) + «★ Частые» (собираются сами) + текущие шаги
 function quickList() {
-  return [
-    ['layout:auto', 'Исправить раскладку'], ['clean:all', 'Очистить текст (всё сразу)'], ['fix:pdf', 'Починить текст из PDF'],
-    ['fix:md', 'Ответ ИИ → текст'], ['case:sentence', 'Регистр: как в предложении'], ['case:lower', 'Регистр: нижний'],
-    ['translit:ua-lat', 'Транслит: украинский → латиница'], ['translit:ru-lat', 'Транслит: русский → латиница'],
-    ['steps', 'Текущие шаги'], ...state.presets.map(pr => ['preset:' + pr.id, 'Пресет «' + pr.name + '»'])];
+  const all = new Map(allCommands().map(c => [c.id, c])), seen = new Set(), L = [];
+  const add = (id, grp) => { const c = all.get(id); if (c && !seen.has(id)) { seen.add(id); L.push({ id, label: c.label, grp }); } };
+  state.ui.quickCmds.forEach(id => add(id, 'Мои'));
+  if (state.ui.quickFreq) freqTop(10).forEach(c => add(c.id, '★ Частые'));
+  L.push({ id: 'steps', label: 'Текущие шаги', grp: 'Шаги' });
+  return L;
 }
-var quickKeys = '';   // var: renderQuick вызывается и раньше, из renderPresets
+var quickKeys = '', quickReady = false;   // var: renderQuick вызывают и раньше (из «Частых» и пресетов)
 function renderQuick() {
-  const L = quickList(), keys = JSON.stringify(L), quickAct = $('#quickAct');
-  if (!L.some(x => x[0] === state.ui.quick)) state.ui.quick = L[0][0];
-  if (keys !== quickKeys) { quickKeys = keys; quickAct.replaceChildren(...L.map(([v, n]) => h('option', { value: v, text: n }))); }
-  quickAct.value = state.ui.quick;
-  $('#quickName').textContent = L.find(x => x[0] === state.ui.quick)[1].replace(/ \(всё сразу\)$/, '');
+  if (!quickReady) return;
+  const L = quickList(), keys = JSON.stringify(L), sel = $('#quickAct');
+  if (!L.some(x => x.id === state.ui.quick)) state.ui.quick = L[0].id;
+  if (keys !== quickKeys) {
+    quickKeys = keys;
+    const grps = [...new Set(L.map(x => x.grp))];
+    sel.replaceChildren(...grps.map(g => h('optgroup', { label: g }, ...L.filter(x => x.grp === g).map(x => h('option', { value: x.id, text: x.label })))));
+  }
+  sel.value = state.ui.quick;
+  $('#quickName').textContent = L.find(x => x.id === state.ui.quick).label;
 }
 function quickSay(msg, bad) { const m = $('#quickMsg'); m.textContent = msg; m.classList.toggle('bad', !!bad); }
 $('#quickAct').addEventListener('change', e => { state.ui.quick = e.target.value; save(); renderQuick(); quickSay(''); });
+// ✎ — свой список команд для кнопки: добавить любую команду поиском, убрать, переставить
+function quickSheet() {
+  openModal((box, api) => {
+    const all = new Map(allCommands().map(c => [c.id, c]));
+    const mine = h('div', { class: 'qlist' }), found = h('div', { class: 'pallist qfound' });
+    const q = h('input', { class: 'field', type: 'search', placeholder: 'Найти команду: раскладка, тире, транслит, пресет…', autocomplete: 'off', spellcheck: 'false' });
+    const fq = h('input', { type: 'checkbox' }); fq.checked = state.ui.quickFreq;
+    const changed = () => { save(); renderQuick(); draw(); };
+    const draw = () => {
+      const L = state.ui.quickCmds.filter(id => all.has(id));
+      mine.replaceChildren(...(L.length ? L.map((id, i) => h('div', { class: 'orow' },
+        h('span', { text: all.get(id).label }), h('small', { class: 'pg', text: all.get(id).group }),
+        h('button', { class: 'hb', type: 'button', title: 'Выше', disabled: i === 0, onclick() { const a = state.ui.quickCmds, j = a.indexOf(id); [a[j - 1], a[j]] = [a[j], a[j - 1]]; changed(); } }, '↑'),
+        h('button', { class: 'hb', type: 'button', title: 'Убрать из списка', onclick() { state.ui.quickCmds = state.ui.quickCmds.filter(x => x !== id); changed(); } }, '✕')))
+        : [h('p', { class: 'msg', text: 'Своих команд пока нет — найдите и добавьте ниже.' })]));
+      const words = normQ(q.value).split(/\s+/).filter(Boolean);
+      const hits = words.length ? [...all.values()].filter(c => !state.ui.quickCmds.includes(c.id) && words.every(w => normQ(c.label + ' ' + c.group + ' ' + (c.kw || '') + ' ' + (c.hint || '')).includes(w))).slice(0, 30) : [];
+      found.replaceChildren(...hits.map(c => h('button', { class: 'palitem', type: 'button', onclick() { state.ui.quickCmds.push(c.id); q.value = ''; changed(); q.focus(); } },
+        h('span', { class: 'pl', text: '+ ' + c.label }), h('span', { class: 'pg', text: c.group }))));
+    };
+    q.addEventListener('input', draw);
+    fq.addEventListener('change', () => { state.ui.quickFreq = fq.checked; save(); renderQuick(); });
+    box.append(h('h2', { text: 'Команды для кнопки' }),
+      h('p', { class: 'msg', text: 'Кнопка берёт текст из буфера, выполняет выбранную команду и кладёт результат обратно. Здесь — какие команды есть в списке «Кнопка делает». Пресет (несколько шагов подряд) тоже можно добавить.' }),
+      h('div', { class: 'uilbl', text: 'Мои команды' }), mine,
+      h('div', { class: 'uilbl', text: 'Добавить' }), q, found,
+      h('label', { class: 'chk', style: 'margin-top:10px' }, fq, h('span', { text: 'Показывать в списке и «★ Частые» — команды, которыми вы чаще пользуетесь' })),
+      h('div', { class: 'btns', style: 'margin-top:12px' }, btn('Готово', () => api.close(), 'primary')));
+    draw();
+    q.focus();
+  });
+}
+$('#quickEdit').addEventListener('click', quickSheet);
 async function quickRun() {
   let t = null;
   try { t = await WIN.navigator.clipboard.readText(); } catch (e) { t = null; }
   if (t == null) { quickSay('Нет доступа к буферу обмена: разрешите его (значок слева в адресной строке Chrome) или вставьте текст Ctrl+V в поле «Текст».', true); return; }
   t = t.replace(/\r\n?/g, '\n');
   if (!t.trim()) { quickSay('Буфер обмена пуст', true); return; }
-  const id = state.ui.quick;
+  const id = state.ui.quick, c = id === 'steps' ? null : allCommands().find(x => x.id === id);
+  if (id !== 'steps' && !c) { quickSay('Этой команды больше нет — выберите другую', true); return; }
   flushTyping();
   src.value = t; state.text = t; caretKnown = false;
-  if (id === 'steps') state.steps = state.steps.filter(x => !Array.isArray(x.r));          // шаги «кусок» относились к старому тексту
-  else if (id.startsWith('preset:')) { const pr = state.presets.find(x => 'preset:' + x.id === id); state.steps = pr ? JSON.parse(JSON.stringify(pr.steps)) : []; }
-  else { const i = id.indexOf(':'); state.steps = [{ type: id.slice(0, i), p: id.slice(i + 1) }]; }
+  state.steps = id === 'steps' ? state.steps.filter(x => !Array.isArray(x.r)) : [];   // шаги «кусок» относились к старому тексту
   commit(); after();
+  if (c) {
+    runQuiet(c, null, false);
+    while (stack.length) await new Promise(r => setTimeout(r, 120));   // команда с окном (например, «Свой знак…») — ждём ответа
+  }
   const res = currentOutput(), ok = await copyText(res);
   if (ok) { addHistory(res); save(); }
   quickSay(!ok ? 'Не удалось скопировать результат' : res === t ? 'Ничего не изменилось — текст скопирован как был' : '✓ Готово и скопировано: ' + res.length + ' симв.', !ok);
 }
 $('#quickGo').addEventListener('click', quickRun);
+quickReady = true;
 renderQuick();
 
 /* ---------- офлайн-кэш и обновление (при открытии с https) ---------- */

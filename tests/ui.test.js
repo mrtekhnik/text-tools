@@ -139,6 +139,18 @@ const stepLabels = page => page.$$eval('#steps .step', ns => ns.map(n => n.first
   eq('мини: результат в буфере', await mw.evaluate(() => navigator.clipboard.readText()), 'привет, как дела');
   eq('мини: сообщение', await mw.textContent('#quickMsg'), '✓ Готово и скопировано: 16 симв.');
   eq('мини: текст из буфера в поле', await mw.inputValue('#src'), 'ghbdtn? rfr ltkf');
+  // список: свои команды + «★ Частые» + текущие шаги
+  const groupsOf = () => mw.$$eval('#quickAct optgroup', gs => gs.map(g => [g.label, [...g.children].map(o => o.value)]));
+  eq('мини: в списке свои, частые и шаги', (await groupsOf()).map(g => g[0]), ['Мои', '★ Частые', 'Шаги']);
+  eq('мини: «ВЕРХНИЙ» попал в частые', (await groupsOf())[1][1].includes('case:upper'), true);
+  // ✎ — добавить свою команду поиском
+  await mw.click('#quickEdit');
+  await mw.fill('.sheet input[type=search]', 'ответ ии');
+  await mw.click('.qfound .palitem >> nth=0');
+  eq('мини: команда добавлена в «Мои»', (await groupsOf())[0][1], ['layout:auto', 'fix:md']);
+  await mw.fill('.sheet input[type=search]', 'свой знак');
+  await mw.click('.qfound .palitem >> nth=0');
+  await mw.click('.sheet .btn >> text=Готово');
   await mw.selectOption('#quickAct', 'fix:md');
   eq('мини: название действия на кнопке', await mw.textContent('#quickName'), 'Ответ ИИ → текст');
   await mw.evaluate(() => navigator.clipboard.writeText('**Жирный** и `код`'));
@@ -147,6 +159,18 @@ const stepLabels = page => page.$$eval('#steps .step', ns => ns.map(n => n.first
   await mw.evaluate(() => navigator.clipboard.writeText('уже чистый текст'));
   await mw.click('#quickGo'); await mw.waitForFunction(() => /уже/.test(document.querySelector('#src').value)); await mw.waitForTimeout(150);
   eq('мини: без изменений — так и сказано', await mw.textContent('#quickMsg'), 'Ничего не изменилось — текст скопирован как был');
+  // команда с окном: «Слова через свой знак…» — кнопка ждёт ответа в окне
+  await mw.selectOption('#quickAct', 'lines:wsep');
+  await mw.evaluate(() => navigator.clipboard.writeText('Табель Відділ КБ'));
+  await mw.click('#quickGo');
+  await mw.waitForSelector('.sheet input'); await mw.fill('.sheet input', '-'); await mw.click('.sheet .btn.primary');
+  await mw.waitForFunction(() => document.querySelector('#quickMsg').textContent.startsWith('✓') && /Табель/.test(document.querySelector('#src').value));
+  eq('мини: команда с окном', await mw.evaluate(() => navigator.clipboard.readText()), 'Табель-Відділ-КБ');
+  // убрать свою команду
+  await mw.click('#quickEdit');
+  await mw.click('.qlist .orow >> nth=2 >> button[title="Убрать из списка"]');
+  await mw.click('.sheet .btn >> text=Готово');
+  eq('мини: команда убрана', (await groupsOf())[0][1], ['layout:auto', 'fix:md']);
   await mw.selectOption('#quickAct', 'layout:auto');
   await mw.screenshot({path: OUT + '/mini-2-compact.png'});
   await mw.click('#sizeBtn');
@@ -179,7 +203,7 @@ const stepLabels = page => page.$$eval('#steps .step', ns => ns.map(n => n.first
   await mw.keyboard.press('Control+m').catch(() => {});
   await m.waitForSelector('#src');
   eq('мини: Ctrl+M вернул интерфейс', await m.$$eval('#miniNote', ns => ns.length), 0);
-  eq('мини: данные не потерялись', await m.inputValue('#src'), 'уже чистый текст');
+  eq('мини: данные не потерялись', await m.inputValue('#src'), 'Табель Відділ КБ');
   eq('мини: в основном окне снова вкладки', await m.$eval('#tools', n => n.classList.contains('tabbed')), true);
   // Ctrl+Ь (русская раскладка) открывает снова
   const [mw2] = await Promise.all([m.waitForEvent('popup'), m.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', {key: 'ь', code: 'KeyM', ctrlKey: true, bubbles: true})))]);
@@ -192,9 +216,9 @@ const stepLabels = page => page.$$eval('#steps .step', ns => ns.map(n => n.first
   await mw3.waitForSelector('#tools .ttab');
   await mw3.close();
   await m.waitForSelector('#src');
-  eq('мини: закрыли окно — всё вернулось', [await m.$$eval('#miniNote', ns => ns.length), await m.inputValue('#src')], [0, 'уже чистый текст']);
+  eq('мини: закрыли окно — всё вернулось', [await m.$$eval('#miniNote', ns => ns.length), await m.inputValue('#src')], [0, 'Табель Відділ КБ']);
   await m.click('#src'); await m.keyboard.press('End'); await m.keyboard.type('!');
-  eq('мини: клавиатура снова в основном окне', await m.inputValue('#src'), 'уже чистый текст!');
+  eq('мини: клавиатура снова в основном окне', await m.inputValue('#src'), 'Табель Відділ КБ!');
   await m.screenshot({path: OUT + '/mini-4-back.png'});
   await pcm.close();
 
