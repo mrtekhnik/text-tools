@@ -325,6 +325,33 @@ button{font:inherit;color:inherit;cursor:pointer}
   body.editing .app{grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"in" "tools"}
 }
 @media (max-width:370px){.iconbtn{width:33px;height:36px;font-size:16px}.bar h1{font-size:15.5px}.hdr-btns{gap:3px}}
+
+/* --- мини-окно поверх всех окон (Chrome на ПК): весь интерфейс переносится туда; режимы — обычное, компактное, одна кнопка --- */
+#sizeBtn,.quick{display:none}
+@media (max-width:899px){body:not(.inmini) #miniBtn{display:none}}
+body.inmini #sizeBtn{display:inline-block}
+body.inmini #topBtn,body.inmini .hsep,body.inmini #palBtn{display:none}
+body.inmini .quick{display:flex;flex-direction:column;gap:6px;grid-area:quick;min-width:0}
+.quickgo{min-height:54px;line-height:1.2;padding:5px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.quickgo b{font-size:16px}
+.quickgo small{font-size:12.5px;font-weight:600;opacity:.85}
+.quickrow{display:flex;gap:6px}
+#quickAct{flex:1;min-width:0;padding:8px 10px}
+.quickmsg{font-size:13px;color:var(--muted);min-height:1.25em;line-height:1.25}
+.quickmsg.bad{color:var(--danger)}
+body.inmini .app{grid-template-rows:auto minmax(0,1fr) minmax(0,1fr) auto auto;grid-template-areas:"quick" "in" "out" "steps" "tools"}
+body.inmini.m-compact .pane.in,body.inmini.m-compact .steps,body.inmini.m-compact .tools,body.inmini.m-compact #actbar,
+body.inmini.m-button .pane,body.inmini.m-button .steps,body.inmini.m-button .tools,body.inmini.m-button #actbar,
+body.inmini.m-button #undoBtn,body.inmini.m-button #redoBtn,body.inmini.m-button #clearBtn2,body.inmini.m-button #editBtn{display:none!important}
+body.inmini.m-compact .app{grid-template-rows:auto minmax(0,1fr);grid-template-areas:"quick" "out"}
+body.inmini.m-button .app{grid-template-rows:auto;grid-template-areas:"quick";align-content:start}
+body.inmini.m-button .quick{gap:4px}
+body.inmini.m-button .quickgo{min-height:50px}
+body.inmini.m-button .quickmsg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.inmini.m-button #toast{display:none}   /* в маленьком окне надпись закрыла бы кнопку — итог пишется под кнопкой */
+#miniNote{max-width:560px;margin:0 auto;padding:0 16px 40px;text-align:center}
+#miniNote .bar{justify-content:center}
+#miniNote p{font-size:17px;margin:40px 0 20px}
 @media (min-width:900px){.frrow{display:flex;align-items:center;gap:8px}.frrow .frinfo{flex:1}}
 
 /* --- окна --- */
@@ -377,6 +404,8 @@ body.modal-lock{overflow:hidden}
       <div class="hdr-btns">
         <button class="iconbtn deskonly" id="topBtn" type="button" aria-label="Наверх" title="Наверх"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14M12 20V9M7 13l5-5 5 5"/></svg></button>
         <span class="hsep deskonly" aria-hidden="true"></span>
+        <button class="iconbtn" id="sizeBtn" type="button" aria-label="Размер мини-окна" title="Размер мини-окна (Ctrl+↑ / Ctrl+↓)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+        <button class="iconbtn" id="miniBtn" type="button" aria-label="Мини-окно поверх всех окон" title="Мини-окно поверх всех окон (Ctrl+M)" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="11" width="7" height="7" rx="1"/></svg></button>
         <button class="iconbtn" id="palBtn" type="button" aria-label="Найти команду" title="Найти команду (Ctrl+K)">🔍</button>
         <button class="iconbtn" id="undoBtn" type="button" aria-label="Отменить" title="Отменить (Ctrl+Z)">↶</button>
         <button class="iconbtn" id="redoBtn" type="button" aria-label="Повторить" title="Повторить (Ctrl+Y)">↷</button>
@@ -387,6 +416,11 @@ body.modal-lock{overflow:hidden}
 </header>
 
 <main class="wrap app">
+  <section class="quick" id="quick">
+    <button class="btn primary quickgo" id="quickGo" type="button" title="Взять текст из буфера, обработать и скопировать результат обратно"><b id="quickName">Исправить раскладку</b><small>вставить из буфера → сделать → скопировать</small></button>
+    <div class="quickrow"><select class="field" id="quickAct" aria-label="Что делать с текстом из буфера"></select></div>
+    <div class="quickmsg" id="quickMsg" role="status"></div>
+  </section>
   <section class="pane in">
     <div class="phead"><span class="ptitle">Текст</span><span class="cnt" id="cntIn"></span>
       <button class="hb" id="editBtn" type="button" aria-pressed="false" title="Набрать или исправить текст с клавиатуры" hidden>✎ Править</button>
@@ -445,6 +479,7 @@ body.modal-lock{overflow:hidden}
     <div class="tgroup" data-g="layout">
       <div class="tlbl gtitle">Раскладка</div>
       <div class="tbtns c4">
+        <button class="tb" type="button" data-t="layout" data-p="auto" title="Определить само: ghbdtn → привет, руддщ → hello, ыснувати → існувати. Правильные слова не меняются">Авто</button>
         <button class="tb" type="button" data-t="layout" data-p="en-ru" title="ghbdtn → привет">EN → RU</button>
         <button class="tb" type="button" data-t="layout" data-p="ru-en" title="руддщ → hello (учитывает і, ї, є, ґ)">RU → EN</button>
         <button class="tb" type="button" data-t="layout" data-p="ru-ua" title="ыснувати → існувати">RU → UA</button>
@@ -765,12 +800,19 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-21.1';
+const APP_VERSION = '2026-11-22.1';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
-const $ = s => document.querySelector(s);
+// DOC/WIN — документ и окно, где сейчас показан интерфейс: основное окно или мини-окно поверх всех окон.
+// После переноса в мини-окно элементы живут в его документе, поэтому интерфейс обращается к DOC/WIN, а не к document/window.
+let DOC = document, WIN = window, pip = null;
+const $ = s => DOC.querySelector(s);
+// обработчики уровня документа и окна: подключаются и к мини-окну, когда оно открыто
+const DOC_ON = [], WIN_ON = [];
+function docOn(type, fn, opt) { DOC_ON.push([type, fn, opt]); document.addEventListener(type, fn, opt); if (pip) pip.document.addEventListener(type, fn, opt); }
+function winOn(type, fn, opt) { WIN_ON.push([type, fn, opt]); window.addEventListener(type, fn, opt); if (pip) pip.addEventListener(type, fn, opt); }
 
 function h(tag, props, ...kids) {
-  const e = document.createElement(tag);
+  const e = DOC.createElement(tag);
   for (const [k, v] of Object.entries(props || {})) {
     if (v == null || v === false) continue;
     if (k === 'class') e.className = v;
@@ -782,7 +824,7 @@ function h(tag, props, ...kids) {
   }
   for (const c of kids.flat()) {
     if (c == null || c === false) continue;
-    e.append(c.nodeType ? c : document.createTextNode(c));
+    e.append(c.nodeType ? c : DOC.createTextNode(c));
   }
   return e;
 }
@@ -806,6 +848,7 @@ const toRu = w => w.replace(/[іІїЇєЄґҐ]/g, c => UA2RU[c])
 // Меняются только «слова» (участки без пробелов), в которых есть буквы исходной раскладки,
 // поэтому правильные слова и знаки препинания вокруг них не трогаются
 function convertLayout(text, dir) {
+  if (dir === 'auto') return autoLayout(text);
   return text.split(/(\s+)/).map(w => {
     if (!w || /^\s+$/.test(w)) return w;
     if (dir === 'en-ru') return LAT.test(w) ? mapStr(w, EN2RU) : w;
@@ -814,6 +857,363 @@ function convertLayout(text, dir) {
     if (dir === 'ua-ru') return CYR.test(w) ? toRu(w) : w;
     return w;
   }).join('');
+}
+// Авто: каждое слово проверяется, на каком языке оно больше похоже на настоящее — как набрано или в другой раскладке.
+// ghbdtn → привет, руддщ → hello, ыснувати → існувати. Правильные слова не трогаются.
+// Модель языка для «Раскладка: авто»: насколько вероятна каждая пара соседних букв (^ — начало слова, $ — конец).
+// Построена по частотным словарям wordfreq (английский, русский, украинский): «цена» пары в битах, a = 0 … z = 25; m — средняя цена для языка.
+const LM = {
+  en: { a: "^abcdefghijklmnopqrstuvwxyz$", m: 3.558, q: 'leedefefffggfeffeiedeggfkhjllkfefihfifjgdfdjfkdedgghifieldgiidkljdhldijdjldfhdjklglfldkgjdkkdelefkkcjjehdflllg' +
+    'kelejjgcjhjdjkghiejlffjfhilglbleifdfggihkjefdhgiddfighghjcldjikdejldlkejkdklehfelklglelejljdkgeellfifeklefhflk' +
+    'lglbldijicjljdllhhhdjkfhfflilgkdlfgefegfkjkhefcegjfeeiflilhglcjkjcjkkejjkkjciliikcjklllfleijiciihdkjfifgilheih' +
+    'khlflcldiifchikdlhdhjeiljfffhjleldlcfhkcikkdllifidelifjfkklgldlejeedhdiejgiigfjkjedhhjkhjdlggffhggigjgeecffldf' +
+    'eeffihjeldjjjdkjfelkeikdeldfffkklhlelhijlkkllhllillljkjjjalllllfldhgfcigjdlggggehlfeefhilfldlfjfjdikeelhggiffj' +
+    'jedfkhlhlblejhkdjkecllgiiejleeffkhlfkdlffefehfjfkieedifldddljljijgldlkjbkklclljklejljikikllhlglciihdikedligjed' +
+    'jlffijljlildlejejeilgdllijlgcjkjdfijhglclghghejjkflkgggfglhegikilljbldiljbjjhdlkgjlejljjjgjllfedkkkkkkkkkkkkkk' +
+    'kkkkkkkkkkkkkk' },
+  ru: { a: "^абвгдежзийклмнопрстуфхцчшщъыьэюя$", m: 3.700, q: 'mffefehhffkegeeededffgghghlmlmgjhmmlgegffgfhgfdfdkgeeeiiggghhmmmkgfdmejilkdkkdmheifcldfkemhmljfgeikiggmdlijidm' +
+    'hemgeifdigfggljkjhkleimmgdmdkjjgemmemhejgbkdjjfmmkjmmmlmklmfmdkfjicgjdmggiedhffieljiiimjfhjkgfmihfgehggjffeedh' +
+    'hdeekihhggimmmmjidmdhlkdckmcmgkjdgmkhlfmmmhmmmmhmjmfmcgegefilemggfdekfijfmmjklmkehmkgfmghfggehfffeefeghfeekjfg' +
+    'fhimmmlgecmjjlkgjmklmghhfgkkefmkkhigmmmmmmlamclhklfjjdmifkhckegeellhmlmmlmkmmemdllijdhldmhgkgdklgjfllmjklmgdlf' +
+    'femdijkldmmdmihgfdgjhleklkkmmmfijkhcmdkjhgdkjcmgklecljfffikgiljldhljgfmkedeefgghefeeeigeeejihighimmmkjhdmeklll' +
+    'dmmemiflhchciiflmjklmmgillhhmcihghdhldmhigfciigfekijjhlmfhkjgfmfigliellemdegfeehfcfjijhimkhfljefmdjelidmldmgii' +
+    'fdiefjfklkimllfdljhdmhfgfegfgiiffffjeeeeljgjefgmmmjejcmdjmimdmkcmjfjjckdggefmmkmmmhjkkmfmemgkmgmmfmlhifcmfhigm' +
+    'kmlmmlmkjmmbmdkgklcmlbmfjmkfmkimfmmjmlmmemmlmemcmjmmbkmcmfhkdilhkffmmmmgmmmgmmmgmdmhmmcmmcmeejefjijffmmkmmmmme' +
+    'lkmgmdmmmmbmmcmmmmfmmjmmfmmmmmmmmgmmmhmmmmmmbmmmmmmmmmmmmmmmmmmmmmmmmhbfmmgehgdihidgfegmggfflmdkhflmmmmmicmmhi' +
+    'iifmgimgmgdjkmegmimhifkmmmmffbmmjfigmmhmgcdfemfefcmeijmhmmmmimkfmjejhflhgkkhhhgmkffcmmjhekemmmmhmbmmhfigghgkih' +
+    'fffliggdmmgihjgmmmmghbkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' },
+  uk: { a: "^абвгґдеєжзиіїйклмнопрстуфхцчшщьюя'$", m: 3.731, q: 'mffdflehihekgiiegeefdeefggghghimjhmmmkgegmfkfggllhffdfdkgefeiiffghimgimdmdkjilkemmkddmmhdhfdkegidmijkjkmhkhfmd' +
+    'iiimhelhiddmlgfiedhhfggljigijlmihdmdkjkmifmmmfemmiejgbkdkiemmlmjmmlmlfmmmemmmmmmmmmmmmmmmmmammmmmmmmmmmmmemdhg' +
+    'jmhdlfhddmlfhhedgfghelijhikhjgkfmhgfgmfkjgfmmifeeechgceekhhgghjmijmdmmkeimfmmkimmgmgkdfmhggcmjmikfkmemmbmdgmim' +
+    'gcmildemmffkdfkmjkemmigmmmmimemcfeglffllkefmkggfdeffhiellljjmgkhhfmmhehmgkiigkmieefeelggeemjegfhhmkimcmghdgmdl' +
+    'hhfmkfefegegifefkjhhfgjmgfmcmmkfmmgmmhfmmhhkhgdmmmhhmmflkkmmmmmbmkghjmfmljjmlmmghfdejkefkkkhjfmmmlmbmdkgkmkgml' +
+    'kdemmkfkhcjegfdmmhmkjmlmmemdmmjmjdklmddmmhhljdmkliflmllmmdfemgmdiilmkdlmlddmmhhjgdgjhkekmjjmlmkkgcmdkjimgejkjd' +
+    'dmmfkmedkkfffilgiilghelfmkedemejigfllfifeeejfdefkihhghjmgimdmemllmkdlmledmmjfmhckcihflmhjkmmllhgmdihgmhdlhkdem' +
+    'kgigfcijgfekhiihkkigjfmfjflmlfkmmeemmffhfeeiicejhhmjmdidmfmdjflmlekllcemmgikfdleiheklkjlmdigmfmhgdgmekfggmmkie' +
+    'fffmfeeellgifhjmfjmcmdimimmdmmmhcmmjgkkcmdggeimmmjmmkmmfmemfjmmglmkfemmmghfclgkgfmjmlmmmmmlbmgkikmmdmmlebmmjjj' +
+    'hijkjfhmmlmlmdfemgmdmkmmmdmlmcemmfhjcemmliemkjgkmkkimfmdmfmmmdmmmdemmeeiedihieemmkmkmkllmemdmmmmmckmmdemmmmmic' +
+    'mmmmemmmmmmimmmgmmhhjmjmkmklmlicmgdekldgmjlijgjmjimbmjfejmfmfihmmlkghigmlgfcmmlhelkmgmmbmmjfgmflgigmmljegeemjh' +
+    'hemmghgjimhmmbmmmmmmmmcmmmmemmmmmmmmmmmmmmmmmmebmmkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk' },
+};
+// Частые короткие слова (2–5 букв): короткие слова по буквам плохо различимы, поэтому знакомое слово не трогаем
+const LM_WORDS = {
+  en: 'the to and of in is for that you it on with this was be as are have at he not by but from my or we an your all so his ' +
+    'they me if one can will just like about up out what has when more do no were who had their there her which time get ' +
+    'been would she new how some also them now other its our than good only after first him into know see two make over ' +
+    'think any then could back these us want go well said way most much very where even may here need did right work year ' +
+    'years being day too going off why made still take got many never those life say world down great last while best such ' +
+    'love man home long look use same used both every am come part state three find help high old since does own under game ' +
+    'thing give house place again next each mr end found must show big feel sure team ever keep might put money free away ' +
+    'left city days lot name night play until doing few let real set done god group top women care start times week case ' +
+    'today full live point read told yet bad four hard mean once tell music power seen stop water based call head men small ' +
+    'took white came far job side try went yes later less line order party run says open shit thank using area black law ' +
+    'makes war whole car face five kind maybe per story games hope least means news able book early local oh post video ' +
+    'young ago talk court fact given guys half hand level mind often body death food guy hours pay south true fuck known ' +
+    'large lost room win wrong along else girl john air bit hit needs nice yeah york class close comes idea looks past ' +
+    'cause due happy human move wait woman ask data late leave north saw watch light low short stay taken age buy deal red ' +
+    'soon third turn among check form heart act asked child fire fun major media phone art easy gonna near non plan quite ' +
+    'six west works final front kids list ready son bring heard meet type baby march song study word clear gave gets month ' +
+    'self words board cost cut dr field held main road seems town wants de fight fine force hear issue price re rest shows ' +
+    'space term wife date goes land miss sex shot site co eyes june total above club died film knew lead share st tv won ' +
+    'april dead hold sense star test view weeks break event hour sorry takes wish boy girls gold gone guess july king learn ' +
+    'added al alone bank east hands hot movie park press role sent tried worth areas bill books cool sound value lives ok ' +
+    'rate round save stand stuff tax blue david drive eat fall fast felt green match model size step trust hey key mom page ' +
+    'paid range trade uk upon chief cup hate james led lower send style vote blood china dog hell lord oil stage terms ' +
+    'title add born damn enjoy kill met poor code cover door hair legal lose pick race seem seven sign staff super union ' +
+    'walk bed began built crazy daily die knows loss ones paper parts safe voice whose army earth goal huge okay rules sea ' +
+    'sir ways base below deep la lol mark offer pass risk sleep table ten truth ball box build card cases dark india mine ' +
+    'note piece visit wall wanna wrote boys etc fans gives pain paul river rock shall speak write album cold eight eye ' +
+    'funny ii peace sales spent store track via ahead allow anti beat brown gas moved plans radio text ass cross focus hi ' +
+    'ice join kept loved miles sort speed drop fair feet jesus kid link sale tour extra jobs quick sell agree clean photo ' +
+    'san scene sold spend sun teams coach costs gun heavy train wide wow claim dad fear fit goals gotta hotel judge lady ' +
+    'lines named plus pre unit bar brain floor hurt image meant pro reach rule civil dance none ship stock trump worst band ' +
+    'beach cash ended fan lack older wear calls color dream grand luck names rich skin sweet thus touch doubt drink feels ' +
+    'fish gay glad grow shown sit trip basic carry cars crime fully japan laws male mrs plant smith spot texas worse award ' +
+    'block holy lived lots peter rates shop sick uses avoid catch cell coast drug foot hall mass nine pop ran trial truly ' +
+    'app heat obama queen stars broke fat fell glass prior ride royal serve slow tree types vs whom begin ideas lie notes ' +
+    'plays runs sad songs twice wind worry brand bus cent count fresh lake mouth owner scale score smart throw tom views ' +
+    'arms click faith fund hill jack louis metal mid paris pull push rose seat agent apply basis chris draw dude enter ex ' +
+    'gain http prime ring rise soul waste weird adult grade mike stone users wild bag bet camp cast ed firm till usa apart ' +
+    'aware cat fifth gift items joe los mary nor proud shut tells van wood birth copy dear dogs drugs host inc labor lucky ' +
+    'onto prove rare tough units ad alive apple bitch boss cards dress horse liked magic map net owned stick turns wake aid ' +
+    'busy cells ends farm file fix fly frank guide raise roll treat yours youth dont dry edge evil funds helps henry iron ' +
+    'mad sites web wine arm bay blog core exist forms guard jones lee lies likes port shoot sides solid sport steps taste ' +
+    'tea facts flat fuel harry hello ill kick links mail pair plane scott shape sky upper zone bear boat cheap duty joint ' +
+    'mix path rain signs steel steve tired vice warm arts beer crew crowd dick enemy fixed limit moon ocean proof suit wins ' +
+    'asian banks ben chair debt grew homes honor im jump noted pm ray sets tech trees user email flow hero joke loan soft ' +
+    'stuck sugar ca drama entry era feed grant grown heads keeps legs lying ms pool route saved shoes smoke squad teach ' +
+    'tests ya abuse angry et fox guns hole italy laugh leg ll loves lunch max milk pack snow storm sub weak actor asia ' +
+    'chain cook cute equal fake hits korea leads mm posts quiet split task taxes urban acts fault fill films lay mixed ' +
+    'phase pure sam sat smile tony truck votes ah bird blame bob bowl dying falls false fired iii ma meat mode neck novel ' +
+    'shirt shots zero alex cream eu giant iran jail jim mayor minor pages theme tiny un usual voted walls wave draft drunk ' +
+    'fail finds id ohio seek solo spoke talks upset wing birds bomb cycle don goods hang holds info row salt wales armed ' +
+    'aside bell blow bond cry deals empty faces folks kim kinda mile moves nick prize rural ryan sees spain tools wars ' +
+    'admit favor flag frame guest ha kiss load plot rent teeth tips adam bbc bunch chat diet em fruit index item lane mess ' +
+    'navy shift stood tank tend tight yard crown dc el golf grace kevin laid rooms tool ve ban chose crash depth dirty ' +
+    'error joy jr mate matt noise panel plate rice roads roof shame ships tip bible cable calm da dates doors dumb hide ' +
+    'irish multi nfl print quit sight sing wet ages bike broad burn cake drawn fees haha hat hong loud motor pc peak puts ' +
+    'raw seats solar tries balls bills blind brief chest debut ft grab paint pilot pink steam tall thats aim cap clubs dan ' +
+    'exact fed fee jan kinds lets loans lock nose quote semi swear tie tim trend wise yards aged bread eggs en ford gang ' +
+    'greek inner le lift porn reply rid roman sons tower wheel bc bush coal davis dna eric faced filed hunt inch jury kong ' +
+    'marks pride rough santa smell tone topic vast auto earn grey latin lewis meal pants rape rush sarah sharp simon trick ' +
+    'audio bone brian chart gap gate harm jews ltd miami mount occur tears thin tied argue awful bound cats ceo cloud drew ' +
+    'egg files gear hills hip jason loose moral pa shock thick threw tons wash acid alan angel bars bonus duke egypt flash ' +
+    'fort gray gross jeff luke mac math minds pet refer rome trail uncle woods yo asks badly bath chase dave ideal jimmy ' +
+    'kelly mini mood rank roles sand tag tape wage wings andy bags clock desk ear fbi gym iraq label naked ny opens pitch ' +
+    'pizza plain rear wire anger belt comic cops cuts ghost https islam jane kit lab maps min na newly odd op sexy skill ' +
+    'soil solve suck trash ugly vegas virus boost crack deck dies dust dutch foods hired kings knife mum rail root saint ' +
+    'steal tho trans ups vol ap bid bro buddy cares crap dean delay elite forth gods hire hop hopes layer marry nah nurse ' +
+    'pot pray rugby sake sheet stops syria arab bench bye gary idiot keys medal nba pan roger ross shell silly towns yep ' +
+    'adds allen angle clark feb firms forum gifts grass hence iv jay lists mill mo pace pen pope pp races rapid rocks sixth ' +
+    'spin sucks valid vital anna bands cop creek fraud honey hook km lands log nov phil ratio scary seed sin spell sword ' +
+    'ward waves wayne begun cd cents coat daddy diego doc drove ears fate gene glory jean juice logic meets strip tube ann ' +
+    'apps cant dozen epic exit fancy holes input josh knock lips oct ought poll rep rio risks rob sept tear ties wolf ate ' +
+    'bears blues boxes bruce bull deny ease fame flood kate kills maria rally roots shops sum swing tail texts twin alert ' +
+    'arena aug billy boom boots brave di drops fleet gen iowa jokes knee parks rings robin shake shore spots stats teen ' +
+    'trap ads anne bang blast bones cure del eve ian il pound punch rick walks ali bite chip dare fewer grave jazz jon mask ' +
+    'mouse oscar piano ruin saudi sean sec slave bat bow cape craft devil edit gates hurts mi nuts rated ruled sa sauce ' +
+    'seal slide stem tiger toy alien beast beef candy cited clay dated dec delhi drag fifty fool jet lisa loop mall mp ' +
+    'relax rely se sole tale ton wore acted alarm bass butt cnn con dual globe gulf hoped larry las lmao logo moore nazi ' +
+    'odds pin pump seeds slip spare tap bonds chaos cm corp corps dawn fits huh isis mars opera pit quest sized tanks tokyo ' +
+    'tune weed alice anime barry bold clip coins eh exam fails fi hd jerry lover menu nope oral panic pays rip scope stays ' +
+    'ted uh va worn yea ac adams aids aimed alpha boats brick danny des dvd gains khan li lion mercy outer pipe poem reads ' +
+    'roy rude screw suits toys vary venue wages wells ye abc burns carl dirt er habit laura lazy mama naval noble pat picks ' +
+    'pussy robot shoe spy susan terry toxic wider wound aaron ai asset baker brush chef cock dj emma essay greg hosts jacob ' +
+    'leo maker mario palm pole pub ranks rolls shed snake tasks trips ultra usage utah beats bin bobby canal climb com dig ' +
+    'evans fever fluid folk gop ho leaf loads mills nasty perry ron sue twist ugh unity winds woke wtf',
+  ru: 'на не что по как из это за для но то его он от все так же мы до ты был если когда было мне меня уже еще бы или их они ' +
+    'при будет время кто года чтобы есть она во вы может после нет очень были со была также вот ее чем быть где под этом ' +
+    'вас да даже можно того этого том более ну без году лет нас ни об там себя этот ли раз всех один тебя всего надо через ' +
+    'ему них сша тоже день пока тем эти жизни им между этой здесь нужно себе такой тебе год два людей него люди много тут ' +
+    'свою жизнь нам своей тогда хочу вам мой место потом лишь свои дело лучше над какой тот перед три всем мира стал такое ' +
+    'хотя чего ведь будут дома эта могут сам своих тех новый около почти эту могу свой знаю часть двух кроме связи среди ' +
+    'ссср такие этих одной этим дом ней ним детей либо одна стоит буду дня ей кого никто таким части имеет назад слова друг ' +
+    'затем моя оно про см сразу какие снова собой рф две куда те войны дела игры нее стали весь годы думаю новые числе всю ' +
+    'одно такая мир найти нашей таких месте наши своим фильм го мои права свое тому этому город дней конце марта менее ' +
+    'давно зачем рядом самое самом стала точно часто люблю мая пор деле мире мог стало типа уж хочет вчера имя какая ко ' +
+    'пусть равно руки млн мной ночь стать хоть будем жить минут моей новых одним пять тыс глаза места наш новой роль тысяч ' +
+    'идет опять скоро часов чуть будто денег знает кому могли наших сама сами самый число сайт самых сын всей книги мало ' +
+    'мама право долго июня нем ними прямо пути сил виде вся друга имени слово стран дети июля конца одну отец плохо сайте ' +
+    'таки вроде домой закон силы вновь мать центр важно доме лицо ответ ранее ряд та той армии воды нами одном самым хотел ' +
+    'какое сих счет тобой туда час школы автор вид гг глава земли мое начал путь руб своем утром наша позже прав раза самой ' +
+    'вдруг игра любой нью работ имеют кино легко мере сезон семьи выше новая поле путин решил суд труда ходе хотят честь ' +
+    'шоу взять готов идти км месяц ночи ночью песни союза умер часа школе вещи дел др жена знать иначе кем клуб новое речь ' +
+    'серии член чтоб язык века видел дать дни дочь иметь матче нужен совет целью каким книга людям план ради санкт сети сми ' +
+    'улице наук пару самые семья силу ст твой школу голос киев линии могла свет сюда целом вышел игр игру летом лица любви ' +
+    'матч мм народ ниже понял рода вести клуба моего нему оба отца руку точки шесть брат вечер всему края море мысли такую ' +
+    'трех чаще языка бог ваш видео вижу знал нашли нужны пора конец крым ноги нужна ой пишет помню пост суда сына тела ту ' +
+    'утро цель ясно вами война выбор какую наше никак дал де земле игре каких курс млрд можем новую номер слов смог языке ' +
+    'виду двумя кг общем разве рост ждать песня пол роли самая тело двое джон имел лиги любит моих пойду хуже цены видов ' +
+    'выйти давай делу ладно лиц мест мою общей опыт роста руках сан связь семь фото всеми годов идея крови огонь серия срок ' +
+    'таком факт юго ваши войск далее днем думал знают ибо итоге киеве смысл утра видно иван книгу кофе муж союз спать твои ' +
+    'числа глаз евро лично науки новым оон вышла дали дверь зато пошел рано спорт тип форме цена боже взял вовсе выход жаль ' +
+    'живет кубка погиб чему члены будь воду дает моря нашем ок попал роман возле землю матча метро моему нашел нашу папа ' +
+    'ряда света семье школа бога боюсь вода идут каком текст юрий войну ждет одни планы пяти цели целый шаг адрес ан боль ' +
+    'газа другу души ес класс книг нашла парня писал рада режим свете столь твоя годах образ пойти пошли формы бой завод ' +
+    'могло сеть сон тему ума базе банк вице вне зоне зоны идеи машин особо прошу район стол цвета главе групп двери домов ' +
+    'земля игорь крыму павел пара удар часы явно ближе ваше ка любом меры мысль пошла радио резко анна вида войне вряд ' +
+    'главы имели китая кпсс мария нашим обе песню сила стихи сто театр ушел армия белый брата душу жил знаем знали китай ' +
+    'кровь мимо мужа новом поля рук сутки ул факты цвет видит виды замуж знак ими кое моим общий свыше сирии скажу судя ' +
+    'тихо форму черт южной герой едва карты круто мид миру обоих общая рады улицы этими акции банка вашей ведет вещей вышли ' +
+    'дтп думы жены живут легче мае парк питер сфере твоей форма шанс ага ваша еду ехать ждут книге концу олег рад ребят ' +
+    'рынок сити слава уйти фонд ход ван ветер газ гости дают дорог итак обо окна ох пресс фонда азии везде взяли врач гарри ' +
+    'запад играл ключ край мозга нефти ныне рот села успех хотим этап дай детям знала зовут изд имена ооо очков плюс ред ' +
+    'редко снять сср тема темы упал услуг фоне этапе брать горы делам делаю зал зимой крыма мвд моем объем окно пить путем ' +
+    'реки сочи спб удачи вверх вниз канал китае лицом музей плане рынке стоят ах базы бюро вдоль героя дождь душе елена иди ' +
+    'итоги нато отдел проще речи рынка стены схема узнал цска чисто вес водой гол долг забыл игрок индии июне йорке круг ' +
+    'любят марте мужик наука нечто петра плана скажи суть тонн тур ужин финал цк штаб делал делом душа иду небо парни само ' +
+    'сотни топ труд убить цен экс блин богу борис вещь вошли задач играх имела июле кафе клубе купил лежит ми мин ольга пр ' +
+    'рок трое храм целях школ боли вера верю вечно женой код милый мини музея пары петр порой стиль шести верно лиге лидер ' +
+    'марк ничто среды тв твою успел вина даст дата добро жду звук лес метод парке прием секс семью стиле теми ваших вклад ' +
+    'га доля забил киева ла любил матчи огня пункт страх флота белые век дэвид жили курсе норм общее рсфср рубля схемы ' +
+    'сцене твое чай читал блок годом жертв запах ким курса леса ног ровно сад стр судья сумму суток улицу химии члена антон ' +
+    'брак вашу двоих ди дух зале карта лесу лос любое мер мозг поезд поэт разу слухи суде тура цветы целей яйца якобы ад ' +
+    'армию белых взяла дворе дому доход живой зря карт лев майкл мамы мост обама обмен самую сидит смогу снег су сути тел ' +
+    'ти фирмы штаба эпохи ввиду видим воде вышло гонки днр йорк князь лето набор обед отчет рыбы серию судов сумма ушла аль ' +
+    'англ взрыв вкус вывод замок милая минск мяч нос обеих обл очки платы пожар ран рукой св семей силой точку ум ходу чел ' +
+    'чудо шла вон вузов вырос дала линия мэр мясо помог рука сроки твоих точка ха боя ведут груди дайте жену живу живых ' +
+    'имею ищет кубок майор нефть носит оскар офф плей поток сайта самим семи сумел убит хлеб царь цену герои грудь дон идею ' +
+    'ил кв крае леди линию лице ничем опыта отряд пола селе стола супер такси фронт шоссе ввс вс дону зная ирина ком кости ' +
+    'мечты миром оао отцом руси си суммы указ флаг акций вино гран долю занял ивана илья луи макс масса мило ногу отказ ' +
+    'песен похож принц ряде сидел теме тест улица база би видом видят вызов годам душ дядя еды карту мо отдал поиск сцены ' +
+    'сыном убил чм войти волны врачи идей имея иной ищу карл курсы летию любую любые мол обзор орган офис парка пишут птицы ' +
+    'самих следы счета тепло труды умеет чувак штата эфире юге билет борту веры врача генри горе зона маме мяса отель париж ' +
+    'срока столе стоял шли этапа атаки врага двор делай ею желаю жила звезд зенит зубы ин кожи лета марки месту немцы нигде ' +
+    'общие полу рубль руке слева урок фрг царя ак битва веке ветра джона длина днк знаки краю мисс музее нормы полка поста ' +
+    'род своя упала ушли фон цене агент акт банки дед ждал ждали зло имеем ключи князя летия мамой след слышу стене тремя ' +
+    'угол уехал вход глав голов ирана ищут лист людях мам масло моста мужем мэра пиво сбор силах слезы томас улиц белая ' +
+    'берег вели вошел враг еда зла кнр май мечта озера пакет пар повод посол приз путей пятый ск снг спит сцену сюжет увы ' +
+    'ходит шел акция архив бою вел гей едет идите клубы левой малой март мчс сел ска сне снял собак среде убили цифры штат ' +
+    'базу блока волос губы дне жене заказ коп кухне любая петь риск север соль среду судно сферы тени уефа уши форм целую ' +
+    'арт артур белой берет вашим вину воли вслед граф двум джо иных кот круга литвы лицу ложь общую ого пилот полк птиц ' +
+    'реке рио сей славы спину стену ужас хан ходил четко чехии южный верит волна ворот диск днях жив звуки лига малых пер ' +
+    'побед поэта птица сука товар удара уроки устал ухода юлия актер духе масла минус мтс неба общим павла пива посту пошло ' +
+    'сорок строй судьи титул точек учета ходят блядь богом бои веб дам денис зала иран крест кусок любых мгу меч миг небе ' +
+    'ник нхл отдых полно рис саду судна сыну теле тень тони ура эй юг ай банке беда бен болит внизу вып гор даты зону кадры ' +
+    'кн маму массы обсе отцу папы саша сзади умный ущерб шансы шум эпоху этаже языку альфа буквы вв веков глядя груз дар ' +
+    'дурак йорка камни карте луис луна',
+  uk: "на не що та до це за як про для від так але він його все то ви по ми ще які під вже коли якщо або року було вони із " +
+    "мене щоб мені тут чи час який ти був буде нас ну тому її також дуже може після через їх хто де там можна вона всі ні " +
+    "років те того цього бути при без яка має цей треба чому була були зі бо вас зараз вам один щодо будь лише життя людей " +
+    "от себе тепер них сша день проти щось яких люди ось рік нам немає саме ради тебе тоді цьому же між інших свою ці два " +
+    "нього році би всіх добре йому таке чого той ніж раз росії теж разом роки дякую знаю потім собі такі якого краще мають " +
+    "над перед серед тим міста осіб місце тобі інші знову свої хочу такий три ця шо дня часу грн своїх війни майже їм гроші " +
+    "думаю дітей уже можу мій поки сам свого світу цю відео одна свій така таким трохи яку більш ніхто таких ті влади двох " +
+    "кого неї тих яке крім права хтось біля далі цих воно якому хоча цим ст хоче київ наш наші слова суд усіх цієї млн что " +
+    "буду ним новий рада якої наших право став го києві мати мови моя понад тобто усі нема суду чином дві речі точно чим " +
+    "весь рф тисяч своє варто всім землі кожен особи сама сил тис хоч часто єс мав мої нові якби групи давно дії києва " +
+    "місті світі днів маю мова усе якій криму місто одне росія таки яким армії деякі ними одну сбу собою часом закон куди " +
+    "люблю мовою наша однак світ стало фото центр да діти одним проте їй влада знає каже місця нехай типу країн мало но " +
+    "стала числі боку знати трьох аби бачив ласка липня менше місці сайті своїм сили хіба школи всю війна самі своєї син " +
+    "скоро слава стали хай цій ато досі жаль жити зміни нових події різні стати сайт справ ігор імені как кому мали слово " +
+    "ваш десь дій прав разу руки січня тож туди аж йде кінця міг пішов разів тощо фільм бачу важко води дні львів могли " +
+    "народ нова якось існує автор вся дані прямо разі рівні текст хотів ім'я крим метою моє отже очі помер ага маємо ніби " +
+    "стан євро адже вами дати довго змі нею одно петро план стає увагу уряд даних захід нашої пару перше ту взяти думку " +
+    "перші почав уряду іноді група казав мала он раді своїй умови часів юрій дає житті жінка км міст ой перша першу руху " +
+    "стане таку ваші вчора газу жінки легко назад прес сюди друга нашу сході ім вот жінок йти млрд мою пісні ринку роль " +
+    "слід схоже мною рівня само срср взяли годин зброї змін людям окрім п'ять своєю увазі честь шлях іван інше авто війну " +
+    "кошти мама мвс нато рух школі брати вище оце ціни вибір думки живе из книги мого набу подій праці землю свято села " +
+    "слів чергу івано інший буває вдома вул голос друзі думав лінії му нами наче нині ньому прошу роман шкода якими якою " +
+    "ваша владу гарно дещо зброю знав кажу мову нової номер ніч радіо селі ін банку мм наук нову іншим боже ким кіно сім'ї " +
+    "тему школа во га газ геть клас класу менш наше сотні уваги армія курс піти пішли такої усім часи шоу бог межах норм нє " +
+    "об особа пише режим склад стану хочеш ціна школу воду дав книга любов нью олег оон рази чесно якісь видно вода вплив " +
+    "віку крові мир поруч ранку рр річ сезон сина факт член щастя ясно ідея взяв надто назва село сфері чув щойно якась " +
+    "банк вид війні завод знаєш нашій путін район скажу твій вашу гарна дали дивно друге нашим нижче одній площі судді " +
+    "тижня вийде вр канал круто моєму моїх ній пан петра ринок тіло факти члени бюро думка зможе назву тобою тіла угоди " +
+    "формі ані год додав доки если кінці нове ночі ніяк тижні брат вітаю гра зору кг обл руках серце см стані форми заяви " +
+    "крок науки пост пункт такою точки умов їхні акції бою видів герой даний дому невже пісня фб шанс ігри базі волі двоє " +
+    "кто мов могла місць назви новим свята ваших всій вірю давай екс заяву зони ла межі нет ноги робіт росію сила фонду " +
+    "івана бере вести вночі грати двома есть земля зоні можеш обох ок павло суддя сім шість інша бога ваше двері добу друг " +
+    "знак йдуть клуб пора рук руку силу фонд цією їхати вийти гірше знов кожна лікар маєте миру можно новин самий тема " +
+    "чувак шляху вихід груп діє знали матч музей одесі пані писав речей робив суді твоя твої теми ході цілий якраз виду " +
+    "дають днр душі дім еще зсу лайно самим серця тов чекає ідеї види гру зміг ко лиш поза попри ха штабу вашої владі гри " +
+    "дай днем жив зброя книгу котрі кров марія мові моєї перш піде роках єдина бік веде віце джон или літак майна мета ох " +
+    "парку поряд пізно союзу суми їсти блядь вечір групу кп легше моря нбу площа пішла русі ряд щиро євген іншої блок гпу " +
+    "доби забув колір матчі мне наказ сан сонця том цими якусь брали будеш бій веб вищої другу живу море обмін олена орган " +
+    "п'яти рад сайту серія серії спати суму схеми тоже тієї форма фсб ірина всієї двічі добра доля ліги ода раду рано сто " +
+    "чути армію бази гадаю глава дасть его краю мвф ред роду старі схід сім'я брата вбити вогню ворог див лідер одеса плани " +
+    "поле числа щодня іншу іі білий клубу лист медіа метро одні они парк пити строк супер форму чітко ан брав біль героя " +
+    "дайте их коло майно ольга повна піду річчя тип тиск топ увага упа юрія їхніх водій всьо дата доріг замок зрада музею " +
+    "пане плюс полі ролі твоє хв штаб іде будет гори код міні певні стилі стіни тими яйця єдине втім вікна вірно край купив " +
+    "надія пісню секс союз сука угоду фронт ціну душу жили заява лнр может моїй нахуй образ поля річна спорт суть фірми " +
+    "цілі їжі бпп грає думає ледь машин музеї надії нації оун пари пів пір тур удар урок ціною юлія вік вірші гарні дітям " +
+    "діяти звіт зняти мзс набір плану пп рок роком св скаже сонце страх судом тонн тій упц блять дтп жертв опис роблю тиску " +
+    "укр вимог водою віці даже йду книг курсу малий мер одеси повне радою самих сенс сон суті хід число якесь винен всюди " +
+    "герої глави залі китай могло намір пара плані рідко чую ше імена взяла віком групі долю жінку квіти ліки обсє огляд " +
+    "решта рівно силою стиль сумно сходу січні тато театр увесь чай часі чолі вашим дух зате маючи мозку одяг олега очах " +
+    "пат под твори усіма хх чекаю читаю шось їхній бля вкрай вчені гості гурт друже дфс діють етап ефірі житла запис зміну " +
+    "маєш метод наука рота смак тарас трамп хвилі храм чисто чули акцій вища вміє дома дію листа мо морі повну полку рос " +
+    "туру шкіл ап голів зірка зірки купа небо несе офіс самої твого тихо третє унр вина водія всіма вісім добрі дочка ефект " +
+    "житло зло зміст кухні ліс мозок місії надає нащо новій пол пр рнбо сесії учнів шоб анна банки вбили втрат дехто збір " +
+    "карта курси лісу міс пана схема тепло щоби ідею їде акт віра задля зміна зразу зірок кращі лінію мами надо напад нафти " +
+    "ого отак пдв пиво поет річки стіл твою троє успіх фінал цін чехії бажаю базу время втік вікно вітер крізь курсі майор " +
+    "ото очима павла певно такій тест чем ігоря богу боці біда где долі жах жоден зал змогу йорк кафе класі котра листи " +
+    "моїм норми очей папа сирії сюжет їжу актор дохід діло живий збори зону карту лос мить потік почне різко стара сума тем " +
+    "хліб читав явно якшо іще арешт блін волю воля вуха долар етапі запах ліга мп пишу прям робиш твір третя указ чорна ііі " +
+    "агент дала дід карти ляшко літа мак мера надію пс радий сенсу хоть штука іншою їхня акція будем гаррі гей китаю кубок " +
+    "курва літо меня моз ніде од схожі сіл сім'ю танки твоїх тепла тупо хуй шкоди балів бан вирок дату днк душа жарт засіб " +
+    "купу лі неба ни німці па посол пошук селян сенсі со тв ура цирк члена їхню база бачиш битва біла ввп воді вчити віри " +
+    "добро дол діяч запит збору знала знань кави кв ключ лютий матчу обсяг пар подія фірма хм бити блоку бійці вбив вино " +
+    "вищих дерев когда кожну мило ніщо ордло пакет рука смт собак угод ходу атаки вашій встиг дно дощ дп дурні замку зона " +
+    "ле мірою одягу ризик розум слави стояв таксі товар чаю чорні індії іншій бойко вадим вхід грі днями зайти карл листя " +
+    "лінія майкл нести подав раджу росте рот суди уроки хрест цілей англ бажає вмс дупу дія йорку лісі ма ніг нічим рукою " +
+    "сад саму своя табір тб тлі форм шанси шести явище іл іти вниз впав гурту домі заяв звук зла йди колег кризи м'ясо " +
+    "мереж мрії низку ногу озера повз риби русь урср уся учора фк форум цифри шлюб аес антон аніж вищий гу живі каву кроки " +
+    "марії новою озеро офісу порох працю решту саду сфери схожа точка угкц храму хуйня борис боюсь дворі живих києво кола " +
+    "кулі нан скажи сцені угода цк штраф шукає юрист ідей болю будут гарне девід заміж зможу йшов китаї краси липні любиш " +
+    "нуль опір очень полон ранок решт рис рідна сидів склав сімей тричі удару черзі шляхи ян борг вдень герб диво епохи " +
+    "загін зорі купи ладно лев матір мети назк ніс отож пива селах томас фоні ходив цвк чекав чорт їдуть грав греко гівно " +
+    "дарма джона жила зник зуби кожне ладу надав особу повно посту почув праві ряду рівне сир смс су татар царя їжа бл " +
+    "богом білі вибух думок душ діб зовні йшли квт лайна ли литви ліжко меті опору пес плати самій сніг тре угу арт ван " +
+    "вгору маму мон місту пішло риба сайти свят семи стіну судів сум темно тяжко тією усю ходи шкіри їхнє вступ груди довше " +
+    "згоди ка керує краща крила кухня маси місія",
+};
+let LM_SET = null;
+// знакомое короткое слово: все его буквенные участки — частые слова языка
+function lmKnown(tok, l) {
+  if (!LM_SET) LM_SET = Object.fromEntries(Object.entries(LM_WORDS).map(([k, v]) => [k, new Set(v.split(' '))]));
+  const rs = tok.toLowerCase().replace(/ё/g, l === 'ru' ? 'е' : 'ё').replace(/[’ʼ]/g, "'").match(l === 'en' ? /[a-z]+/g : /[\p{L}]+(?:'[\p{L}]+)*/gu);
+  return !!rs && rs.length === 1 && rs[0].length <= 5 && LM_SET[l].has(rs[0]);
+}
+const LM_IDX = {};
+// средняя «цена» перехода между буквами: чем меньше (относительно обычной для языка), тем больше похоже на настоящее слово
+function lmCost(w, l) {
+  const M = LM[l], n = M.a.length, ix = LM_IDX[l] || (LM_IDX[l] = new Map([...M.a].map((c, i) => [c, i])));
+  const s = ['^', ...w.toLowerCase().replace(/[’ʼ]/g, "'"), '$'];
+  let c = 0;
+  for (let i = 1; i < s.length; i++) { const x = ix.get(s[i - 1]), y = ix.get(s[i]); c += x == null || y == null ? 16 : M.q.charCodeAt(x * n + y) - 97; }
+  return c / (s.length - 1) - M.m;
+}
+const UA_KEYS = { 'ы': 'і', 'Ы': 'І', 'э': 'є', 'Э': 'Є', 'ъ': 'ї', 'Ъ': 'Ї', 'ё': "'", 'Ё': "'" };
+const enToUa = w => mapStr(w, EN2RU).replace(/[ыЫэЭъЪёЁ]/g, c => UA_KEYS[c]);
+// оценка слова по его буквенным участкам («какой-то» → «какой», «то»)
+function runsCost(tok, l) {
+  const rs = tok.match(l === 'en' ? /[A-Za-z]+/g : /[\p{L}]+(?:['’ʼ][\p{L}]+)*/gu) || [];
+  let c = 0, n = 0;
+  rs.forEach(r => { const k = r.length + 1; c += lmCost(l === 'ru' ? r.replace(/ё/gi, 'е') : r, l) * k; n += k; });
+  return n ? c / n : 99;
+}
+// Варианты слова: как набрано (k — так и задумано) и как было бы в другой раскладке
+function layoutCands(w) {
+  if (LAT.test(w) && !CYR.test(w)) {
+    if (!/^[A-Za-z`~\[\]{};:'",.<>\/?!@#$^&()|\\\-]+$/.test(w)) return null;
+    return [{ l: 'en', w, k: 1 }, { l: 'ru', w: mapStr(w, EN2RU) }, { l: 'uk', w: enToUa(w) }];
+  }
+  if (CYR.test(w) && !LAT.test(w)) {
+    if (!/^[а-яёіїєґА-ЯЁІЇЄҐ'’ʼ.,;:!?"№()\-]+$/.test(w)) return null;
+    const c = [{ l: 'ru', w, k: 1 }, { l: 'uk', w, k: 1 }, { l: 'en', w: mapStr(w, RU2EN) }];
+    if (/[ыэъё]/i.test(w)) c.push({ l: 'uk', w: toUa(w), pen: 0.3, fix: 1 });   // украинское слово, набранное в русской раскладке
+    return c;
+  }
+  // одни знаки, которые в другой раскладке — буквы: " → Э/Є, { → Х, ; → ж
+  if (/^[`~\[\]{};:'"<>]+$/.test(w)) return [{ l: 'en', w, k: 1, s: 0 }, { l: 'ru', w: mapStr(w, EN2RU) }, { l: 'uk', w: enToUa(w) }];
+  return null;
+}
+const nLet = t => (t.match(/\p{L}/gu) || []).length;
+function autoLayout(text) {
+  const parts = text.split(/(\s+)/), info = [];
+  parts.forEach((w, i) => {
+    if (!w || /^\s+$/.test(w) || /\d/.test(w)) return;                    // слова с цифрами (М8х20) не трогаем
+    const c = layoutCands(w); if (!c) return;
+    const n0 = nLet(w);
+    // знак внутри слова («c]tpl») или буквы, ставшие знаками («Їжак» → «};fr»), — признак, что вариант неверный
+    const inner = t => (t.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '').match(/[^\p{L}'’ʼ\-]/gu) || []).length;
+    c.forEach(x => { if (x.s == null) x.s = runsCost(x.w, x.l) + (x.pen || 0) + inner(x.w) * 0.8 + Math.max(0, n0 - nLet(x.w)) * 0.8 - (lmKnown(x.w, x.l) ? 1 : 0); });
+    const keep = Math.min(...c.filter(x => x.k).map(x => x.s));
+    const L = w.match(/\p{L}/gu) || [], n = L.length, caps = n > 1 && L.join('') === L.join('').toUpperCase();
+    const from = c[0].l === 'en' ? 'en' : 'cyr';
+    const sw = c.filter(x => !x.k && !x.fix).sort((a, b) => a.s - b.s)[0];       // другая раскладка (EN ↔ кириллица)
+    const fx = c.find(x => x.fix);                                                 // RU ↔ UA
+    info.push({ i, c, n, from, keep, sw, fx, gain: keep - sw.s, sure: n >= 4 && !caps });
+  });
+  // EN ↔ кириллица: длинные слова решают сами (запас 0,3 — чтобы не трогать правильные), короткие, знаки и аббревиатуры — как большинство
+  ['en', 'cyr'].forEach(from => {
+    const ws = info.filter(x => x.from === from), long = ws.filter(x => x.sure);
+    const yes = long.filter(x => x.gain > 0.3).length;
+    const most = long.length && yes * 2 > long.length, lone = most ? 0 : 0.8;   // одно слово против остальных — нужен больший перевес
+    // если большинство длинных слов набрано не в той раскладке, то и короткие тоже; аббревиатуры (PDF, ГОСТ) сами по себе не меняются
+    ws.forEach(x => { x.go = x.sure ? x.gain > lone : most ? true : !long.length && x.n >= 3 && !/\p{Lu}{2}/u.test(x.c[0].w) && x.gain > 0.6; if (x.go) x.alt = x.sw; });
+  });
+  // из английской раскладки — в русский или украинский: решается по всему тексту
+  const toCyr = info.filter(x => x.go && x.from === 'en');
+  if (toCyr.length) {
+    // русский или украинский — по модели языка; больше весят слова, где варианты различаются (ы/і, э/є, ъ/ї)
+    const d = toCyr.reduce((a, x) => { const r = x.c.find(y => y.l === 'ru'), u = x.c.find(y => y.l === 'uk'); return a + (u.s - r.s) * Math.max(1, x.n) * (r.w === u.w ? 0.5 : 1); }, 0);
+    const lang = d < 0 ? 'uk' : 'ru';
+    toCyr.forEach(x => { x.alt = x.c.find(y => y.l === lang); });
+  }
+  // украинское слово, набранное в русской раскладке: в украинском тексте не бывает ы, э, ъ. Язык текста — по остальным словам.
+  // Обратное (і → ы) не делается: в русском тексте часто стоят украинские названия — Київ, Харків
+  const cyr = info.filter(x => x.from === 'cyr' && !x.go), other = cyr.filter(x => !x.fx);
+  const lang = other.reduce((a, x) => a + (x.c[1].s - x.c[0].s) * x.n, 0);                       // < 0 — украинский
+  const ruWords = other.filter(x => x.c[0].s < x.c[1].s - 0.3).length;                             // явно русские слова рядом — текст смешанный
+  cyr.forEach(x => {
+    if (!x.fx) return;
+    const ua = lang < -0.5 && !ruWords && other.some(x => /[іїєґ]/i.test(x.c[0].w)), neutral = Math.abs(lang) <= 0.5;
+    if ((ua && x.fx.s - x.fx.pen < x.keep + 0.3) || (neutral && x.sure && /^[^\p{L}]*ы/iu.test(x.c[0].w) && x.fx.s < x.keep)) { x.go = true; x.alt = x.fx; }
+  });
+  info.forEach(x => { if (x.go) parts[x.i] = x.alt.w; });
+  return parts.join('');
 }
 
 /* ---------- регистр ---------- */
@@ -2142,7 +2542,7 @@ const DEC_FOLD = ['Library', 'PDF_DXF', 'Документация', 'Повід�
 const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'anon', 'format', 'dates', 'phone', 'fname', 'dec', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', dec: { v: '', n: 10, step: 1, sk: false, extra: true, fold: DEC_FOLD.slice(), docs: DEC_DOCS.slice() }, hl: false, joinSep: ', ', splitSep: ',', wsep: '_', colSpec: '', colSep: 'auto', exUniq: true },
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', mini: 'full', quick: 'layout:auto', dec: { v: '', n: 10, step: 1, sk: false, extra: true, fold: DEC_FOLD.slice(), docs: DEC_DOCS.slice() }, hl: false, joinSep: ', ', splitSep: ',', wsep: '_', colSpec: '', colSep: 'auto', exUniq: true },
   sets: [], presets: [], hist: [], anonMap: {}, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw', 'fix', 'roman', 'anon'];
@@ -2170,7 +2570,7 @@ function load() {
             filter: { q: String((u.filter || {}).q || ''), keep: (u.filter || {}).keep !== false, cs: !!(u.filter || {}).cs, re: !!(u.filter || {}).re },
             cmp: { byCol: !!(u.cmp || {}).byCol, col: Math.max(1, +(u.cmp || {}).col || 1), ci: (u.cmp || {}).ci !== false },
             anonOpt: Object.fromEntries(['fio', 'tel', 'email', 'acc', 'code'].map(k => [k, (u.anonOpt || {})[k] !== false])), anonWords: typeof u.anonWords === 'string' ? u.anonWords : '',
-            dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '', calLang: u.calLang === 'ua' ? 'ua' : 'ru',
+            dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '', calLang: u.calLang === 'ua' ? 'ua' : 'ru', mini: ['full', 'compact', 'button'].includes(u.mini) ? u.mini : 'full', quick: typeof u.quick === 'string' ? u.quick : 'layout:auto',
             dec: (() => { const x = u.dec || {}; return { v: typeof x.v === 'string' ? x.v : '', n: Math.max(1, Math.min(99, +x.n || 10)), step: x.step === 10 ? 10 : 1, sk: !!x.sk, extra: x.extra !== false,
               fold: Array.isArray(x.fold) ? x.fold.filter(y => typeof y === 'string').slice(0, 40) : DEC_FOLD.slice(), docs: Array.isArray(x.docs) && x.docs.join('|') !== '{N} ВМ|{N} ВП|Акт на {И}' ? x.docs.filter(y => typeof y === 'string').slice(0, 40) : DEC_DOCS.slice() }; })(),
             dateTpls: Array.isArray(u.dateTpls) ? u.dateTpls.filter(x => x && typeof x.tpl === 'string').map(x => ({ id: String(x.id || uid0()), tpl: x.tpl })).slice(0, 30) : [], joinSep: typeof u.joinSep === 'string' ? u.joinSep : ', ', wsep: typeof u.wsep === 'string' ? u.wsep : '_', splitSep: typeof u.splitSep === 'string' && u.splitSep ? u.splitSep : ',',
@@ -2199,7 +2599,9 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) saveN
 /* ---------- элементы и устройство ---------- */
 const src = $('#src'), out = $('#out'), stepsEl = $('#steps');
 const mm = q => (window.matchMedia ? window.matchMedia(q) : { matches: false, addEventListener() {} });
-const narrow = mm('(max-width: 899px)');
+const narrowMQ = mm('(max-width: 899px)'), NARROW_CB = [];
+// узкий экран: телефон или мини-окно (оно всегда узкое — раскладка как на телефоне)
+const narrow = { get matches() { return pip ? pip.innerWidth <= 899 : narrowMQ.matches; }, addEventListener(t, f) { NARROW_CB.push(f); narrowMQ.addEventListener(t, f); } };
 const touch = mm('(pointer: coarse)').matches;   // телефон: поле текста по умолчанию без клавиатуры
 let lastOut = '', caretKnown = false;
 
@@ -2218,29 +2620,29 @@ function openModal(build) {
   const overlay = h('div', { class: 'overlay' });
   const box = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true' });
   overlay.append(box);
-  const api = { box, close() { overlay.remove(); const i = stack.indexOf(api); if (i >= 0) stack.splice(i, 1); document.body.classList.toggle('modal-lock', stack.length > 0); } };
+  const api = { box, close() { overlay.remove(); const i = stack.indexOf(api); if (i >= 0) stack.splice(i, 1); DOC.body.classList.toggle('modal-lock', stack.length > 0); } };
   api.dismiss = () => api.close();
   overlay.addEventListener('mousedown', e => { if (e.target === overlay) api.dismiss(); });
-  stack.push(api); document.body.classList.add('modal-lock');
+  stack.push(api); DOC.body.classList.add('modal-lock');
   $('#modals').append(overlay);
   build(box, api);
   return api;
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && stack.length) stack[stack.length - 1].dismiss(); });
+docOn('keydown', e => { if (e.key === 'Escape' && stack.length) stack[stack.length - 1].dismiss(); });
 const btn = (label, fn, kind) => h('button', { class: 'btn ' + (kind || ''), type: 'button', onclick: fn }, label);
 
 async function copyText(text) {
-  try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; } } catch (e) { /* запасной способ */ }
+  try { if (WIN.navigator.clipboard && WIN.isSecureContext) { await WIN.navigator.clipboard.writeText(text); return true; } } catch (e) { /* запасной способ */ }
   try {
     const ta = h('textarea', { value: text, readonly: true, style: 'position:fixed;left:-9999px;top:0;opacity:0' });
-    document.body.append(ta); ta.select(); ta.setSelectionRange(0, ta.value.length);
-    const ok = document.execCommand('copy'); ta.remove(); return ok;
+    DOC.body.append(ta); ta.select(); ta.setSelectionRange(0, ta.value.length);
+    const ok = DOC.execCommand('copy'); ta.remove(); return ok;
   } catch (e) { return false; }
 }
 
 /* ---------- названия шагов ---------- */
 const NAMES = {
-  layout: { 'en-ru': 'EN → RU', 'ru-en': 'RU → EN', 'ru-ua': 'RU → UA', 'ua-ru': 'UA → RU' },
+  layout: { auto: 'Раскладка: авто', 'en-ru': 'EN → RU', 'ru-en': 'RU → EN', 'ru-ua': 'RU → UA', 'ua-ru': 'UA → RU' },
   case: { upper: 'ВЕРХНИЙ', lower: 'нижний', sentence: 'Как в предложении', title: 'Каждое Слово', invert: 'иНВЕРСИЯ' },
   translit: { 'ru-lat': 'Транслит RU → Lat', 'ua-lat': 'Транслит UA → Lat', 'lat-ru': 'Транслит Lat → RU', 'lat-ua': 'Транслит Lat → UA' },
   lines: { merge: 'Свести позиции', sort: 'Строки А→Я', sortd: 'Строки Я→А', uniq: 'Без дублей', rev: 'Обратный порядок', num: 'Нумерация', unnum: 'Без нумерации' },
@@ -2327,7 +2729,7 @@ function renderSteps() {
 function updCounts() { $('#cntIn').textContent = state.text ? fmtCount(state.text) : ''; }
 // выделение считается, только пока оно «живое» — поле в фокусе (невидимое старое выделение не учитывается)
 function liveSel() {
-  if (document.activeElement === src && !composing && src.selectionEnd > src.selectionStart) return { a: src.selectionStart, b: src.selectionEnd };
+  if (DOC.activeElement === src && !composing && src.selectionEnd > src.selectionStart) return { a: src.selectionStart, b: src.selectionEnd };
   return null;
 }
 function updSel() {
@@ -2399,11 +2801,11 @@ function bindCmd(b, run) {
   if (!touch) b.addEventListener('mousedown', e => e.preventDefault());   // на компьютере выделение в поле не пропадает
   b.addEventListener('click', () => {
     const sel = pressSel; pressSel = null;
-    if (touch && document.activeElement === src) src.blur();
+    if (touch && DOC.activeElement === src) src.blur();
     run(sel);
   });
 }
-document.querySelectorAll('#tools .tb[data-t]').forEach(b => bindCmd(b, sel => doOp(b.dataset.t, b.dataset.p, sel)));
+DOC.querySelectorAll('#tools .tb[data-t]').forEach(b => bindCmd(b, sel => doOp(b.dataset.t, b.dataset.p, sel)));
 
 /* ---------- числа словами: режим, язык, падеж, род, валюта ---------- */
 const numParams = () => {
@@ -2425,14 +2827,14 @@ function caseGroups(P) {
   });
   return (caseCache[key] = groups);
 }
-document.querySelectorAll('#numCase .seg').forEach(b => { b.dataset.title = b.title; });
+DOC.querySelectorAll('#numCase .seg').forEach(b => { b.dataset.title = b.title; });
 function updNum() {
   const n = state.num, P = numParams();
-  const mark = (id, v) => document.querySelectorAll(id + ' .seg').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  const mark = (id, v) => DOC.querySelectorAll(id + ' .seg').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   mark('#numMode', n.m); mark('#numLang', n.l); mark('#numGen', P.g); mark('#numCur', n.cur);
   if (n.m !== 'money') {
     const groups = caseGroups(P);
-    document.querySelectorAll('#numCase .seg').forEach(b => {
+    DOC.querySelectorAll('#numCase .seg').forEach(b => {
       const grp = groups.find(g => g.includes(b.dataset.v)), first = grp[0] === b.dataset.v;
       b.hidden = !first;
       b.textContent = grp.map(c => CASE_LBL[c]).join('/');
@@ -2452,7 +2854,7 @@ function updNum() {
   const ex = n.m === 'money' ? ['1250,50'] : n.m === 'ord' ? ['1', '22', '2000'] : n.m === 'abbr' ? ['1', '3', '5', '21', '2000'] : ['1', '22', '3,5', '3/4'];
   $('#numHint').textContent = (money ? 'Сумма всегда в им. падеже. ' : '') + 'Пример: ' + ex.map(x => x + ' → ' + numbersToWords(x, { ...P, br: false })).join(', ');
 }
-[['#numMode', 'm'], ['#numLang', 'l'], ['#numCase', 'c'], ['#numGen', 'g'], ['#numCur', 'cur']].forEach(([id, key]) => document.querySelectorAll(id + ' .seg').forEach(b => {
+[['#numMode', 'm'], ['#numLang', 'l'], ['#numCase', 'c'], ['#numGen', 'g'], ['#numCur', 'cur']].forEach(([id, key]) => DOC.querySelectorAll(id + ' .seg').forEach(b => {
   b.addEventListener('mousedown', e => e.preventDefault());       // выделение в тексте не пропадает
   b.addEventListener('click', () => { state.num[key] = b.dataset.v; updNum(); liveNum(); save(); });
 }));
@@ -2487,7 +2889,7 @@ const keepFocus = b => { b.addEventListener('mousedown', e => e.preventDefault()
 $('#symCats').append(...SYM_SETS.map(([n], i) => keepFocus(h('button', { class: 'seg', type: 'button', role: 'tab', 'data-id': 'sym:' + n, 'data-i': i,
   onclick() { state.ui.symCat = i; renderSym(); save(); } }, n))));
 function renderSym() {
-  const cats = [...document.querySelectorAll('#symCats .seg')], vis = cats.filter(b => !b.hidden);
+  const cats = [...DOC.querySelectorAll('#symCats .seg')], vis = cats.filter(b => !b.hidden);
   let ci = +state.ui.symCat || 0;
   if (vis.length && !vis.some(b => +b.dataset.i === ci)) ci = +vis[0].dataset.i;
   cats.forEach(b => { const on = +b.dataset.i === ci; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
@@ -2501,7 +2903,7 @@ function renderSym() {
 // Если курсор в тексте не ставили — в конец текста
 // close — закрывающая пара: выделенное обрамляется (ch + выделенное + close), без выделения курсор встаёт внутрь пары
 function insertSym(ch, close) {
-  const el = document.activeElement;
+  const el = DOC.activeElement;
   if (el === fr.find || el === fr.repl) {
     const fa = el.selectionStart, fsel = el.value.slice(fa, el.selectionEnd);
     el.setRangeText(close == null ? ch : ch + fsel + close, fa, el.selectionEnd, 'end');
@@ -2576,7 +2978,7 @@ function updFn() {
 Object.values(fn).forEach(el => el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
   state.ui.fname = { tpl: fn.tpl.value, start: fn.start.value, us: fn.us.checked }; save(); updFn();
 }));
-document.querySelectorAll('#fnPh .seg').forEach(b => {
+DOC.querySelectorAll('#fnPh .seg').forEach(b => {
   b.addEventListener('mousedown', e => e.preventDefault());
   b.addEventListener('click', () => { const el = fn.tpl, a = el.selectionStart ?? el.value.length, z = el.selectionEnd ?? a; el.setRangeText(b.dataset.v, a, z, 'end'); el.dispatchEvent(new Event('input')); });
 });
@@ -2647,6 +3049,7 @@ renderSets();
 
 /* ---------- Пресеты: сохранённые цепочки шагов ---------- */
 function renderPresets() {
+  renderQuick();
   const box = $('#presetList');
   box.replaceChildren(
     ...state.presets.map(pr => {
@@ -2739,10 +3142,10 @@ function diffSheet() {
       const ops = diffTexts(a.value, b.value, mode);
       if (!ops) { outEl.replaceChildren(h('span', { text: 'Тексты слишком большие или слишком разные для подробного сравнения.' })); stat.textContent = ''; return; }
       let del = 0, ins = 0;
-      outEl.replaceChildren(...ops.map(([k, x]) => { if (k < 0) del++; if (k > 0) ins++; return k === 0 ? document.createTextNode(x) : h(k < 0 ? 'del' : 'ins', { text: x }); }));
+      outEl.replaceChildren(...ops.map(([k, x]) => { if (k < 0) del++; if (k > 0) ins++; return k === 0 ? DOC.createTextNode(x) : h(k < 0 ? 'del' : 'ins', { text: x }); }));
       stat.textContent = del || ins ? 'Удалено мест: ' + del + ', добавлено: ' + ins + '. Красным — что было только в «Было», зелёным — только в «Стало».' : 'Тексты совпадают.';
     };
-    const pasteInto = el => async () => { try { el.value = await navigator.clipboard.readText(); run(); } catch (e) { toast('Нет доступа к буферу: вставьте долгим нажатием', true); } };
+    const pasteInto = el => async () => { try { el.value = await WIN.navigator.clipboard.readText(); run(); } catch (e) { toast('Нет доступа к буферу: вставьте долгим нажатием', true); } };
     a.addEventListener('input', run); b.addEventListener('input', run);
     box.append(h('h2', { text: 'Сравнение' }), modes,
       h('div', { class: 'diffin' },
@@ -2763,9 +3166,9 @@ function applyDeskTabs() {
 }
 // раньше здесь пересчитывалась укладка «Плотно» (убрана — группы скакали); вызовы оставлены пустыми
 function relayout() { /* ничего */ }
-window.addEventListener('resize', relayout);
+winOn('resize', relayout);
 // колесо мыши листает строки кнопок вбок, если они не помещаются
-document.querySelectorAll('#tools .tbtns, #tools .srow').forEach(el => el.addEventListener('wheel', e => {
+DOC.querySelectorAll('#tools .tbtns, #tools .srow').forEach(el => el.addEventListener('wheel', e => {
   if (el.scrollWidth <= el.clientWidth + 1 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
   const before = el.scrollLeft; el.scrollLeft += e.deltaY;
   if (el.scrollLeft !== before) e.preventDefault();
@@ -2773,15 +3176,15 @@ document.querySelectorAll('#tools .tbtns, #tools .srow').forEach(el => el.addEve
 narrow.addEventListener('change', applyDeskTabs);
 function showTab(g) {
   state.tab = g;
-  document.querySelectorAll('.ttab').forEach(t => {
+  DOC.querySelectorAll('.ttab').forEach(t => {
     const on = t.dataset.g === g; t.classList.toggle('on', on); t.setAttribute('aria-selected', String(on));
     if (on && t.parentNode.scrollWidth > t.parentNode.clientWidth) { try { t.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) { /* ничего */ } }
   });
-  document.querySelectorAll('.tgroup').forEach(t => t.classList.toggle('on', t.dataset.g === g));
+  DOC.querySelectorAll('.tgroup').forEach(t => t.classList.toggle('on', t.dataset.g === g));
   if (g === 'dec' && decReady) decFromText(false);
   save();
 }
-document.querySelectorAll('.ttab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.g)));
+DOC.querySelectorAll('.ttab').forEach(t => t.addEventListener('click', () => showTab(t.dataset.g)));
 
 /* ---------- режим правки (телефон): клавиатура только по кнопке «✎ Править» ---------- */
 let composing = false;
@@ -2795,14 +3198,14 @@ function setEdit(on) {
   editBtn.setAttribute('aria-pressed', String(on));
   editLabel();
   // раскладку переключаем сразу: если поле уже было в фокусе, событие focus не придёт
-  document.body.classList.toggle('editing', on);
+  DOC.body.classList.toggle('editing', on);
   if (on) {
     // курсор остаётся там, куда вы нажали в тексте; если не нажимали — в конце
     const a = caretKnown ? src.selectionStart : src.value.length, b = caretKnown ? src.selectionEnd : a;
-    if (document.activeElement === src) src.blur();
+    if (DOC.activeElement === src) src.blur();
     src.focus();
     try { src.setSelectionRange(a, b); } catch (er) {}
-  } else if (document.activeElement === src) src.blur();
+  } else if (DOC.activeElement === src) src.blur();
 }
 if (touch) {
   editBtn.hidden = false;
@@ -2820,12 +3223,12 @@ if (touch) {
       setTimeout(() => { const p = src.selectionEnd; try { src.setSelectionRange(p, p); } catch (er) {} caretKnown = true; setEdit(true); }, 0);
     } else { tapT = now; tapX = e.clientX; tapY = e.clientY; }
   });
-  src.addEventListener('focus', () => { document.body.classList.toggle('editing', !src.readOnly); });
+  src.addEventListener('focus', () => { DOC.body.classList.toggle('editing', !src.readOnly); });
   // раскладка возвращается с небольшой задержкой: иначе кнопки сдвигаются прямо под пальцем и нажатие «промахивается»
   src.addEventListener('blur', () => {
     setTimeout(() => {
-      if (document.activeElement === src) return;
-      document.body.classList.remove('editing');
+      if (DOC.activeElement === src) return;
+      DOC.body.classList.remove('editing');
       if (!src.readOnly) setEdit(false);
       updSel();
     }, 350);
@@ -2845,7 +3248,7 @@ function askDialog(title, msg, buttons, remText, onRemember) {
 }
 async function pasteFromClipboard(force) {
   let t = null;
-  try { if (navigator.clipboard && navigator.clipboard.readText) t = await navigator.clipboard.readText(); } catch (e) { t = null; }
+  try { if (WIN.navigator.clipboard && WIN.navigator.clipboard.readText) t = await WIN.navigator.clipboard.readText(); } catch (e) { t = null; }
   if (t == null) {
     if (touch) setEdit(true);
     toast(touch ? 'Нет доступа к буферу: вставьте долгим нажатием в поле' : 'Нет доступа к буферу: нажмите Ctrl+V в поле', true);
@@ -2928,10 +3331,10 @@ src.addEventListener('input', () => {
 // курсор, который поставил сам человек (касанием или клавишами); после замены всего текста он «сбрасывается»
 ['pointerup', 'keyup', 'select'].forEach(ev => src.addEventListener(ev, () => { caretKnown = true; }));
 if (!touch) src.addEventListener('blur', updSel);
-document.addEventListener('selectionchange', () => { if (document.activeElement === src) updSel(); });
+docOn('selectionchange', () => { if (DOC.activeElement === src) updSel(); });
 const isUndoKey = e => (e.ctrlKey || e.metaKey) && !e.altKey && ['z', 'я'].includes(e.key.toLowerCase()) && !e.shiftKey;
 const isRedoKey = e => (e.ctrlKey || e.metaKey) && !e.altKey && (['y', 'н'].includes(e.key.toLowerCase()) || (['z', 'я'].includes(e.key.toLowerCase()) && e.shiftKey));
-document.addEventListener('keydown', e => {
+docOn('keydown', e => {
   if (stack.length) return;
   const tg = e.target && e.target.tagName;
   if ((tg === 'INPUT' || tg === 'TEXTAREA') && e.target !== src) return;      // в полях поиска — обычная отмена браузера
@@ -2963,7 +3366,7 @@ function frGo(sel) {
   if (!p.find) { toast('Введите, что искать', true); return; }
   const r = makeRegex(p);
   if (r.err) { toast(r.err, true); return; }
-  if (touch && (document.activeElement === fr.find || document.activeElement === fr.repl)) document.activeElement.blur();
+  if (touch && (DOC.activeElement === fr.find || DOC.activeElement === fr.repl)) DOC.activeElement.blur();
   doOp('replace', p, sel);
 }
 bindCmd($('#frGo'), frGo);
@@ -2973,7 +3376,7 @@ fr.find.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDef
 /* ---------- тема и меню ---------- */
 function applyTheme() {
   const r = document.documentElement;
-  if (state.theme === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', state.theme);
+  [r, DOC.documentElement].forEach(x => { if (state.theme === 'auto') x.removeAttribute('data-theme'); else x.setAttribute('data-theme', state.theme); });
   const bg = getComputedStyle(r).getPropertyValue('--bg').trim();
   const m = document.querySelector('meta[name="theme-color"]'); if (m && bg) m.setAttribute('content', bg);
 }
@@ -2997,15 +3400,15 @@ const NUM_MODE_NAMES = { card: 'пять', ord: 'пятый', abbr: '5-й', mone
 // какие группы и команды показывать — хранится в этом браузере, на каждом устройстве своё
 const cmdId = b => b.dataset.id || (b.dataset.t ? b.dataset.t + ':' + b.dataset.p : 'num:' + b.dataset.v);
 function cmdButtons(g) {
-  const el = document.querySelector('.tgroup[data-g="' + g + '"]');
+  const el = DOC.querySelector('.tgroup[data-g="' + g + '"]');
   if (!el) return [];
   if (g === 'sym') return [...el.querySelectorAll('#symCats .seg')];
   return g === 'num' ? [...el.querySelectorAll('#numMode .seg, .tb[data-t]')] : [...el.querySelectorAll('.tb[data-t], .tb[data-id]')];
 }
 function applyVisibility() {
   const hid = new Set(state.ui.hidden), hc = new Set(state.ui.hiddenCmd);
-  document.querySelectorAll('.ttab').forEach(t => { t.hidden = hid.has(t.dataset.g); });
-  document.querySelectorAll('.tgroup').forEach(t => t.classList.toggle('off', hid.has(t.dataset.g)));
+  DOC.querySelectorAll('.ttab').forEach(t => { t.hidden = hid.has(t.dataset.g); });
+  DOC.querySelectorAll('.tgroup').forEach(t => t.classList.toggle('off', hid.has(t.dataset.g)));
   TABS.forEach(g => cmdButtons(g).forEach(b => { b.hidden = hc.has(cmdId(b)); }));
   const modes = cmdButtons('num').filter(b => b.dataset.v && !b.hidden);
   if (modes.length && !modes.some(b => b.dataset.v === state.num.m)) { state.num.m = modes[0].dataset.v; updNum(); }
@@ -3118,6 +3521,7 @@ function menuSheet() {
         btn('История результатов', () => { api.close(); historySheet(); }),
         btn('Сравнить тексты', () => { api.close(); diffSheet(); }),
         btn('Найти команду' + (touch ? '' : ' (Ctrl+K)'), () => { api.close(); palette(); }),
+        ...(miniOk() && (pip || !narrow.matches) ? [btn(pip ? 'Вернуть из мини-окна (Ctrl+M)' : 'Мини-окно поверх всех окон (Ctrl+M)', () => { api.close(); openMini(); })] : []),
         btn('Экспорт и импорт…', () => { api.close(); exportSheet(); }),
         btn('Справка', () => { api.close(); helpSheet(); }),
         btn('Проверить обновление', () => { api.close(); checkUpdate(); }),
@@ -3344,7 +3748,7 @@ function allCommands() {
   const list = [];
   TABS.forEach(g => {
     if (g === 'freq' || g === 'sym' || g === 'presets' || g === 'dec') return;
-    const el = document.querySelector('.tgroup[data-g="' + g + '"]'); if (!el) return;
+    const el = DOC.querySelector('.tgroup[data-g="' + g + '"]'); if (!el) return;
     el.querySelectorAll('.tb[data-t], [data-id]').forEach(b => {
       if (b.closest('#fnPh')) return;
       const id = b.dataset.id || cmdId(b), t = b.dataset.t, txt = b.textContent.trim();
@@ -3425,7 +3829,8 @@ const ACTIONS = () => [
   ['Очистить текст и шаги', '', clearAll, 'удалить'],
   ['Сравнить тексты', '', diffSheet, 'разница отличия'], ['История результатов', '', historySheet, 'скопированные'],
   ['Оформление и настройки', '', settingsSheet, 'тема группы'], ['Экспорт и импорт настроек', '', exportSheet, 'файл перенос сохранить загрузить'],
-  ['Справка', '', helpSheet, 'как пользоваться помощь описание функций']
+  ['Справка', '', helpSheet, 'как пользоваться помощь описание функций'],
+  ...(miniOk() ? [['Мини-окно поверх всех окон', 'Ctrl+M', () => openMini(), 'поверх окон маленькое окно картинка в картинке pip']] : [])
 ].map(([label, key, fn, kw]) => ({ id: 'act:' + label, label, key, kw, group: 'Действие', run: fn }));
 const normQ = s => String(s).toLowerCase().replace(/ё/g, 'е');
 function palette() {
@@ -3484,7 +3889,7 @@ if (!touch) palBtn.addEventListener('mousedown', e => e.preventDefault());     /
 palBtn.addEventListener('click', palette);
 
 /* ---------- горячие клавиши (компьютер) ---------- */
-document.addEventListener('keydown', e => {
+docOn('keydown', e => {
   const mod = e.ctrlKey || e.metaKey;
   if (mod && !e.altKey && !e.shiftKey && e.code === 'KeyK') { e.preventDefault(); if (!stack.length) palette(); return; }
   if (stack.length || e.isComposing) return;
@@ -3517,7 +3922,7 @@ function exportSheet() {
           if (Object.keys(d).length <= 4) { toast('Отметьте, что сохранить', true); return; }
           const a = h('a', { href: URL.createObjectURL(new Blob([JSON.stringify(d, null, 1)], { type: 'application/json' })), download: 'text-tools-' + todayISO() + '.json' });
           a.setAttribute('download', 'text-tools-' + todayISO() + '.json');
-          document.body.append(a); a.click();
+          DOC.body.append(a); a.click();
           setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
           api.close(); toast('Файл сохранён: text-tools-' + todayISO() + '.json');
         }, 'primary'),
@@ -3535,7 +3940,7 @@ function importFile() {
     if (!d || d.app !== 'text-tools') { toast('Это не файл настроек «Текстовых инструментов»', true); return; }
     importSheet(d);
   });
-  document.body.append(inp); inp.click();
+  DOC.body.append(inp); inp.click();
 }
 const mergeById = (a, b) => { const o = a.slice(); b.forEach(x => { if (!x || typeof x.name !== 'string') return; const i = o.findIndex(y => y.id === x.id); if (i >= 0) o[i] = x; else o.push(x); }); return o; };
 function importSheet(d) {
@@ -3585,14 +3990,14 @@ const outDiff = $('#outDiff'), hlBtn = $('#hlBtn');
 function renderHl() {
   if (!state.ui.hl) return;
   const st = outDiff.scrollTop;
-  if (!state.steps.some(s => !s.off)) { outDiff.replaceChildren(document.createTextNode(lastOut)); return; }
+  if (!state.steps.some(s => !s.off)) { outDiff.replaceChildren(DOC.createTextNode(lastOut)); return; }
   const ops = lastOut.length + state.text.length > 400000 ? null : diffTexts(state.text, lastOut, 'words');
   if (!ops) {
-    outDiff.replaceChildren(h('div', { class: 'hlnote', text: 'Текст слишком большой для подсветки — показан результат без неё.' }), document.createTextNode(lastOut));
+    outDiff.replaceChildren(h('div', { class: 'hlnote', text: 'Текст слишком большой для подсветки — показан результат без неё.' }), DOC.createTextNode(lastOut));
     return;
   }
-  const f = document.createDocumentFragment();
-  ops.forEach(([k, x]) => f.append(k === 0 ? document.createTextNode(x) : h(k < 0 ? 'del' : 'ins', { text: x })));
+  const f = DOC.createDocumentFragment();
+  ops.forEach(([k, x]) => f.append(k === 0 ? DOC.createTextNode(x) : h(k < 0 ? 'del' : 'ins', { text: x })));
   outDiff.replaceChildren(f);
   outDiff.scrollTop = st;
 }
@@ -3609,7 +4014,7 @@ hlBtn.addEventListener('click', () => { state.ui.hl = !state.ui.hl; save(); appl
 applyHl();
 
 /* ---------- Имена файлов: слова через знак ---------- */
-document.querySelectorAll('#wsepRow .tb[data-sep]').forEach(b => bindCmd(b, sel => doOp('lines', { k: 'wsep', sep: b.dataset.sep }, sel)));
+DOC.querySelectorAll('#wsepRow .tb[data-sep]').forEach(b => bindCmd(b, sel => doOp('lines', { k: 'wsep', sep: b.dataset.sep }, sel)));
 bindCmd($('#wsepOwn'), async sel => {
   const v = await formDialog('Соединить слова', [{ key: 'sep', label: 'Знак между словами', value: state.ui.wsep }], 'Соединить',
     { msg: 'В каждой строке пробелы между словами заменятся этим знаком: «Табель Відділ КБ ТІСО 05 2026 Травень» → «Табель_Відділ_КБ_ТІСО_05_2026_Травень». «, » и « - » между словами считаются одним разделителем.' });
@@ -3649,7 +4054,7 @@ async function colDialog(k, sel) {
 }
 bindCmd($('#colPick'), sel => colDialog('pick', sel));
 bindCmd($('#colDrop'), sel => colDialog('drop', sel));
-document.querySelectorAll('#tools [data-conv]').forEach(b => bindCmd(b, sel => doOp('cols', { k: 'conv', out: b.dataset.conv, sep: 'auto' }, sel)));
+DOC.querySelectorAll('#tools [data-conv]').forEach(b => bindCmd(b, sel => doOp('cols', { k: 'conv', out: b.dataset.conv, sep: 'auto' }, sel)));
 bindCmd($('#colSum'), sel => doOp('cols', { k: 'sumrow', sep: 'auto' }, sel));
 $('#colStats').addEventListener('click', () => {
   const t = currentOutput();
@@ -3672,7 +4077,7 @@ $('#colStats').addEventListener('click', () => {
 const exUniq = $('#exUniq');
 exUniq.checked = state.ui.exUniq !== false;
 exUniq.addEventListener('change', () => { state.ui.exUniq = exUniq.checked; save(); });
-document.querySelectorAll('#tools [data-ex]').forEach(b => bindCmd(b, sel => doOp('extract', { k: b.dataset.ex, uniq: exUniq.checked }, sel)));
+DOC.querySelectorAll('#tools [data-ex]').forEach(b => bindCmd(b, sel => doOp('extract', { k: b.dataset.ex, uniq: exUniq.checked }, sel)));
 
 /* ---------- телефон: «Править», «✕» — в шапку рядом с названием, счётчик — в угол поля ---------- */
 const hdrBtns = $('.hdr-btns'), inHead = $('.pane.in > .phead'), clearBtn2 = $('#clearBtn2'), cntInEl = $('#cntIn');
@@ -3697,19 +4102,20 @@ const tabMenuBtn = $('#tabMenuBtn');
 function tabMenu() {
   const old = $('#tabPop'); if (old) { old.remove(); return; }
   const r = tabMenuBtn.getBoundingClientRect();
-  const items = [...document.querySelectorAll('.ttabs .ttab')].filter(t => !t.hidden);
+  const items = [...DOC.querySelectorAll('.ttabs .ttab')].filter(t => !t.hidden);
   let pop = null;
   const outside = e => { if (pop && !pop.contains(e.target) && !tabMenuBtn.contains(e.target)) close(); };
   const key = e => { if (e.key === 'Escape') close(); };
-  const close = () => { if (pop) pop.remove(); pop = null; document.removeEventListener('pointerdown', outside, true); document.removeEventListener('keydown', key, true); tabMenuBtn.setAttribute('aria-expanded', 'false'); };
+  const close = () => { if (pop) pop.remove(); pop = null; DOC.removeEventListener('pointerdown', outside, true); DOC.removeEventListener('keydown', key, true); tabMenuBtn.setAttribute('aria-expanded', 'false'); };
   pop = h('div', { class: 'tabpop', id: 'tabPop', role: 'menu' }, ...items.map(t => h('button', { type: 'button', role: 'menuitem', class: 'tabpi' + (t.dataset.g === state.tab ? ' on' : ''),
     onclick() { close(); showTab(t.dataset.g); } }, t.textContent)));
+  const innerWidth = WIN.innerWidth, innerHeight = WIN.innerHeight;
   pop.style.left = Math.max(8, Math.min(r.left, innerWidth - 228)) + 'px';
   if (r.top > 220) { pop.style.bottom = (innerHeight - r.top + 6) + 'px'; pop.style.maxHeight = (r.top - 16) + 'px'; }
   else { pop.style.top = (r.bottom + 6) + 'px'; pop.style.maxHeight = (innerHeight - r.bottom - 16) + 'px'; }
-  document.body.append(pop);
+  DOC.body.append(pop);
   tabMenuBtn.setAttribute('aria-expanded', 'true');
-  setTimeout(() => { document.addEventListener('pointerdown', outside, true); document.addEventListener('keydown', key, true); }, 0);
+  const d0 = DOC; setTimeout(() => { if (DOC !== d0) return; DOC.addEventListener('pointerdown', outside, true); DOC.addEventListener('keydown', key, true); }, 0);
   const on = pop.querySelector('.on'); if (on) on.scrollIntoView({ block: 'nearest' });
 }
 tabMenuBtn.addEventListener('click', tabMenu);
@@ -3738,7 +4144,7 @@ var dateMin = '';
 function renderDateIns() {
   const d = insDate(), hc = new Set(state.ui.hiddenCmd);
   dateMin = new Date().toDateString() + new Date().getMinutes();
-  document.querySelectorAll('#dateWhich .seg').forEach(b => b.classList.toggle('on', b.dataset.v === state.ui.dateWhich));
+  DOC.querySelectorAll('#dateWhich .seg').forEach(b => b.classList.toggle('on', b.dataset.v === state.ui.dateWhich));
   const pk = $('#dateWhich .seg[data-v="custom"]');
   pk.textContent = state.ui.dateWhich === 'custom' && state.ui.dateCustom ? '📅 ' + dateByTpl('{ДД}.{ММ}.{ГГГГ}', d) : '📅 Дата…';
   const prevMon = () => { const x = insDate(); return new Date(x.getFullYear(), x.getMonth() - 1, 1); };
@@ -3759,7 +4165,7 @@ function renderDateIns() {
     mk('dins:wd', '{день}', insDate, 'День недели'), mk('dins:wd-ua', '{день-ua}', insDate, 'День тижня'));
   if (!touch) relayout();
 }
-document.querySelectorAll('#dateWhich .seg').forEach(b => keepFocus(b).addEventListener('click', () => {
+DOC.querySelectorAll('#dateWhich .seg').forEach(b => keepFocus(b).addEventListener('click', () => {
   if (b.dataset.v === 'custom') { calSheet(); return; }
   state.ui.dateWhich = b.dataset.v; save(); renderDateIns();
 }));
@@ -3834,7 +4240,7 @@ const decIn = $('#decIn'), decN = $('#decN'), decSk = $('#decSk'), decUsed = new
 decIn.value = state.ui.dec.v; decN.value = state.ui.dec.n; decSk.checked = state.ui.dec.sk; $('#decExtra').checked = state.ui.dec.extra;
 function renderDec() {
   const o = state.ui.dec, d = decParse(o.v), out = $('#decOut');
-  document.querySelectorAll('#decOpts .seg').forEach(b => b.classList.toggle('on', +b.dataset.step === o.step));
+  DOC.querySelectorAll('#decOpts .seg').forEach(b => b.classList.toggle('on', +b.dataset.step === o.step));
   if (!d) { out.replaceChildren(h('p', { class: 'msg', text: 'Впишите обозначение изделия или узла — например АЮИА.358-07.00.00.00.00 или просто АЮИА.358-07.' })); return; }
   const t = decTree(d);
   const chip = (q, hi, asm) => {
@@ -3862,7 +4268,7 @@ function renderDec() {
       const ok = await copyText(x); toast(ok ? '✓ Скопировано: ' + x : 'Не удалось скопировать', !ok); if (ok) { decUsed.add(x); e.currentTarget.classList.add('used'); } } }, x);
     const edit = h('button', { class: 'seg', type: 'button', title: 'Изменить шаблоны папок и ведомостей', onclick: decTplSheet }, '✎');
     if (t.k < 0) rows.push(row('Папки', ...o.fold.map(f => txtChip(fill(f))),
-      window.showDirectoryPicker ? h('button', { class: 'seg', type: 'button', title: 'Выбрать папку изделия на диске и создать в ней папки', onclick: () => decMakeDirs(o.fold.map(fill), d.base, cur) }, 'Создать папки…') : '', edit));
+      (WIN.showDirectoryPicker || window.showDirectoryPicker) ? h('button', { class: 'seg', type: 'button', title: 'Выбрать папку изделия на диске и создать в ней папки', onclick: () => decMakeDirs(o.fold.map(fill), d.base, cur) }, 'Создать папки…') : '', edit));
     rows.push(row('Ведомости', ...o.docs.map(f => txtChip(fill(f))), t.k < 0 ? '' : edit));
   }
   if (!t.part) { const l = decList(cur, t.L, o.n, 1); rows.push(row('Детали', ...l.map(q => chip(q, t.L, false)), all(l, false))); }
@@ -3921,7 +4327,7 @@ function decMakeDirs(names, base, cur) {
           const want = wanted();
           if (!want.length) { say('Ничего не отмечено.', true); return; }
           let dir; say('Открываю выбор папки… Выберите папку изделия и нажмите «Выбрать папку», затем «Разрешить изменения».');
-          try { dir = await window.showDirectoryPicker({ id: 'dec', mode: 'readwrite' }); }
+          try { dir = await (WIN.showDirectoryPicker ? WIN : window).showDirectoryPicker({ id: 'dec', mode: 'readwrite' }); }
           catch (e) { if (e.name === 'AbortError') say('Выбор папки отменён (или Chrome не дал выбрать эту папку) — ничего не создано. Если Chrome не даёт создать папки, нажмите «Скопировать команду для PowerShell».', true); else say('Chrome не открыл папку: ' + e.message + '. Корень диска (Z:\\) и системные папки выбирать нельзя — выберите саму папку изделия.', true); return; }
           try {
             if ((await dir.queryPermission({ mode: 'readwrite' })) !== 'granted' && (await dir.requestPermission({ mode: 'readwrite' })) !== 'granted') {
@@ -3945,15 +4351,15 @@ function setDec(v) { state.ui.dec.v = v; decIn.value = v; save(); renderDec(); }
 decIn.addEventListener('input', () => { state.ui.dec.v = decIn.value; save(); renderDec(); });
 decN.addEventListener('input', () => { const n = parseInt(decN.value, 10); if (n >= 1 && n <= 99) { state.ui.dec.n = n; save(); renderDec(); } });
 decSk.addEventListener('change', () => { state.ui.dec.sk = decSk.checked; save(); renderDec(); });
-document.querySelectorAll('#decOpts .seg').forEach(b => b.addEventListener('click', () => { state.ui.dec.step = +b.dataset.step; save(); renderDec(); }));
+DOC.querySelectorAll('#decOpts .seg').forEach(b => b.addEventListener('click', () => { state.ui.dec.step = +b.dataset.step; save(); renderDec(); }));
 renderDec();
 if (state.tab === 'dec') decFromText(false);
 
 const topBtn = $('#topBtn');
-topBtn.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+topBtn.addEventListener('click', () => WIN.scrollTo({ top: 0, behavior: 'smooth' }));
 // «Наверх» видна, только когда страница прокручена вниз
-const updTop = () => topBtn.classList.toggle('away', scrollY < 300);
-addEventListener('scroll', updTop, { passive: true });
+const updTop = () => topBtn.classList.toggle('away', WIN.scrollY < 300);
+winOn('scroll', updTop, { passive: true });
 updTop();
 
 /* ---------- подсветка подозрительных символов в окне «Текст»: латиница в русских словах и наоборот, 0 вместо О ---------- */
@@ -3964,7 +4370,7 @@ marksBox.append(marksIn);
 src.after(marksBox);
 var marksT = 0, marksN = 0;
 function placeMarks() {
-  const cs = getComputedStyle(src);
+  const cs = WIN.getComputedStyle(src);
   Object.assign(marksBox.style, { left: src.offsetLeft + parseFloat(cs.borderLeftWidth) + 'px', top: src.offsetTop + parseFloat(cs.borderTopWidth) + 'px',
     width: src.clientWidth + 'px', height: src.clientHeight + 'px', borderRadius: cs.borderRadius });
   Object.assign(marksIn.style, { font: cs.font, letterSpacing: cs.letterSpacing, lineHeight: cs.lineHeight, padding: cs.padding, tabSize: cs.tabSize,
@@ -3975,7 +4381,7 @@ function renderMarks() {
   marksN = rs.length;
   marksBox.hidden = !rs.length;
   if (!rs.length) { marksIn.replaceChildren(); return; }
-  const f = document.createDocumentFragment();
+  const f = DOC.createDocumentFragment();
   let last = 0;
   rs.forEach(([a, b, kind]) => { f.append(t.slice(last, a), h('mark', { class: kind, text: t.slice(a, b) })); last = b; });
   f.append(t.slice(last) + '\n');
@@ -3986,7 +4392,7 @@ function scheduleMarks() { clearTimeout(marksT); marksT = setTimeout(renderMarks
 src.addEventListener('input', scheduleMarks);
 src.addEventListener('scroll', () => { if (!marksBox.hidden) marksIn.style.transform = 'translate(' + (-src.scrollLeft) + 'px,' + (-src.scrollTop) + 'px)'; });
 if ('ResizeObserver' in window) new ResizeObserver(() => { if (!marksBox.hidden) placeMarks(); }).observe(src);
-addEventListener('resize', () => { if (!marksBox.hidden) placeMarks(); });
+winOn('resize', () => { if (!marksBox.hidden) placeMarks(); });
 renderMarks();
 
 /* ---------- Строки: фильтр ---------- */
@@ -4037,7 +4443,7 @@ function cmpSheet() {
         ...(c.byCol ? [sec('Совпадает столбец ' + c.col + ', отличается остальное', diff, 'cd')] : []),
         sec(c.byCol ? 'Совпадают полностью' : 'Есть в обоих', same, 'cs'));
     };
-    const pasteInto = el => async () => { try { el.value = await navigator.clipboard.readText(); run(); } catch (e) { toast('Нет доступа к буферу: вставьте долгим нажатием', true); } };
+    const pasteInto = el => async () => { try { el.value = await WIN.navigator.clipboard.readText(); run(); } catch (e) { toast('Нет доступа к буферу: вставьте долгим нажатием', true); } };
     [a, b, col].forEach(el => el.addEventListener('input', run));
     ci.addEventListener('change', () => { run(); save(); });
     box.append(h('h2', { text: 'Сравнить списки' }),
@@ -4055,7 +4461,7 @@ $('#cmpBtn').addEventListener('click', cmpSheet);
 /* ---------- Обезличить: скрыть данные перед отправкой в ИИ, вернуть после ---------- */
 ANON_MAP = Object.assign({}, state.anonMap || {});
 const anonOptEls = {};
-document.querySelectorAll('#anonOpts input[data-k]').forEach(el => {
+DOC.querySelectorAll('#anonOpts input[data-k]').forEach(el => {
   anonOptEls[el.dataset.k] = el; el.checked = state.ui.anonOpt[el.dataset.k] !== false;
   el.addEventListener('change', () => { state.ui.anonOpt[el.dataset.k] = el.checked; save(); });
 });
@@ -4102,6 +4508,136 @@ applyDeskTabs();
 src.value = state.text;
 commit();
 after();
+
+/* ---------- мини-окно поверх всех окон (Chrome на ПК, Document Picture-in-Picture) ---------- */
+// Мини-окно можно открыть только из основного окна вкладки. Если приложение открыто внутри лаунчера «Мои приложения»
+// (вкладка-врезка), мини-окно запрашивается у окна лаунчера — оно на том же сайте. Иначе Chrome отказывает:
+// «only allowed from a top-level browsing context».
+function pipHost() {
+  try { if (window.top !== window && window.top.documentPictureInPicture) return window.top; } catch (e) { /* лаунчер с другого сайта */ }
+  return 'documentPictureInPicture' in window ? window : null;
+}
+const miniOk = () => !!pipHost();
+// Режимы: размер выставляется точно по нажатию (мышью Chrome всё равно даёт тянуть границы — кнопка режима вернёт точный размер)
+const MINI = { full: { w: 460, h: 760, n: 'обычное' }, compact: { w: 420, h: 380, n: 'компактное' }, button: { w: 380, h: 176, n: 'одна кнопка' } };
+const MINI_ORDER = ['full', 'compact', 'button'];
+function relayoutMini() {
+  NARROW_CB.forEach(f => { try { f(); } catch (e) { /* не мешает остальным */ } });
+  applyTheme(); updTop();
+  if (!marksBox.hidden) placeMarks();
+}
+function setMiniMode(m, resize) {
+  if (!MINI[m]) m = 'full';
+  if (state.ui.mini !== m) { state.ui.mini = m; save(); }
+  if (!pip) return;
+  MINI_ORDER.forEach(k => pip.document.body.classList.toggle('m-' + k, k === m));
+  $('#sizeBtn').title = 'Размер мини-окна: ' + MINI[m].n + ' (Ctrl+↑ / Ctrl+↓)';
+  if (resize) {
+    // resizeTo работает только по действию пользователя (нажатие кнопки или клавиш)
+    try { pip.resizeTo(MINI[m].w + (pip.outerWidth - pip.innerWidth), MINI[m].h + (pip.outerHeight - pip.innerHeight)); } catch (e) { /* размер останется прежним */ }
+  }
+  relayoutMini();
+}
+function stepMini(dir) {   // +1 — следующий режим (меньше), -1 — предыдущий (больше)
+  const i = MINI_ORDER.indexOf(state.ui.mini);
+  setMiniMode(MINI_ORDER[(i + dir + MINI_ORDER.length) % MINI_ORDER.length], true);
+}
+function miniFail(e) {
+  openModal((box, api) => box.append(h('h2', { text: 'Мини-окно не открылось' }),
+    e ? h('p', {}, 'Браузер ответил: ', h('b', { text: (e && e.name) || 'ошибка' }), ' ', (e && e.message) || '')
+      : h('p', { text: 'Этот браузер не умеет открывать мини-окно поверх всех окон.' }),
+    h('p', { text: 'Возможные причины:' }),
+    h('ul', { class: 'msg' },
+      h('li', { text: 'функция отключена настройками или политикой компьютера (часто на рабочих ПК);' }),
+      h('li', { text: 'старая версия Chrome — нужна 116 или новее (версия видна на странице chrome://version);' }),
+      h('li', { text: 'приложение открыто не в Chrome или на телефоне — мини-окно есть только в Chrome на компьютере;' }),
+      h('li', { text: 'приложение вставлено в страницу с другого сайта — тогда открыть мини-окно нельзя («only allowed from a top-level browsing context»).' })),
+    h('p', { class: 'msg', text: 'Пришлите этот текст — разберёмся.' }),
+    h('div', { class: 'btns', style: 'margin-top:12px' }, btn('Закрыть', () => api.close(), 'primary'))));
+}
+async function openMini() {
+  if (pip) { pip.close(); return; }                       // уже открыто — вернуть интерфейс сюда
+  const host = pipHost();
+  if (!host) { miniFail(null); return; }
+  const mm0 = MINI[state.ui.mini] || MINI.full;
+  let w;
+  try { w = await host.documentPictureInPicture.requestWindow({ width: mm0.w, height: mm0.h }); }
+  catch (e) { miniFail(e); return; }
+  flushTyping(); saveNow();
+  pip = w;
+  const d = w.document;
+  d.documentElement.lang = 'ru'; d.title = 'Текстовые инструменты';
+  document.querySelectorAll('style').forEach(st => d.head.append(st.cloneNode(true)));
+  [...document.documentElement.attributes].forEach(a => d.documentElement.setAttribute(a.name, a.value));
+  d.documentElement.style.setProperty('--appw', 'none');
+  d.body.className = document.body.className + ' inmini';
+  [...document.body.children].filter(e => e.tagName !== 'SCRIPT').forEach(e => d.body.append(e));
+  const note = h('div', { id: 'miniNote' },
+    h('header', { class: 'top' }, h('div', { class: 'bar' }, h('h1', { text: 'Текстовые инструменты' }))),
+    h('p', { text: 'Открыто в мини-окне поверх всех окон' }),
+    h('button', { class: 'btn primary', type: 'button', onclick() { if (pip) pip.close(); } }, 'Вернуть сюда'));
+  document.body.prepend(note);
+  DOC = d; WIN = w;
+  DOC_ON.forEach(([t, f, o]) => d.addEventListener(t, f, o));
+  WIN_ON.forEach(([t, f, o]) => w.addEventListener(t, f, o));
+  w.addEventListener('pagehide', () => {      // мини-окно закрыто — всё возвращается в основное окно, данные на месте
+    const first = document.querySelector('body > script');
+    [...d.body.children].forEach(e => document.body.insertBefore(e, first));
+    note.remove();
+    document.body.classList.toggle('modal-lock', d.body.classList.contains('modal-lock'));
+    DOC = document; WIN = window; pip = null;
+    relayoutMini();
+  });
+  setMiniMode(state.ui.mini, false);
+  const go = $('#quickGo'); if (go) go.focus();
+}
+window.addEventListener('pagehide', () => { if (pip) pip.close(); });   // приложение закрывают — мини-окно тоже
+$('#miniBtn').addEventListener('click', openMini);
+$('#sizeBtn').addEventListener('click', () => stepMini(1));
+$('#miniBtn').hidden = !miniOk();
+docOn('keydown', e => {
+  const mod = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+  if (mod && (e.code === 'KeyM' || ['m', 'ь'].includes((e.key || '').toLowerCase())) && miniOk()) { e.preventDefault(); if (!stack.length || pip) openMini(); return; }
+  if (pip && mod && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && !stack.length) { e.preventDefault(); stepMini(e.key === 'ArrowDown' ? 1 : -1); }
+});
+
+/* ---------- одна кнопка: вставить из буфера → обработать → скопировать (видна в мини-окне) ---------- */
+function quickList() {
+  return [
+    ['layout:auto', 'Исправить раскладку'], ['clean:all', 'Очистить текст (всё сразу)'], ['fix:pdf', 'Починить текст из PDF'],
+    ['fix:md', 'Ответ ИИ → текст'], ['case:sentence', 'Регистр: как в предложении'], ['case:lower', 'Регистр: нижний'],
+    ['translit:ua-lat', 'Транслит: украинский → латиница'], ['translit:ru-lat', 'Транслит: русский → латиница'],
+    ['steps', 'Текущие шаги'], ...state.presets.map(pr => ['preset:' + pr.id, 'Пресет «' + pr.name + '»'])];
+}
+var quickKeys = '';   // var: renderQuick вызывается и раньше, из renderPresets
+function renderQuick() {
+  const L = quickList(), keys = JSON.stringify(L), quickAct = $('#quickAct');
+  if (!L.some(x => x[0] === state.ui.quick)) state.ui.quick = L[0][0];
+  if (keys !== quickKeys) { quickKeys = keys; quickAct.replaceChildren(...L.map(([v, n]) => h('option', { value: v, text: n }))); }
+  quickAct.value = state.ui.quick;
+  $('#quickName').textContent = L.find(x => x[0] === state.ui.quick)[1].replace(/ \(всё сразу\)$/, '');
+}
+function quickSay(msg, bad) { const m = $('#quickMsg'); m.textContent = msg; m.classList.toggle('bad', !!bad); }
+$('#quickAct').addEventListener('change', e => { state.ui.quick = e.target.value; save(); renderQuick(); quickSay(''); });
+async function quickRun() {
+  let t = null;
+  try { t = await WIN.navigator.clipboard.readText(); } catch (e) { t = null; }
+  if (t == null) { quickSay('Нет доступа к буферу обмена: разрешите его (значок слева в адресной строке Chrome) или вставьте текст Ctrl+V в поле «Текст».', true); return; }
+  t = t.replace(/\r\n?/g, '\n');
+  if (!t.trim()) { quickSay('Буфер обмена пуст', true); return; }
+  const id = state.ui.quick;
+  flushTyping();
+  src.value = t; state.text = t; caretKnown = false;
+  if (id === 'steps') state.steps = state.steps.filter(x => !Array.isArray(x.r));          // шаги «кусок» относились к старому тексту
+  else if (id.startsWith('preset:')) { const pr = state.presets.find(x => 'preset:' + x.id === id); state.steps = pr ? JSON.parse(JSON.stringify(pr.steps)) : []; }
+  else { const i = id.indexOf(':'); state.steps = [{ type: id.slice(0, i), p: id.slice(i + 1) }]; }
+  commit(); after();
+  const res = currentOutput(), ok = await copyText(res);
+  if (ok) { addHistory(res); save(); }
+  quickSay(!ok ? 'Не удалось скопировать результат' : res === t ? 'Ничего не изменилось — текст скопирован как был' : '✓ Готово и скопировано: ' + res.length + ' симв.', !ok);
+}
+$('#quickGo').addEventListener('click', quickRun);
+renderQuick();
 
 /* ---------- офлайн-кэш и обновление (при открытии с https) ---------- */
 let swReg = null, updWorker = null;
