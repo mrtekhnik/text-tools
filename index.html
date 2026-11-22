@@ -327,19 +327,19 @@ button{font:inherit;color:inherit;cursor:pointer}
 @media (max-width:370px){.iconbtn{width:33px;height:36px;font-size:16px}.bar h1{font-size:15.5px}.hdr-btns{gap:3px}}
 
 /* --- мини-окно поверх всех окон (Chrome на ПК): весь интерфейс переносится туда; режимы — обычное, компактное, одна кнопка --- */
-#sizeBtn,.quick{display:none}
+#sizeBtn,#foldBtn,.quick{display:none}
 @media (max-width:899px){body:not(.inmini) #miniBtn{display:none}}
-body.inmini #sizeBtn{display:inline-block}
+body.inmini #sizeBtn,body.inmini #foldBtn{display:inline-block}
 body.inmini #topBtn,body.inmini .hsep,body.inmini #palBtn{display:none}
-body.inmini .quick{display:flex;flex-direction:column;gap:6px;grid-area:quick;min-width:0}
+body.inmini.m-compact .quick,body.inmini.m-button .quick{display:flex;flex-direction:column;gap:6px;grid-area:quick;min-width:0}
 .quickgo{min-height:54px;line-height:1.2;padding:5px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .quickgo b{font-size:16px}
 .quickgo small{font-size:12.5px;font-weight:600;opacity:.85}
-.quickrow{display:flex;gap:6px}
+.quickrow{display:flex;gap:8px;align-items:center}
+.quickrow label{font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
 #quickAct{flex:1;min-width:0;padding:8px 10px}
 .quickmsg{font-size:13px;color:var(--muted);min-height:1.25em;line-height:1.25}
 .quickmsg.bad{color:var(--danger)}
-body.inmini .app{grid-template-rows:auto minmax(0,1fr) minmax(0,1fr) auto auto;grid-template-areas:"quick" "in" "out" "steps" "tools"}
 body.inmini.m-compact .pane.in,body.inmini.m-compact .steps,body.inmini.m-compact .tools,body.inmini.m-compact #actbar,
 body.inmini.m-button .pane,body.inmini.m-button .steps,body.inmini.m-button .tools,body.inmini.m-button #actbar,
 body.inmini.m-button #undoBtn,body.inmini.m-button #redoBtn,body.inmini.m-button #clearBtn2,body.inmini.m-button #editBtn{display:none!important}
@@ -347,6 +347,14 @@ body.inmini.m-compact .app{grid-template-rows:auto minmax(0,1fr);grid-template-a
 body.inmini.m-button .app{grid-template-rows:auto;grid-template-areas:"quick";align-content:start}
 body.inmini.m-button .quick{gap:4px}
 body.inmini.m-button .quickgo{min-height:50px}
+/* свёрнуто: только полоска с названием и кнопкой «развернуть» */
+body.inmini.m-fold .app,body.inmini.m-fold #actbar,body.inmini.m-fold #toast,body.inmini.m-fold .hdr-btns>:not(#foldBtn){display:none!important}
+body.inmini.m-fold .bar h1{font-size:15px;-webkit-line-clamp:1}
+/* в мини-окне вкладки — снизу, над кнопками «Вставить / Копировать»: при смене раздела они остаются на месте, и колесом мыши можно листать разделы подряд */
+body.inmini .tools{flex-direction:column-reverse}
+body.inmini .ttabs{border-top:0;border-bottom:1px solid var(--line);border-radius:0 0 14px 14px;padding:0 4px 4px}
+body.inmini .ttab,body.inmini .ttabmenu{border-radius:0 0 10px 10px}
+body.inmini .tgroup{border-radius:14px 14px 0 0}
 body.inmini.m-button .quickmsg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.inmini.m-button #toast{display:none}   /* в маленьком окне надпись закрыла бы кнопку — итог пишется под кнопкой */
 #miniNote{max-width:560px;margin:0 auto;padding:0 16px 40px;text-align:center}
@@ -404,6 +412,7 @@ body.modal-lock{overflow:hidden}
       <div class="hdr-btns">
         <button class="iconbtn deskonly" id="topBtn" type="button" aria-label="Наверх" title="Наверх"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14M12 20V9M7 13l5-5 5 5"/></svg></button>
         <span class="hsep deskonly" aria-hidden="true"></span>
+        <button class="iconbtn" id="foldBtn" type="button" aria-label="Свернуть мини-окно" title="Свернуть до полоски с названием (Ctrl+↓ в самом маленьком размере)">–</button>
         <button class="iconbtn" id="sizeBtn" type="button" aria-label="Размер мини-окна" title="Размер мини-окна (Ctrl+↑ / Ctrl+↓)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
         <button class="iconbtn" id="miniBtn" type="button" aria-label="Мини-окно поверх всех окон" title="Мини-окно поверх всех окон (Ctrl+M)" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="11" width="7" height="7" rx="1"/></svg></button>
         <button class="iconbtn" id="palBtn" type="button" aria-label="Найти команду" title="Найти команду (Ctrl+K)">🔍</button>
@@ -418,7 +427,7 @@ body.modal-lock{overflow:hidden}
 <main class="wrap app">
   <section class="quick" id="quick">
     <button class="btn primary quickgo" id="quickGo" type="button" title="Взять текст из буфера, обработать и скопировать результат обратно"><b id="quickName">Исправить раскладку</b><small>вставить из буфера → сделать → скопировать</small></button>
-    <div class="quickrow"><select class="field" id="quickAct" aria-label="Что делать с текстом из буфера"></select></div>
+    <div class="quickrow"><label for="quickAct">Кнопка делает:</label><select class="field" id="quickAct"></select></div>
     <div class="quickmsg" id="quickMsg" role="status"></div>
   </section>
   <section class="pane in">
@@ -800,7 +809,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-22.1';
+const APP_VERSION = '2026-11-22.2';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 // DOC/WIN — документ и окно, где сейчас показан интерфейс: основное окно или мини-окно поверх всех окон.
 // После переноса в мини-окно элементы живут в его документе, поэтому интерфейс обращается к DOC/WIN, а не к document/window.
@@ -3173,6 +3182,20 @@ DOC.querySelectorAll('#tools .tbtns, #tools .srow').forEach(el => el.addEventLis
   const before = el.scrollLeft; el.scrollLeft += e.deltaY;
   if (el.scrollLeft !== before) e.preventDefault();
 }, { passive: false }));
+// колесо мыши над вкладками — следующий / предыдущий раздел команд (когда вкладки в одну строку: мини-окно, узкое окно)
+let wheelAcc = 0, wheelT = 0;
+$('#tools .ttabs').addEventListener('wheel', e => {
+  if ($('#tools').classList.contains('tabbed')) return;
+  e.preventDefault();
+  const d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+  if (Date.now() - wheelT > 400) wheelAcc = 0;
+  wheelT = Date.now(); wheelAcc += e.deltaMode ? d * 40 : d;
+  if (Math.abs(wheelAcc) < 50) return;               // одна «щёлка» колеса — один раздел
+  const dir = Math.sign(wheelAcc); wheelAcc = 0;
+  const tabs = [...DOC.querySelectorAll('.ttab')].filter(t => !t.hidden), i = tabs.findIndex(t => t.dataset.g === state.tab);
+  const nx = tabs[Math.max(0, Math.min(tabs.length - 1, i + dir))];
+  if (nx && nx.dataset.g !== state.tab) { showTab(nx.dataset.g); nx.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+}, { passive: false });
 narrow.addEventListener('change', applyDeskTabs);
 function showTab(g) {
   state.tab = g;
@@ -3376,7 +3399,9 @@ fr.find.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDef
 /* ---------- тема и меню ---------- */
 function applyTheme() {
   const r = document.documentElement;
-  [r, DOC.documentElement].forEach(x => { if (state.theme === 'auto') x.removeAttribute('data-theme'); else x.setAttribute('data-theme', state.theme); });
+  if (state.theme === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', state.theme);
+  // мини-окно Chrome само считает себя тёмным — «как в системе» для него берётся из основного окна
+  if (DOC !== document) DOC.documentElement.setAttribute('data-theme', state.theme !== 'auto' ? state.theme : mm('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   const bg = getComputedStyle(r).getPropertyValue('--bg').trim();
   const m = document.querySelector('meta[name="theme-color"]'); if (m && bg) m.setAttribute('content', bg);
 }
@@ -4519,7 +4544,8 @@ function pipHost() {
 }
 const miniOk = () => !!pipHost();
 // Режимы: размер выставляется точно по нажатию (мышью Chrome всё равно даёт тянуть границы — кнопка режима вернёт точный размер)
-const MINI = { full: { w: 460, h: 760, n: 'обычное' }, compact: { w: 420, h: 380, n: 'компактное' }, button: { w: 380, h: 176, n: 'одна кнопка' } };
+const MINI = { full: { w: 460, h: 760, n: 'обычное' }, compact: { w: 420, h: 380, n: 'компактное' }, button: { w: 380, h: 176, n: 'одна кнопка' },
+  fold: { w: 300, h: 60, n: 'свёрнуто' } };   // свёрнуто — не в круге режимов, кнопка «–» / «+»
 const MINI_ORDER = ['full', 'compact', 'button'];
 function relayoutMini() {
   NARROW_CB.forEach(f => { try { f(); } catch (e) { /* не мешает остальным */ } });
@@ -4528,9 +4554,12 @@ function relayoutMini() {
 }
 function setMiniMode(m, resize) {
   if (!MINI[m]) m = 'full';
-  if (state.ui.mini !== m) { state.ui.mini = m; save(); }
+  if (m === 'fold') { if (miniFolded) return; miniFolded = true; }
+  else { miniFolded = false; if (state.ui.mini !== m) { state.ui.mini = m; save(); } }
   if (!pip) return;
-  MINI_ORDER.forEach(k => pip.document.body.classList.toggle('m-' + k, k === m));
+  [...MINI_ORDER, 'fold'].forEach(k => pip.document.body.classList.toggle('m-' + k, k === m));
+  const fb = $('#foldBtn'); fb.textContent = m === 'fold' ? '+' : '–';
+  fb.title = m === 'fold' ? 'Развернуть (Ctrl+↑)' : 'Свернуть до полоски с названием';
   $('#sizeBtn').title = 'Размер мини-окна: ' + MINI[m].n + ' (Ctrl+↑ / Ctrl+↓)';
   if (resize) {
     // resizeTo работает только по действию пользователя (нажатие кнопки или клавиш)
@@ -4538,10 +4567,14 @@ function setMiniMode(m, resize) {
   }
   relayoutMini();
 }
-function stepMini(dir) {   // +1 — следующий режим (меньше), -1 — предыдущий (больше)
+let miniFolded = false;
+function stepMini(dir) {   // +1 — меньше, -1 — больше; после самого маленького — свернуть, из свёрнутого — развернуть
+  if (miniFolded) { if (dir < 0) setMiniMode(state.ui.mini, true); return; }
   const i = MINI_ORDER.indexOf(state.ui.mini);
-  setMiniMode(MINI_ORDER[(i + dir + MINI_ORDER.length) % MINI_ORDER.length], true);
+  if (dir > 0 && i === MINI_ORDER.length - 1) { setMiniMode('fold', true); return; }
+  setMiniMode(MINI_ORDER[Math.max(0, Math.min(MINI_ORDER.length - 1, i + dir))], true);
 }
+const foldMini = () => setMiniMode(miniFolded ? state.ui.mini : 'fold', true);
 function miniFail(e) {
   openModal((box, api) => box.append(h('h2', { text: 'Мини-окно не открылось' }),
     e ? h('p', {}, 'Браузер ответил: ', h('b', { text: (e && e.name) || 'ошибка' }), ' ', (e && e.message) || '')
@@ -4585,7 +4618,7 @@ async function openMini() {
     [...d.body.children].forEach(e => document.body.insertBefore(e, first));
     note.remove();
     document.body.classList.toggle('modal-lock', d.body.classList.contains('modal-lock'));
-    DOC = document; WIN = window; pip = null;
+    DOC = document; WIN = window; pip = null; miniFolded = false;
     relayoutMini();
   });
   setMiniMode(state.ui.mini, false);
@@ -4593,7 +4626,10 @@ async function openMini() {
 }
 window.addEventListener('pagehide', () => { if (pip) pip.close(); });   // приложение закрывают — мини-окно тоже
 $('#miniBtn').addEventListener('click', openMini);
-$('#sizeBtn').addEventListener('click', () => stepMini(1));
+$('#sizeBtn').addEventListener('click', () => {   // по кругу: обычное → компактное → одна кнопка → обычное
+  const i = MINI_ORDER.indexOf(state.ui.mini); setMiniMode(MINI_ORDER[(i + 1) % MINI_ORDER.length], true);
+});
+$('#foldBtn').addEventListener('click', foldMini);
 $('#miniBtn').hidden = !miniOk();
 docOn('keydown', e => {
   const mod = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
