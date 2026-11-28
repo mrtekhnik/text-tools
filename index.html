@@ -326,12 +326,15 @@ button{font:inherit;color:inherit;cursor:pointer}
 }
 @media (max-width:370px){.iconbtn{width:33px;height:36px;font-size:16px}.bar h1{font-size:15.5px}.hdr-btns{gap:3px}}
 
-/* --- мини-окно поверх всех окон (Chrome на ПК): весь интерфейс переносится туда; режимы — обычное, компактное, одна кнопка --- */
+/* --- мини-окно поверх всех окон (Chrome на ПК): весь интерфейс переносится туда; размеры — большое, обычное, маленькое (интерфейс одинаковый) --- */
 #sizeBtn,#foldBtn,.quick{display:none}
 @media (max-width:899px){body:not(.inmini) #miniBtn{display:none}}
 body.inmini #sizeBtn,body.inmini #foldBtn{display:inline-block}
 body.inmini #topBtn,body.inmini .hsep,body.inmini #palBtn{display:none}
-body.inmini.m-compact .quick,body.inmini.m-button .quick{display:flex;flex-direction:column;gap:6px;grid-area:quick;min-width:0}
+/* узкое мини-окно: кнопки шапки уже, чтобы название приложения помещалось целиком */
+@media (max-width:460px){body.inmini .iconbtn{width:30px;height:36px;font-size:15px}body.inmini .hdr-btns{gap:2px}body.inmini .bar h1{font-size:15.5px}body.inmini .bar{gap:6px}}
+body.inmini.qon .quick{display:flex;flex-direction:column;gap:6px;grid-area:quick;min-width:0}
+body.inmini.qon .app{grid-template-rows:auto minmax(0,1fr) minmax(0,1fr) auto auto;grid-template-areas:"quick" "in" "out" "steps" "tools"}
 .quickgo{min-height:54px;line-height:1.2;padding:5px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 .quickgo b{font-size:16px}
 .quickgo small{font-size:12.5px;font-weight:600;opacity:.85}
@@ -344,23 +347,16 @@ body.inmini.m-compact .quick,body.inmini.m-button .quick{display:flex;flex-direc
 .qfound{max-height:240px;overflow:auto;margin-top:6px}
 .quickmsg{font-size:13px;color:var(--muted);min-height:1.25em;line-height:1.25}
 .quickmsg.bad{color:var(--danger)}
-body.inmini.m-compact .pane.in,body.inmini.m-compact .steps,body.inmini.m-compact .tools,body.inmini.m-compact #actbar,
-body.inmini.m-button .pane,body.inmini.m-button .steps,body.inmini.m-button .tools,body.inmini.m-button #actbar,
-body.inmini.m-button #undoBtn,body.inmini.m-button #redoBtn,body.inmini.m-button #clearBtn2,body.inmini.m-button #editBtn{display:none!important}
-body.inmini.m-compact .app{grid-template-rows:auto minmax(0,1fr);grid-template-areas:"quick" "out"}
-body.inmini.m-button .app{grid-template-rows:auto;grid-template-areas:"quick";align-content:start}
-body.inmini.m-button .quick{gap:4px}
-body.inmini.m-button .quickgo{min-height:50px}
 /* свёрнуто: только полоска с названием и кнопкой «развернуть» */
 body.inmini.m-fold .app,body.inmini.m-fold #actbar,body.inmini.m-fold #toast,body.inmini.m-fold .hdr-btns>:not(#foldBtn){display:none!important}
 body.inmini.m-fold .bar h1{font-size:15px;-webkit-line-clamp:1}
-/* в мини-окне вкладки — снизу, над кнопками «Вставить / Копировать»: при смене раздела они остаются на месте, и колесом мыши можно листать разделы подряд */
+/* в мини-окне вкладки — снизу, над кнопками «Вставить / Копировать» */
 body.inmini .tools{flex-direction:column-reverse}
 body.inmini .ttabs{border-top:0;border-bottom:1px solid var(--line);border-radius:0 0 14px 14px;padding:0 4px 4px}
 body.inmini .ttab,body.inmini .ttabmenu{border-radius:0 0 10px 10px}
 body.inmini .tgroup{border-radius:14px 14px 0 0}
-body.inmini.m-button .quickmsg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body.inmini.m-button #toast{display:none}   /* в маленьком окне надпись закрыла бы кнопку — итог пишется под кнопкой */
+/* вкладки листаются полосой прокрутки (колесо мыши — только по командам внутри вкладки); на телефоне полосы нет */
+@media (max-width:899px) and (hover:hover) and (pointer:fine){.ttabs{scrollbar-width:thin;scrollbar-color:var(--muted) transparent}}
 #miniNote{max-width:560px;margin:0 auto;padding:0 16px 40px;text-align:center}
 #miniNote .bar{justify-content:center}
 #miniNote p{font-size:17px;margin:40px 0 20px}
@@ -813,7 +809,7 @@ body.modal-lock{overflow:hidden}
 (() => {
 'use strict';
 
-const APP_VERSION = '2026-11-22.3';
+const APP_VERSION = '2026-11-28.1';
 const KEY = 'text-tools-v1';          // единственный ключ хранилища этого приложения
 // DOC/WIN — документ и окно, где сейчас показан интерфейс: основное окно или мини-окно поверх всех окон.
 // После переноса в мини-окно элементы живут в его документе, поэтому интерфейс обращается к DOC/WIN, а не к document/window.
@@ -2552,10 +2548,18 @@ function deanonymize(t, map) {
 
 /* ---------- данные (только в этом браузере) ---------- */
 const DEC_FOLD = ['Library', 'PDF_DXF', 'Документация', 'Повідомлення'], DEC_DOCS = ['{N} ВМ', 'Відомість матеріалів', '{N} ВП', 'Відомість покупних виробів', 'Акт на {И}'];
+// размеры мини-окна: три режима с одинаковым интерфейсом; какие участвуют в переключении и их размеры — в настройках
+const miniDefaults = () => ({ big: { w: 560, h: 900, on: true }, full: { w: 460, h: 760, on: true }, small: { w: 380, h: 600, on: true } });
+function miniSizesFrom(x) {
+  const d = miniDefaults();
+  if (x && typeof x === 'object') Object.keys(d).forEach(k => { const v = x[k]; if (v && isFinite(v.w) && isFinite(v.h)) d[k] = { w: Math.round(Math.max(300, Math.min(1600, v.w))), h: Math.round(Math.max(200, Math.min(1600, v.h))), on: v.on !== false }; });
+  if (!Object.values(d).some(v => v.on)) d.full.on = true;
+  return d;
+}
 const TABS = ['freq', 'layout', 'case', 'clean', 'replace', 'num', 'translit', 'sym', 'lines', 'cols', 'extract', 'anon', 'format', 'dates', 'phone', 'fname', 'dec', 'presets'];
 const DEF = () => ({ text: '', steps: [], prot: { on: true, list: '', digits: true, abbr: true },
   fr: { find: '', repl: '', cs: false, ww: false, re: false }, theme: 'auto', tab: 'layout',
-  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', mini: 'full', quick: 'layout:auto', quickCmds: ['layout:auto'], quickFreq: true, dec: { v: '', n: 10, step: 1, sk: false, extra: true, fold: DEC_FOLD.slice(), docs: DEC_DOCS.slice() }, hl: false, joinSep: ', ', splitSep: ',', wsep: '_', colSpec: '', colSep: 'auto', exUniq: true },
+  ui: { symCat: 0, toasts: 'all', order: TABS.slice(), hidden: [], hiddenCmd: [], numOpen: true, paste: 'ask', clearAsk: true, deskTabs: false, deskLayout: 'rows', deskWidth: 1240, collapsed: [], affix: { pre: '', suf: '' }, fname: { tpl: '{n:3}_{text}.dxf', start: 1, us: false }, histOn: true, diffMode: 'words', freq: {}, filter: { q: '', keep: true, cs: false, re: false }, cmp: { byCol: false, col: 1, ci: true }, anonOpt: { fio: true, tel: true, email: true, acc: true, code: true }, anonWords: '', dateWhich: 'today', dateCustom: '', dateTpls: [], calLang: 'ru', mini: 'full', miniSizes: miniDefaults(), quickOn: false, quick: 'layout:auto', quickCmds: ['layout:auto'], quickFreq: true, dec: { v: '', n: 10, step: 1, sk: false, extra: true, fold: DEC_FOLD.slice(), docs: DEC_DOCS.slice() }, hl: false, joinSep: ', ', splitSep: ',', wsep: '_', colSpec: '', colSep: 'auto', exUniq: true },
   sets: [], presets: [], hist: [], anonMap: {}, num: { m: 'card', l: 'ru', c: 'nom', g: 'm', cur: 'UAH', br: false } });
 const fixOrder = o => { const a = Array.isArray(o) ? o.filter(x => TABS.includes(x)) : []; TABS.forEach(x => { if (!a.includes(x)) { if (x === 'freq') a.unshift(x); else a.push(x); } }); return [...new Set(a)]; };
 const STEP_TYPES = ['layout', 'case', 'clean', 'replace', 'num', 'translit', 'lines', 'typo', 'date', 'nfmt', 'rules', 'phone', 'cols', 'extract', 'fio', 'dim', 'numw', 'fix', 'roman', 'anon'];
@@ -2583,7 +2587,7 @@ function load() {
             filter: { q: String((u.filter || {}).q || ''), keep: (u.filter || {}).keep !== false, cs: !!(u.filter || {}).cs, re: !!(u.filter || {}).re },
             cmp: { byCol: !!(u.cmp || {}).byCol, col: Math.max(1, +(u.cmp || {}).col || 1), ci: (u.cmp || {}).ci !== false },
             anonOpt: Object.fromEntries(['fio', 'tel', 'email', 'acc', 'code'].map(k => [k, (u.anonOpt || {})[k] !== false])), anonWords: typeof u.anonWords === 'string' ? u.anonWords : '',
-            dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '', calLang: u.calLang === 'ua' ? 'ua' : 'ru', mini: ['full', 'compact', 'button'].includes(u.mini) ? u.mini : 'full', quick: typeof u.quick === 'string' ? u.quick : 'layout:auto',
+            dateWhich: ['today', 'yest', 'tom', 'custom'].includes(u.dateWhich) ? u.dateWhich : 'today', dateCustom: typeof u.dateCustom === 'string' ? u.dateCustom : '', calLang: u.calLang === 'ua' ? 'ua' : 'ru', mini: ['big', 'full', 'small'].includes(u.mini) ? u.mini : 'full', miniSizes: miniSizesFrom(u.miniSizes), quickOn: !!u.quickOn, quick: typeof u.quick === 'string' ? u.quick : 'layout:auto',
             quickCmds: Array.isArray(u.quickCmds) ? u.quickCmds.filter(x => typeof x === 'string').slice(0, 40) : ['layout:auto'], quickFreq: u.quickFreq !== false,
             dec: (() => { const x = u.dec || {}; return { v: typeof x.v === 'string' ? x.v : '', n: Math.max(1, Math.min(99, +x.n || 10)), step: x.step === 10 ? 10 : 1, sk: !!x.sk, extra: x.extra !== false,
               fold: Array.isArray(x.fold) ? x.fold.filter(y => typeof y === 'string').slice(0, 40) : DEC_FOLD.slice(), docs: Array.isArray(x.docs) && x.docs.join('|') !== '{N} ВМ|{N} ВП|Акт на {И}' ? x.docs.filter(y => typeof y === 'string').slice(0, 40) : DEC_DOCS.slice() }; })(),
@@ -3187,20 +3191,6 @@ DOC.querySelectorAll('#tools .tbtns, #tools .srow').forEach(el => el.addEventLis
   const before = el.scrollLeft; el.scrollLeft += e.deltaY;
   if (el.scrollLeft !== before) e.preventDefault();
 }, { passive: false }));
-// колесо мыши над вкладками — следующий / предыдущий раздел команд (когда вкладки в одну строку: мини-окно, узкое окно)
-let wheelAcc = 0, wheelT = 0;
-$('#tools .ttabs').addEventListener('wheel', e => {
-  if ($('#tools').classList.contains('tabbed')) return;
-  e.preventDefault();
-  const d = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-  if (Date.now() - wheelT > 400) wheelAcc = 0;
-  wheelT = Date.now(); wheelAcc += e.deltaMode ? d * 40 : d;
-  if (Math.abs(wheelAcc) < 50) return;               // одна «щёлка» колеса — один раздел
-  const dir = Math.sign(wheelAcc); wheelAcc = 0;
-  const tabs = [...DOC.querySelectorAll('.ttab')].filter(t => !t.hidden), i = tabs.findIndex(t => t.dataset.g === state.tab);
-  const nx = tabs[Math.max(0, Math.min(tabs.length - 1, i + dir))];
-  if (nx && nx.dataset.g !== state.tab) { showTab(nx.dataset.g); nx.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
-}, { passive: false });
 narrow.addEventListener('change', applyDeskTabs);
 function showTab(g) {
   state.tab = g;
@@ -3519,6 +3509,25 @@ function settingsSheet() {
           })(),
           h('p', { class: 'msg', text: 'Шире — больше кнопок в ряд. Ползунок до упора вправо — во всю ширину окна. Действует только на этом компьютере.' })
         )]),
+        ...(miniOk() ? [grp('mini', 'Мини-окно поверх всех окон',
+          h('p', { class: 'msg', text: 'Размеры окна в пикселях. Кнопка размера в шапке мини-окна переключает по кругу отмеченные; Ctrl+↑ / Ctrl+↓ — больше / меньше. Интерфейс во всех размерах одинаковый.' }),
+          ...MINI_ORDER.map(k => {
+            const z = state.ui.miniSizes[k];
+            const cb = h('input', { type: 'checkbox' }); cb.checked = z.on;
+            const num = (key, min) => { const i = h('input', { class: 'field', type: 'number', min: String(min), max: '1600', step: '10', value: String(z[key]), style: 'width:84px;padding:6px 8px', 'aria-label': (key === 'w' ? 'Ширина' : 'Высота') + ' — ' + MINI_NAMES[k] });
+              i.addEventListener('change', () => { const v = Math.round(Math.max(min, Math.min(1600, +i.value || z[key]))); i.value = String(v); z[key] = v; save(); if (pip && state.ui.mini === k && !miniFolded) setMiniMode(k, true); });
+              return i; };
+            cb.addEventListener('change', () => {
+              if (!cb.checked && miniOn().length <= 1) { cb.checked = true; toast('Хотя бы один размер должен остаться', 'warn'); return; }
+              z.on = cb.checked; save(); if (pip && !miniFolded && !miniOn().includes(state.ui.mini)) setMiniMode(state.ui.mini, true);
+            });
+            return h('div', { class: 'orow msize' }, h('label', { class: 'chk', style: 'flex:1;min-height:40px' }, cb, h('span', { text: MINI_NAMES[k][0].toUpperCase() + MINI_NAMES[k].slice(1) })),
+              num('w', 300), h('span', { text: '×' }), num('h', 200));
+          }),
+          h('div', { class: 'thm', style: 'margin-top:6px' }, btn('Как было', () => { state.ui.miniSizes = miniDefaults(); save(); draw(); if (pip && !miniFolded) setMiniMode(state.ui.mini, true); })),
+          (() => { const c = h('input', { type: 'checkbox' }); c.checked = !!state.ui.quickOn;
+            c.addEventListener('change', () => { state.ui.quickOn = c.checked; save(); if (pip) setMiniMode(miniFolded ? 'fold' : state.ui.mini, false); });
+            return h('label', { class: 'chk', style: 'margin-top:8px' }, c, h('span', { text: 'Одна кнопка вверху мини-окна: текст из буфера → команда → обратно в буфер' })); })())] : []),
         grp('paste', 'Вставка и очистка',
           h('div', { class: 'uilbl', text: '«Вставить», когда в поле уже есть текст' }),
           h('div', { class: 'thm' }, [['ask', 'Спрашивать'], ['replace', 'Заменять'], ['add', 'Добавлять']].map(([k, n]) =>
@@ -4550,35 +4559,38 @@ function pipHost() {
 }
 const miniOk = () => !!pipHost();
 // Режимы: размер выставляется точно по нажатию (мышью Chrome всё равно даёт тянуть границы — кнопка режима вернёт точный размер)
-const MINI = { full: { w: 460, h: 760, n: 'обычное' }, compact: { w: 420, h: 380, n: 'компактное' }, button: { w: 380, h: 176, n: 'одна кнопка' },
-  fold: { w: 300, h: 60, n: 'свёрнуто' } };   // свёрнуто — не в круге режимов, кнопка «–» / «+»
-const MINI_ORDER = ['full', 'compact', 'button'];
+const MINI_NAMES = { big: 'большое', full: 'обычное', small: 'маленькое', fold: 'свёрнуто' };
+const MINI_ORDER = ['big', 'full', 'small'];                         // от большего к меньшему
+const miniSize = m => (m === 'fold' ? { w: 300, h: 60 } : state.ui.miniSizes[m]);   // свёрнуто — не в круге режимов, кнопка «–» / «+»
+const miniOn = () => MINI_ORDER.filter(k => state.ui.miniSizes[k].on);
 function relayoutMini() {
   NARROW_CB.forEach(f => { try { f(); } catch (e) { /* не мешает остальным */ } });
   applyTheme(); updTop();
   if (!marksBox.hidden) placeMarks();
 }
 function setMiniMode(m, resize) {
-  if (!MINI[m]) m = 'full';
+  if (m !== 'fold' && !miniOn().includes(m)) m = miniOn().includes('full') ? 'full' : miniOn()[0];
   if (m === 'fold') { if (miniFolded) return; miniFolded = true; }
   else { miniFolded = false; if (state.ui.mini !== m) { state.ui.mini = m; save(); } }
   if (!pip) return;
   [...MINI_ORDER, 'fold'].forEach(k => pip.document.body.classList.toggle('m-' + k, k === m));
+  pip.document.body.classList.toggle('qon', !!state.ui.quickOn);
   const fb = $('#foldBtn'); fb.textContent = m === 'fold' ? '+' : '–';
   fb.title = m === 'fold' ? 'Развернуть (Ctrl+↑)' : 'Свернуть до полоски с названием';
-  $('#sizeBtn').title = 'Размер мини-окна: ' + MINI[m].n + ' (Ctrl+↑ / Ctrl+↓)';
+  $('#sizeBtn').title = 'Размер мини-окна: ' + MINI_NAMES[m] + ' (Ctrl+↑ / Ctrl+↓)';
   if (resize) {
     // resizeTo работает только по действию пользователя (нажатие кнопки или клавиш)
-    try { pip.resizeTo(MINI[m].w + (pip.outerWidth - pip.innerWidth), MINI[m].h + (pip.outerHeight - pip.innerHeight)); } catch (e) { /* размер останется прежним */ }
+    const z = miniSize(m);
+    try { pip.resizeTo(z.w + (pip.outerWidth - pip.innerWidth), z.h + (pip.outerHeight - pip.innerHeight)); } catch (e) { /* размер останется прежним */ }
   }
   relayoutMini();
 }
 let miniFolded = false;
 function stepMini(dir) {   // +1 — меньше, -1 — больше; после самого маленького — свернуть, из свёрнутого — развернуть
   if (miniFolded) { if (dir < 0) setMiniMode(state.ui.mini, true); return; }
-  const i = MINI_ORDER.indexOf(state.ui.mini);
-  if (dir > 0 && i === MINI_ORDER.length - 1) { setMiniMode('fold', true); return; }
-  setMiniMode(MINI_ORDER[Math.max(0, Math.min(MINI_ORDER.length - 1, i + dir))], true);
+  const on = miniOn(), i = on.indexOf(state.ui.mini);
+  if (dir > 0 && i >= on.length - 1) { setMiniMode('fold', true); return; }
+  setMiniMode(on[Math.max(0, Math.min(on.length - 1, i + dir))], true);
 }
 const foldMini = () => setMiniMode(miniFolded ? state.ui.mini : 'fold', true);
 function miniFail(e) {
@@ -4598,7 +4610,7 @@ async function openMini() {
   if (pip) { pip.close(); return; }                       // уже открыто — вернуть интерфейс сюда
   const host = pipHost();
   if (!host) { miniFail(null); return; }
-  const mm0 = MINI[state.ui.mini] || MINI.full;
+  const mm0 = miniSize(miniOn().includes(state.ui.mini) ? state.ui.mini : miniOn()[0]);
   let w;
   try { w = await host.documentPictureInPicture.requestWindow({ width: mm0.w, height: mm0.h }); }
   catch (e) { miniFail(e); return; }
@@ -4628,12 +4640,12 @@ async function openMini() {
     relayoutMini();
   });
   setMiniMode(state.ui.mini, false);
-  const go = $('#quickGo'); if (go) go.focus();
+  if (state.ui.quickOn) $('#quickGo').focus();
 }
 window.addEventListener('pagehide', () => { if (pip) pip.close(); });   // приложение закрывают — мини-окно тоже
 $('#miniBtn').addEventListener('click', openMini);
-$('#sizeBtn').addEventListener('click', () => {   // по кругу: обычное → компактное → одна кнопка → обычное
-  const i = MINI_ORDER.indexOf(state.ui.mini); setMiniMode(MINI_ORDER[(i + 1) % MINI_ORDER.length], true);
+$('#sizeBtn').addEventListener('click', () => {   // по кругу среди отмеченных в настройках: большое → обычное → маленькое → большое
+  const on = miniOn(), i = on.indexOf(state.ui.mini); setMiniMode(on[(i + 1) % on.length], true);
 });
 $('#foldBtn').addEventListener('click', foldMini);
 $('#miniBtn').hidden = !miniOk();
@@ -4643,7 +4655,7 @@ docOn('keydown', e => {
   if (pip && mod && (e.key === 'ArrowDown' || e.key === 'ArrowUp') && !stack.length) { e.preventDefault(); stepMini(e.key === 'ArrowDown' ? 1 : -1); }
 });
 
-/* ---------- одна кнопка: вставить из буфера → обработать → скопировать (видна в мини-окне) ---------- */
+/* ---------- одна кнопка: вставить из буфера → обработать → скопировать (в мини-окне, если включена в настройках) ---------- */
 // Список для кнопки: свои команды (добавляются через ✎) + «★ Частые» (собираются сами) + текущие шаги
 function quickList() {
   const all = new Map(allCommands().map(c => [c.id, c])), seen = new Set(), L = [];

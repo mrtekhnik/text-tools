@@ -121,18 +121,49 @@ const stepLabels = page => page.$$eval('#steps .step', ns => ns.map(n => n.first
   eq('мини: команды работают', await mw.inputValue('#out'), 'УЖЕ ЧИСТЫЙ ТЕКСТ');
   await mw.click('#src'); await mw.keyboard.press('Control+z');
   eq('мини: Ctrl+Z', await mw.inputValue('#out'), 'уже чистый текст');
-  // колесо мыши над вкладками — следующий / предыдущий раздел
+  // колесо мыши — только по командам внутри вкладки; вкладки — полосой прокрутки
   await mw.hover('.ttab[data-g="case"]');
-  await mw.mouse.wheel(0, 100); await mw.waitForTimeout(50);
-  eq('мини: колесо вниз — следующий раздел', await mw.$eval('.ttab.on', n => n.dataset.g), 'clean');
-  await mw.waitForTimeout(450); await mw.mouse.wheel(0, -100); await mw.waitForTimeout(50);
-  eq('мини: колесо вверх — предыдущий раздел', await mw.$eval('.ttab.on', n => n.dataset.g), 'case');
+  await mw.mouse.wheel(0, 100); await mw.waitForTimeout(80);
+  eq('мини: колесо над вкладками раздел не меняет', await mw.$eval('.ttab.on', n => n.dataset.g), 'case');
+  eq('мини: у вкладок есть полоса прокрутки', await mw.$eval('.ttabs', n => [getComputedStyle(n).scrollbarWidth, n.scrollWidth > n.clientWidth]), ['thin', true]);
+  await mw.click('.ttab[data-g="clean"]');
+  const row = '.tgroup.on .tbtns';
+  await mw.hover(row + ' .tb >> nth=0');
+  const left0 = await mw.$eval(row, n => n.scrollLeft);
+  await mw.mouse.wheel(0, 120); await mw.waitForTimeout(80);
+  eq('мини: колесо листает команды внутри вкладки', [await mw.$eval(row, n => n.scrollLeft) > left0, await mw.$eval('.ttab.on', n => n.dataset.g)], [true, 'clean']);
   await mw.screenshot({path: OUT + '/mini-1-full.png'});
-  // компактный: одна кнопка «буфер → действие → буфер», выбор действия, результат
+  // размеры: большое → обычное → маленькое, интерфейс везде одинаковый
+  await mw.keyboard.press('Control+ArrowUp');
+  eq('мини: Ctrl+↑ — большое', await mw.evaluate(() => document.body.classList.contains('m-big')), true);
+  await mw.setViewportSize({width: 560, height: 900});
+  eq('мини: большое — весь интерфейс', [await mw.isVisible('#src'), await mw.isVisible('#out'), await mw.isVisible('#tools'), await mw.isVisible('#actbar')], [true, true, true, true]);
+  await mw.keyboard.press('Control+ArrowDown'); await mw.keyboard.press('Control+ArrowDown');
+  eq('мини: Ctrl+↓ ×2 — маленькое', await mw.evaluate(() => document.body.classList.contains('m-small')), true);
+  await mw.setViewportSize({width: 380, height: 600});
+  eq('мини: маленькое — весь интерфейс', [await mw.isVisible('#src'), await mw.isVisible('#out'), await mw.isVisible('#tools'), await mw.isVisible('#actbar'), await mw.isVisible('header h1')], [true, true, true, true, true]);
+  eq('мини: маленькое — название приложения помещается целиком', await mw.$eval('header h1', n => n.scrollWidth <= n.clientWidth + 1 && n.scrollHeight <= n.clientHeight + 1), true);
+  await mw.screenshot({path: OUT + '/mini-2-small.png'});
   await mw.click('#sizeBtn');
-  eq('мини: компактный режим', await mw.evaluate(() => document.body.classList.contains('m-compact')), true);
-  await mw.setViewportSize({width: 420, height: 380});
-  eq('мини: компактный — кнопка, выбор и результат видны, поле текста скрыто', [await mw.isVisible('#quickGo'), await mw.isVisible('#quickAct'), await mw.isVisible('#out'), await mw.isVisible('#src')], [true, true, true, false]);
+  eq('мини: кнопка размера по кругу — после маленького большое', await mw.evaluate(() => document.body.classList.contains('m-big')), true);
+  // настройки: какие размеры показывать и их размеры
+  await mw.click('#menuBtn'); await mw.click('.sheet .btn >> text=Оформление и настройки…');
+  if (!(await mw.isVisible('.msize'))) await mw.click('.sheet summary >> text=Мини-окно поверх всех окон');
+  eq('мини: в настройках три размера', await mw.$$eval('.msize', ns => ns.map(n => n.textContent.replace(/\s+/g, ' ').trim())), ['Большое×', 'Обычное×', 'Маленькое×']);
+  await mw.click('.msize >> nth=0 >> input[type=checkbox]');
+  eq('мини: выключили большое — окно стало обычным', await mw.evaluate(() => document.body.classList.contains('m-full')), true);
+  await mw.fill('.msize >> nth=2 >> input[type=number] >> nth=0', '400'); await mw.press('.msize >> nth=2 >> input[type=number] >> nth=0', 'Tab');
+  await mw.click('.msize >> nth=1 >> input[type=checkbox]'); await mw.click('.msize >> nth=2 >> input[type=checkbox]');
+  eq('мини: последний размер выключить нельзя', await mw.$$eval('.msize input[type=checkbox]', ns => ns.map(n => n.checked)), [false, false, true]);
+  await mw.click('.msize >> nth=1 >> input[type=checkbox]');
+  await mw.waitForTimeout(700);
+  eq('мини: настройки размеров сохранены', await m.evaluate(() => { const z = JSON.parse(localStorage.getItem('text-tools-v1')).ui.miniSizes; return [z.big.on, z.full.on, z.small.on, z.small.w]; }), [false, true, true, 400]);
+  // одна кнопка — по желанию, вверху того же интерфейса
+  await mw.click('.sheet label >> text=Одна кнопка вверху мини-окна');
+  await mw.keyboard.press('Escape');
+  await mw.click('#sizeBtn'); await mw.click('#sizeBtn');
+  eq('мини: выключили обычное — окно стало маленьким; по кругу только отмеченные', await mw.evaluate(() => document.body.classList.contains('m-small')), true);
+  eq('мини: одна кнопка включена — вверху, остальное на месте', [await mw.isVisible('#quickGo'), await mw.isVisible('#quickAct'), await mw.isVisible('#src'), await mw.isVisible('#tools')], [true, true, true, true]);
   eq('мини: подпись к выбору', await mw.textContent('.quickrow label'), 'Кнопка делает:');
   await mw.evaluate(() => navigator.clipboard.writeText('ghbdtn? rfr ltkf'));
   await mw.click('#quickGo'); await mw.waitForFunction(() => document.querySelector('#quickMsg').textContent);
@@ -172,33 +203,27 @@ const stepLabels = page => page.$$eval('#steps .step', ns => ns.map(n => n.first
   await mw.click('.sheet .btn >> text=Готово');
   eq('мини: команда убрана', (await groupsOf())[0][1], ['layout:auto', 'fix:md']);
   await mw.selectOption('#quickAct', 'layout:auto');
-  await mw.screenshot({path: OUT + '/mini-2-compact.png'});
-  await mw.click('#sizeBtn');
-  eq('мини: одна кнопка', await mw.evaluate(() => document.body.classList.contains('m-button')), true);
-  await mw.setViewportSize({width: 380, height: 176});
-  eq('мини: одна кнопка — видны название, кнопка и выбор', [await mw.isVisible('header h1'), await mw.isVisible('#quickGo'), await mw.isVisible('#quickAct'), await mw.isVisible('#out')], [true, true, true, false]);
-  eq('мини: одна кнопка — всё помещается', await mw.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1), true);
-  await mw.screenshot({path: OUT + '/mini-3-button.png'});
-  await mw.keyboard.press('Control+ArrowUp');
-  eq('мини: Ctrl+↑ — больше', await mw.evaluate(() => document.body.classList.contains('m-compact')), true);
-  await mw.keyboard.press('Control+ArrowDown');
-  eq('мини: Ctrl+↓ — меньше', await mw.evaluate(() => document.body.classList.contains('m-button')), true);
+  await mw.screenshot({path: OUT + '/mini-3-quick.png'});
   // свернуть до полоски с названием и развернуть
+  await mw.click('#sizeBtn');
+  eq('мини: кнопка размера — обычное', await mw.evaluate(() => document.body.classList.contains('m-full')), true);
+  await mw.keyboard.press('Control+ArrowDown');
+  eq('мини: Ctrl+↓ — маленькое', await mw.evaluate(() => document.body.classList.contains('m-small')), true);
   await mw.keyboard.press('Control+ArrowDown');
   await mw.setViewportSize({width: 300, height: 60});
   eq('мини: свёрнуто — видны только название и «+»', [await mw.evaluate(() => document.body.classList.contains('m-fold')), await mw.isVisible('header h1'), await mw.isVisible('#foldBtn'),
     await mw.isVisible('#quickGo'), await mw.isVisible('#menuBtn'), await mw.textContent('#foldBtn')], [true, true, true, false, false, '+']);
   await mw.screenshot({path: OUT + '/mini-5-fold.png'});
   await mw.click('#foldBtn');
-  eq('мини: развернули — прежний режим', await mw.evaluate(() => document.body.classList.contains('m-button')), true);
+  eq('мини: развернули — прежний размер', await mw.evaluate(() => document.body.classList.contains('m-small')), true);
   await mw.click('#foldBtn');
   eq('мини: кнопка «–» сворачивает', await mw.evaluate(() => document.body.classList.contains('m-fold')), true);
   await mw.keyboard.press('Control+ArrowUp');
-  eq('мини: Ctrl+↑ разворачивает', await mw.evaluate(() => document.body.classList.contains('m-button')), true);
+  eq('мини: Ctrl+↑ разворачивает', await mw.evaluate(() => document.body.classList.contains('m-small')), true);
   await mw.waitForTimeout(700);
-  eq('мини: режим запомнен (не «свёрнуто»)', await m.evaluate(() => JSON.parse(localStorage.getItem('text-tools-v1')).ui.mini), 'button');
+  eq('мини: режим запомнен (не «свёрнуто»)', await m.evaluate(() => JSON.parse(localStorage.getItem('text-tools-v1')).ui.mini), 'small');
   await mw.click('#sizeBtn');
-  eq('мини: по кругу — снова обычный', await mw.evaluate(() => document.body.classList.contains('m-full')), true);
+  eq('мини: по кругу — обычное', await mw.evaluate(() => document.body.classList.contains('m-full')), true);
   // Ctrl+M в мини-окне — вернуть (окно закрывается во время нажатия)
   await mw.keyboard.press('Control+m').catch(() => {});
   await m.waitForSelector('#src');
@@ -244,7 +269,9 @@ const stepLabels = page => page.$$eval('#steps .step', ns => ns.map(n => n.first
     await host.frames()[1].evaluate(() => { const s = document.querySelector('#src'); s.value = 'Текст во врезке'; s.dispatchEvent(new Event('input')); });
     const [fw] = await Promise.all([host.waitForEvent('popup'), fr.locator('#miniBtn').click()]);
     await fw.waitForSelector('#tools .ttab');
-    await fw.click('#sizeBtn');   // компактный режим — с одной кнопкой
+    await fw.click('#menuBtn'); await fw.click('.sheet .btn >> text=Оформление и настройки…');
+    if (!(await fw.isVisible('.sheet label >> text=Одна кнопка вверху мини-окна'))) await fw.click('.sheet summary >> text=Мини-окно поверх всех окон');
+    await fw.click('.sheet label >> text=Одна кнопка вверху мини-окна'); await fw.keyboard.press('Escape');
     eq('врезка: мини-окно запрошено у лаунчера', await host.evaluate(() => window.__pipFrom), 'лаунчер');
     eq('врезка: текст в мини-окне', await fw.inputValue('#src'), 'Текст во врезке');
     eq('врезка: надпись во врезке', (await fr.locator('#miniNote p').textContent()), 'Открыто в мини-окне поверх всех окон');
